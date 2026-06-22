@@ -1,0 +1,22 @@
+{
+  "name": "reading-social-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend API for a student reading social platform",
+  "main": "backend/server.js",
+  "scripts": {
+    "dev": "node --watch backend/server.js",
+    "start": "node backend/server.js",
+    "db:init": "node backend/database/init.js",
+    "db:seed": "node backend/database/seed.js",
+    "check": "node --check backend/server.js && node --check backend/database/seed.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0"
+  }
+}
