@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
 
@@ -17,16 +18,47 @@ function getJoinedClubs() {
 }
 
 function Profile() {
+  const navigate = useNavigate();
+  const { user, isLoggedIn, loading } = useAuth();
+
+  if (loading) {
+    return <p>Loading profile...</p>;
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <section className="home-page profile-page" aria-label="Personal profile">
+        <header className="profile-hero">
+          <div className="profile-photo" aria-hidden="true">?</div>
+          <div>
+            <p className="eyebrow">Personal Profile</p>
+            <h1>Your Reading Journal</h1>
+            <p>Log in to see your shelves, notes, clubs, and reading progress.</p>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => navigate("/login")}
+            >
+              Log in / Sign up
+            </button>
+          </div>
+        </header>
+      </section>
+    );
+  }
+
   const joinedClubs = getJoinedClubs();
 
   return (
     <section className="home-page profile-page" aria-label="Personal profile">
       <header className="profile-hero">
-        <div className="profile-photo" aria-hidden="true">Y</div>
+        <div className="profile-photo" aria-hidden="true">
+          {user?.email?.slice(0, 1).toUpperCase() || "Y"}
+        </div>
         <div>
           <p className="eyebrow">Personal Profile</p>
           <h1>Your Reading Journal</h1>
-          <p>Current shelves, quiet notes, and the clubs you have joined.</p>
+          <p>{user?.email}</p>
         </div>
       </header>
 

@@ -1,4 +1,7 @@
-import { NavLink } from "react-router-dom";
+
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { requireSupabase } from "../lib/supabase";
 
 const navItems = [
   { to: "/", label: "Home" },
@@ -8,13 +11,22 @@ const navItems = [
 ];
 
 function Navbar() {
+  const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
+
+  async function handleLogout() {
+    const supabase = requireSupabase();
+    await supabase.auth.signOut();
+    navigate("/");
+  }
+
   return (
     <nav className="site-nav" aria-label="Primary navigation">
       <NavLink className="nav-brand" to="/">
         <span className="brand-mark" aria-hidden="true">L</span>
         <span className="brand-copy">
           <strong>LitShelf</strong>
-          <small>Columbia Reading Social</small>
+          <small>Tsinglan Reading Social</small>
         </span>
       </NavLink>
 
@@ -32,9 +44,15 @@ function Navbar() {
         ))}
       </div>
 
-      <NavLink className="nav-login" to="/login">
-        Sign in
-      </NavLink>
+      {isLoggedIn ? (
+        <button className="nav-login" type="button" onClick={handleLogout}>
+          Log out
+        </button>
+      ) : (
+        <NavLink className="nav-login" to="/login">
+          Sign in
+        </NavLink>
+      )}
     </nav>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import editorialImage from "../assets/reading-room-editorial.png";
 import { bookDatabasePreview, editorPicks } from "../data/books";
+import { useRequireLogin } from "../hooks/useRequireLogin";
 
 const DISCOVERY_STORAGE_KEY = "litshelf-discovery-state-v1";
 
@@ -29,6 +30,7 @@ function getInitialDiscoveryState() {
 }
 
 function Discover() {
+  const { requireLogin } = useRequireLogin();
   const [initialDiscoveryState] = useState(getInitialDiscoveryState);
   const [query, setQuery] = useState(initialDiscoveryState.query);
   const [progress, setProgress] = useState(initialDiscoveryState.progress);
@@ -94,7 +96,10 @@ function Discover() {
               min="0"
               max="100"
               value={progress}
-              onChange={(event) => setProgress(event.target.value)}
+              onChange={(event) => {
+              if (!requireLogin()) return;
+                setProgress(event.target.value);
+              }}
               aria-label="Reading progress"
             />
           </div>
@@ -122,6 +127,7 @@ function Discover() {
                     type="button"
                     key={book.isbn}
                     onClick={() => {
+                      if (!requireLogin()) return;
                       setQuery(book.title);
                       setTrackedBook(book);
                     }}
@@ -142,9 +148,16 @@ function Discover() {
             </div>
 
             <div className="progress-editor">
-              <button className="primary-button full" type="button">
-                Add to Shelf
-              </button>
+              <button
+            className="primary-button full"
+            type="button"
+           onClick={() => {
+          if (!requireLogin()) return;
+    // later: add selected book to Supabase shelf
+           }}
+>
+  Add to Shelf
+</button>
             </div>
           </div>
         </section>

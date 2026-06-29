@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { bookDatabasePreview } from "../data/books";
+import { useRequireLogin } from "../hooks/useRequireLogin";
 
 const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
 
@@ -160,6 +161,7 @@ function getInitialClubState() {
 }
 
 function BookClubs() {
+  const { requireLogin } = useRequireLogin();
   const navigate = useNavigate();
   const { clubId } = useParams();
   const [initialState] = useState(getInitialClubState);
@@ -216,6 +218,7 @@ function BookClubs() {
   }
 
   function joinClub(clubId) {
+    if (!requireLogin()) return;
     const nextJoinedIds = joinedIds.includes(clubId) ? joinedIds : [...joinedIds, clubId];
     const nextClubs = clubs.map((club) =>
       club.id === clubId && !joinedIds.includes(clubId)
@@ -234,6 +237,7 @@ function BookClubs() {
   }
 
   function quitClub(clubId) {
+     if (!requireLogin()) return;
     const nextJoinedIds = joinedIds.filter((joinedId) => joinedId !== clubId);
     const nextClubs = clubs.map((club) =>
       club.id === clubId && joinedIds.includes(clubId)
@@ -256,6 +260,7 @@ function BookClubs() {
   }
 
   function publishClubPost(event) {
+    if (!requireLogin()) return;
     event.preventDefault();
 
     if (!activeClub || !postDraft.trim()) {
@@ -282,7 +287,7 @@ function BookClubs() {
 
   function createClub(event) {
     event.preventDefault();
-
+    if (!requireLogin()) return;
     const selectedBook = previewBook;
     const creator = newClub.creator.trim() || "Anonymous Reader";
     const matchingTitleCount = clubs.filter((club) => club.bookTitle === selectedBook.title).length;
@@ -357,8 +362,15 @@ function BookClubs() {
                 </button>
               ))}
             </div>
-            <button className="primary-button" type="button" onClick={() => setIsCreateOpen(true)}>
-              Create Club
+            <button
+            className="primary-button"
+           type="button"
+          onClick={() => {
+          if (!requireLogin()) return;
+           setIsCreateOpen(true);
+         }}
+          >
+          Create Club
             </button>
           </section>
         </>

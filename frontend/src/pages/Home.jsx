@@ -1,34 +1,8 @@
 import { useEffect, useState } from "react";
 import { bookDatabasePreview } from "../data/books";
+import { useRequireLogin } from "../hooks/useRequireLogin";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
-
-function getInitialHomeState() {
-  const fallback = {
-    posts: feedItems.map((post) => ({
-      ...post,
-      liked: false,
-      draftComment: "",
-    })),
-  };
-
-  try {
-    const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
-
-    if (!savedState) {
-      return fallback;
-    }
-
-    return {
-      ...fallback,
-      ...savedState,
-      posts: Array.isArray(savedState.posts) ? savedState.posts : fallback.posts,
-    };
-  } catch {
-    return fallback;
-  }
-}
-
 const feedItems = [
   {
     id: 1,
@@ -108,6 +82,34 @@ const feedItems = [
   },
 ];
 
+function getInitialHomeState() {
+  const fallback = {
+    posts: feedItems.map((post) => ({
+      ...post,
+      liked: false,
+      draftComment: "",
+    })),
+  };
+
+  try {
+    const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+    if (!savedState) {
+      return fallback;
+    }
+
+    return {
+      ...fallback,
+      ...savedState,
+      posts: Array.isArray(savedState.posts) ? savedState.posts : fallback.posts,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+
+
 const shelfLinks = [
   {
     label: "Reading",
@@ -138,6 +140,7 @@ const gradeLeaderboard = [
 
 function Home() {
   const [initialHomeState] = useState(getInitialHomeState);
+  const { requireLogin } = useRequireLogin();
   const [posts, setPosts] = useState(initialHomeState.posts);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [composeDraft, setComposeDraft] = useState({
@@ -156,6 +159,7 @@ function Home() {
   }, [posts]);
 
   function toggleLike(postId) {
+  if (!requireLogin()) return;
     setPosts((currentPosts) =>
       currentPosts.map((post) =>
         post.id === postId
@@ -178,6 +182,7 @@ function Home() {
   }
 
   function addComment(postId) {
+    if (!requireLogin()) return;
     setPosts((currentPosts) =>
       currentPosts.map((post) => {
         if (post.id !== postId || !post.draftComment.trim()) {
@@ -194,6 +199,7 @@ function Home() {
   }
 
   function openComposer(bookTitle = composeDraft.bookTitle || bookDatabasePreview[0].title) {
+    if (!requireLogin()) return;
     setComposeDraft((draft) => ({ ...draft, bookTitle }));
     setIsComposerOpen(true);
   }
@@ -203,47 +209,52 @@ function Home() {
   }
 
   function publishNote(event) {
-    event.preventDefault();
+  event.preventDefault();
 
-    const selectedBook =
-      bookDatabasePreview.find((book) => book.title === composeDraft.bookTitle) ||
-      bookDatabasePreview[0];
-    const note = composeDraft.note.trim();
+  if (!requireLogin()) return;
 
-    if (!note) {
-      return;
-    }
+  const selectedBook =
+    bookDatabasePreview.find((book) => book.title === composeDraft.bookTitle) ||
+    bookDatabasePreview[0];
 
-    setPosts((currentPosts) => [
-      {
-        id: Date.now(),
-        student: "You",
-        year: "Reader",
-        action: "posted a note about",
-        book: selectedBook.title,
-        author: selectedBook.author,
-        time: "just now",
-        mood: composeDraft.tags.trim() || "new note",
-        place: "your shelf",
-        accent: "sea",
-        note,
-        rating: 0,
-        progress: 0,
-        shelf: selectedBook.shelf,
-        likes: 0,
-        comments: [],
-        liked: false,
-        draftComment: "",
-      },
-      ...currentPosts,
-    ]);
-    setComposeDraft({
-      bookTitle: selectedBook.title,
-      note: "",
-      tags: "",
-    });
-    setIsComposerOpen(false);
+  const note = composeDraft.note.trim();
+
+  if (!note) {
+    return;
   }
+
+  setPosts((currentPosts) => [
+    {
+      id: Date.now(),
+      student: "You",
+      year: "Reader",
+      action: "posted a note about",
+      book: selectedBook.title,
+      author: selectedBook.author,
+      time: "just now",
+      mood: composeDraft.tags.trim() || "new note",
+      place: "your shelf",
+      accent: "sea",
+      note,
+      rating: 0,
+      progress: 0,
+      shelf: selectedBook.shelf,
+      likes: 0,
+      comments: [],
+      liked: false,
+      draftComment: "",
+    },
+    ...currentPosts,
+  ]);
+
+  setComposeDraft({
+    bookTitle: selectedBook.title,
+    note: "",
+    tags: "",
+  });
+
+  setIsComposerOpen(false);
+}
 
   return (
     <div className="home-page">
@@ -308,7 +319,14 @@ function Home() {
             </div>
             <div className="shelf-link-list">
               {shelfLinks.map((shelf) => (
-                <button className={`shelf-link ${shelf.tone}`} type="button" key={shelf.label}>
+                <button
+  className={`shelf-link ${shelf.tone}`}
+  type="button"
+  key={shelf.label}
+  onClick={() => {
+    if (!requireLogin()) return;
+  }}
+>
                   <span className="cover-stack" aria-hidden="true">
                     <i />
                     <i />
