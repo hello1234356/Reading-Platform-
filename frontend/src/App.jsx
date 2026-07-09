@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Discover from "./pages/Discover";
 import BookClubs from "./pages/BookClubs";
+import RecommendationPost from "./pages/RecommendationPost";
 
 function DiscoverRoute() {
   const location = useLocation();
@@ -54,6 +55,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/discover" element={<DiscoverRoute />} />
+              <Route path="/discover/lists/:listSlug" element={<RecommendationPost />} />
               <Route path="/clubs" element={<BookClubs />} />
               <Route path="/clubs/:clubId" element={<BookClubs />} />
               <Route path="*" element={<Home />} />

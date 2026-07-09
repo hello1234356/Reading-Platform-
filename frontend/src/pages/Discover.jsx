@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { bookDatabasePreview, editorPicks } from "../data/books";
+import { recommendationLists } from "../data/recommendationLists";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 
 function getCoverUrl(isbn, size = "L") {
@@ -10,49 +11,6 @@ function getCoverUrl(isbn, size = "L") {
 function hideBrokenCover(event) {
   event.currentTarget.hidden = true;
 }
-
-const themedLists = [
-  {
-    title: "Books for Rainy Subway Windows",
-    kicker: "City Mood",
-    imageUrl:
-      "https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&w=900&q=80",
-    blurb:
-      "Novels and essays for when the train is loud, the glass is fogged, and you want a sentence to follow you home.",
-    count: 12,
-    tone: "mocha",
-  },
-  {
-    title: "If You Liked That A24 Movie",
-    kicker: "Film Shelf",
-    imageUrl:
-      "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=80",
-    blurb:
-      "Strange family dinners, soft dread, tender disasters, and books that feel like quiet scenes held too long.",
-    count: 9,
-    tone: "coral",
-  },
-  {
-    title: "One-Sitting Essays",
-    kicker: "Short Reads",
-    imageUrl:
-      "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&w=900&q=80",
-    blurb:
-      "For lunch breaks, study hall, and the twenty minutes before you pretend to sleep.",
-    count: 15,
-    tone: "sage",
-  },
-  {
-    title: "Beach Bag, But Make It Literary",
-    kicker: "Coastal",
-    imageUrl:
-      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80",
-    blurb:
-      "Books with salt air, complicated longing, and the exact feeling of carrying a paperback all summer.",
-    count: 10,
-    tone: "butter",
-  },
-];
 
 const readingQuizzes = [
   {
@@ -195,8 +153,12 @@ function Discover() {
               </div>
             </div>
             <div className="themed-list-grid">
-              {themedLists.map((list) => (
-                <article className={`themed-list-card ${list.tone}`} key={list.title}>
+              {recommendationLists.map((list) => (
+                <Link
+                  className={`themed-list-card ${list.tone}`}
+                  key={list.title}
+                  to={`/discover/lists/${list.slug}`}
+                >
                   <div className="themed-list-preview" aria-hidden="true">
                     <img src={list.imageUrl} alt="" loading="lazy" />
                   </div>
@@ -206,7 +168,7 @@ function Discover() {
                     <small>{list.blurb}</small>
                     <em>{list.count} books</em>
                   </div>
-                </article>
+                </Link>
               ))}
             </div>
           </section>
