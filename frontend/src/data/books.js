@@ -47,6 +47,7 @@ export const editorPicks = [
   {
     title: "The Goldfinch",
     author: "Donna Tartt",
+    isbn: "9780316055444",
     readers: 42,
     blurb:
       "A stolen painting, a lonely boy, and the long shadow of beauty, grief, and obsession.",
@@ -55,6 +56,7 @@ export const editorPicks = [
   {
     title: "Bluets",
     author: "Maggie Nelson",
+    isbn: "9781933517407",
     readers: 31,
     blurb:
       "Fragmented essays on color, desire, sadness, and the strange intimacy of noticing blue everywhere.",
@@ -63,6 +65,7 @@ export const editorPicks = [
   {
     title: "Giovanni's Room",
     author: "James Baldwin",
+    isbn: "9780345806567",
     readers: 28,
     blurb:
       "A precise, aching novel about love, shame, and the impossible rooms people build inside themselves.",

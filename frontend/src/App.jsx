@@ -1,5 +1,5 @@
 import { Component } from "react";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 
 import Home from "./pages/Home";
@@ -7,6 +7,12 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Discover from "./pages/Discover";
 import BookClubs from "./pages/BookClubs";
+
+function DiscoverRoute() {
+  const location = useLocation();
+
+  return <Discover key={location.search} />;
+}
 
 class AppErrorBoundary extends Component {
   constructor(props) {
@@ -47,7 +53,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/discover" element={<Discover />} />
+              <Route path="/discover" element={<DiscoverRoute />} />
               <Route path="/clubs" element={<BookClubs />} />
               <Route path="/clubs/:clubId" element={<BookClubs />} />
               <Route path="*" element={<Home />} />

@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
-import { requireSupabase } from "../lib/supabase";
+import { isSupabaseConfigured, supabase } from "../lib/supabase";
 
 export function useAuth() {
-  const [user, setUser] = useState(undefined);
+  const [user, setUser] = useState(isSupabaseConfigured ? undefined : null);
 
   useEffect(() => {
-    const supabase = requireSupabase();
+    if (!supabase) {
+      return undefined;
+    }
 
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
-    });
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        setUser(data.user);
+      })
+      .catch(() => {
+        setUser(null);
+      });
 
     const {
       data: { subscription },
