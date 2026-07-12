@@ -3,6 +3,30 @@ import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
+const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
+const defaultTrackedBook = {
+  title: "Bluets",
+  author: "Maggie Nelson",
+  isbn: "9781933517407",
+  pagesRead: 38,
+  totalPages: 112,
+  finished: false,
+};
+
+function getCoverUrl(isbn) {
+  return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
+}
+
+function saveProfileReview(review) {
+  try {
+    const savedReviews = JSON.parse(localStorage.getItem(PROFILE_REVIEWS_KEY));
+    const reviews = Array.isArray(savedReviews) ? savedReviews : [];
+    localStorage.setItem(PROFILE_REVIEWS_KEY, JSON.stringify([review, ...reviews]));
+  } catch {
+    localStorage.setItem(PROFILE_REVIEWS_KEY, JSON.stringify([review]));
+  }
+}
+
 const feedItems = [
   {
     id: 1,
@@ -89,6 +113,7 @@ function getInitialHomeState() {
       liked: false,
       draftComment: "",
     })),
+    trackedBook: defaultTrackedBook,
   };
 
   try {
@@ -102,6 +127,7 @@ function getInitialHomeState() {
       ...fallback,
       ...savedState,
       posts: Array.isArray(savedState.posts) ? savedState.posts : fallback.posts,
+      trackedBook: savedState.trackedBook || fallback.trackedBook,
     };
   } catch {
     return fallback;
@@ -140,9 +166,21 @@ const gradeLeaderboard = [
 
 function Home() {
   const [initialHomeState] = useState(getInitialHomeState);
-  const { requireLogin } = useRequireLogin();
+  const { requireLogin, isLoggedIn } = useRequireLogin();
   const [posts, setPosts] = useState(initialHomeState.posts);
+  const [trackedBook, setTrackedBook] = useState(initialHomeState.trackedBook);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [isLogBookOpen, setIsLogBookOpen] = useState(false);
+  const [isFinishReviewOpen, setIsFinishReviewOpen] = useState(false);
+  const [readingDraft, setReadingDraft] = useState({
+    bookTitle: initialHomeState.trackedBook.title,
+    totalPages: initialHomeState.trackedBook.totalPages,
+  });
+  const [finishReview, setFinishReview] = useState({
+    rating: 5,
+    review: "",
+    visibility: "public",
+  });
   const [composeDraft, setComposeDraft] = useState({
     bookTitle: bookDatabasePreview[0].title,
     note: "",
@@ -154,9 +192,10 @@ function Home() {
       STORAGE_KEY,
       JSON.stringify({
         posts,
+        trackedBook,
       }),
     );
-  }, [posts]);
+  }, [posts, trackedBook]);
 
   function toggleLike(postId) {
   if (!requireLogin()) return;
@@ -206,6 +245,128 @@ function Home() {
 
   function closeComposer() {
     setIsComposerOpen(false);
+  }
+
+  function logCurrentBook(event) {
+    event.preventDefault();
+    if (!requireLogin()) return;
+
+    const selectedBook =
+      bookDatabasePreview.find((book) => book.title === readingDraft.bookTitle) ||
+      bookDatabasePreview[0];
+
+    setTrackedBook({
+      title: selectedBook.title,
+      author: selectedBook.author,
+      isbn: selectedBook.isbn,
+      pagesRead: 0,
+      totalPages: Number(readingDraft.totalPages) || 1,
+      finished: false,
+    });
+    setIsLogBookOpen(false);
+  }
+
+  function updateTrackedPages(value) {
+    if (!requireLogin()) return;
+
+    const nextPages = Math.max(0, Math.min(Number(value) || 0, trackedBook.totalPages));
+    const shouldFinish = nextPages >= trackedBook.totalPages;
+
+    setTrackedBook((book) => ({
+      ...book,
+      pagesRead: nextPages,
+      finished: shouldFinish,
+    }));
+
+    if (shouldFinish && !trackedBook.finished) {
+      setIsFinishReviewOpen(true);
+    }
+  }
+
+  function finishTrackedBook() {
+    if (!requireLogin()) return;
+    setTrackedBook((book) => ({ ...book, pagesRead: book.totalPages, finished: true }));
+    setIsFinishReviewOpen(true);
+  }
+
+  function submitFinishReview(event) {
+    event.preventDefault();
+    if (!requireLogin()) return;
+
+    const savedReview = {
+      book: trackedBook.title,
+      author: trackedBook.author,
+      isbn: trackedBook.isbn,
+      rating: Number(finishReview.rating),
+      note: finishReview.review.trim() || "Finished without a written review.",
+      visibility: finishReview.visibility,
+    };
+
+    saveProfileReview(savedReview);
+
+    if (finishReview.visibility === "public" && finishReview.review.trim()) {
+      setPosts((currentPosts) => [
+        {
+          id: Date.now(),
+          student: "You",
+          year: "Reader",
+          action: "reviewed",
+          book: trackedBook.title,
+          author: trackedBook.author,
+          time: "just now",
+          mood: "finished",
+          place: "your shelf",
+          accent: "forest",
+          note: finishReview.review.trim(),
+          rating: Number(finishReview.rating),
+          progress: 100,
+          shelf: "Finished",
+          likes: 0,
+          comments: [],
+          liked: false,
+          draftComment: "",
+        },
+        ...currentPosts,
+      ]);
+    }
+
+    setFinishReview({ rating: 5, review: "", visibility: "public" });
+    setIsFinishReviewOpen(false);
+  }
+
+  function renderRatingPicker() {
+    return (
+      <div className="star-rating-picker" role="group" aria-label="Choose rating">
+        {[1, 2, 3, 4, 5].map((star) => {
+          const fill =
+            Number(finishReview.rating) >= star
+              ? "100%"
+              : Number(finishReview.rating) >= star - 0.5
+                ? "50%"
+                : "0%";
+
+          return (
+            <span className="rating-star-control" key={star}>
+              <span className="rating-star-base">★</span>
+              <span className="rating-star-fill" style={{ width: fill }}>★</span>
+              <button
+                type="button"
+                aria-label={`${star - 0.5} stars`}
+                onClick={() =>
+                  setFinishReview((draft) => ({ ...draft, rating: star - 0.5 }))
+                }
+              />
+              <button
+                type="button"
+                aria-label={`${star} stars`}
+                onClick={() => setFinishReview((draft) => ({ ...draft, rating: star }))}
+              />
+            </span>
+          );
+        })}
+        <strong>{Number(finishReview.rating).toFixed(1)}</strong>
+      </div>
+    );
   }
 
   function publishNote(event) {
@@ -298,20 +459,71 @@ function Home() {
 
       <div className="home-grid">
         <aside className="shelf-rail" aria-label="Your reading shelves">
-          <section className="tracker-card">
-            <p className="eyebrow">Your year</p>
-            <div className="tracker-number">
-              <strong>27</strong>
-              <span>books read</span>
-            </div>
-            <div className="tracker-progress" aria-label="27 of 40 books read">
-              <span style={{ width: "68%" }} />
-            </div>
-            <p className="tracker-caption">13 books until your annual shelf goal.</p>
-          </section>
+          {isLoggedIn ? (
+            <>
+              <section className="tracker-card">
+                <p className="eyebrow">Your year</p>
+                <div className="tracker-number">
+                  <strong>27</strong>
+                  <span>books read</span>
+                </div>
+                <div className="tracker-progress" aria-label="27 of 40 books read">
+                  <span style={{ width: "68%" }} />
+                </div>
+                <p className="tracker-caption">13 books until your annual shelf goal.</p>
+              </section>
 
-          <section className="shelf-card">
-            <div className="section-heading compact">
+              <section className="current-book-card" aria-label="Currently reading tracker">
+                <div className="section-heading compact">
+              <div>
+                <p className="eyebrow">Currently Reading</p>
+                <h2>Reading Tracker</h2>
+              </div>
+            </div>
+            <article className="tracked-book-card home-tracked-book">
+              <img src={getCoverUrl(trackedBook.isbn)} alt="" loading="lazy" />
+              <div>
+                <p>{trackedBook.author}</p>
+                <strong>{trackedBook.title}</strong>
+                <small>
+                  {trackedBook.pagesRead} / {trackedBook.totalPages} pages
+                </small>
+              </div>
+            </article>
+            <div className="progress-editor compact">
+              <label>
+                <span>Pages read</span>
+                <input
+                  type="number"
+                  min="0"
+                  max={trackedBook.totalPages}
+                  value={trackedBook.pagesRead}
+                  onChange={(event) => updateTrackedPages(event.target.value)}
+                />
+              </label>
+              <div>
+                <span>{Math.round((trackedBook.pagesRead / trackedBook.totalPages) * 100)}%</span>
+                <strong>{trackedBook.finished ? "Finished" : "In progress"}</strong>
+              </div>
+            </div>
+            <div className="tracker-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!requireLogin()) return;
+                  setIsLogBookOpen(true);
+                }}
+              >
+                Log Book
+              </button>
+              <button type="button" onClick={finishTrackedBook}>
+                Finish
+              </button>
+            </div>
+              </section>
+
+              <section className="shelf-card">
+                <div className="section-heading compact">
               <div>
                 <p className="eyebrow">My shelves</p>
                 <h2>Book stacks</h2>
@@ -340,7 +552,21 @@ function Home() {
                 </button>
               ))}
             </div>
-          </section>
+              </section>
+            </>
+          ) : (
+            <section className="signin-rail-card">
+              <p className="eyebrow">Your private shelf</p>
+              <h2>Sign in to track your reading.</h2>
+              <p>
+                Your books, page progress, shelves, ratings, and private reviews
+                live inside your account.
+              </p>
+              <button type="button" onClick={requireLogin}>
+                Sign in to log books
+              </button>
+            </section>
+          )}
         </aside>
 
         <section className="feed-column" aria-label="Social feed">
@@ -534,6 +760,103 @@ function Home() {
               </div>
               <button className="primary-button full" type="submit">
                 Publish note
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {isLogBookOpen && (
+        <div className="composer-modal-backdrop" role="presentation">
+          <section className="composer-modal" role="dialog" aria-modal="true">
+            <button
+              className="modal-close"
+              type="button"
+              onClick={() => setIsLogBookOpen(false)}
+              aria-label="Close book logger"
+            >
+              x
+            </button>
+            <p className="eyebrow">Currently Reading</p>
+            <h2>Log a book</h2>
+            <form onSubmit={logCurrentBook}>
+              <label>
+                <span>Book</span>
+                <select
+                  value={readingDraft.bookTitle}
+                  onChange={(event) =>
+                    setReadingDraft((draft) => ({ ...draft, bookTitle: event.target.value }))
+                  }
+                >
+                  {bookDatabasePreview.map((book) => (
+                    <option value={book.title} key={book.isbn}>
+                      {book.title} - {book.author}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Total pages</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={readingDraft.totalPages}
+                  onChange={(event) =>
+                    setReadingDraft((draft) => ({ ...draft, totalPages: event.target.value }))
+                  }
+                />
+              </label>
+              <button className="primary-button full" type="submit">
+                Start Tracking
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {isFinishReviewOpen && (
+        <div className="composer-modal-backdrop" role="presentation">
+          <section className="composer-modal" role="dialog" aria-modal="true">
+            <button
+              className="modal-close"
+              type="button"
+              onClick={() => setIsFinishReviewOpen(false)}
+              aria-label="Close review popup"
+            >
+              x
+            </button>
+            <p className="eyebrow">Finished Shelf</p>
+            <h2>Rate & review?</h2>
+            <form onSubmit={submitFinishReview}>
+              <label>
+                <span>Rating</span>
+                {renderRatingPicker()}
+              </label>
+              <label>
+                <span>Review</span>
+                <textarea
+                  rows="5"
+                  value={finishReview.review}
+                  onChange={(event) =>
+                    setFinishReview((draft) => ({ ...draft, review: event.target.value }))
+                  }
+                  placeholder="Write a review if you want to save or share one."
+                />
+              </label>
+              <label>
+                <span>Visibility</span>
+                <select
+                  value={finishReview.visibility}
+                  onChange={(event) =>
+                    setFinishReview((draft) => ({ ...draft, visibility: event.target.value }))
+                  }
+                >
+                  <option value="public">Public - post to feed</option>
+                  <option value="private">Private - save to my profile only</option>
+                </select>
+              </label>
+              <button className="primary-button full" type="submit">
+                Save Review
               </button>
             </form>
           </section>
