@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { getReadingList } from "../lib/readingList";
 
 const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -217,6 +218,7 @@ function Profile() {
   const [userShelves, setUserShelves] = useState(initialShelfBooks);
   const [savedReviews] = useState(getSavedProfileReviews);
   const [reviewPage, setReviewPage] = useState(0);
+  const [readingList] = useState(getReadingList);
 
   const filteredFavoriteOptions = useMemo(() => {
     const normalizedSearch = favoriteSearch.trim().toLowerCase();
@@ -466,6 +468,37 @@ function Profile() {
             </Link>
           ))}
         </div>
+      </section>
+
+      <section className="profile-reading-list" aria-label="My reading list">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Saved from search</p>
+            <h2>My Reading List</h2>
+          </div>
+          <Link className="ghost-button" to="/discover">Find Books</Link>
+        </div>
+
+        {readingList.length > 0 ? (
+          <div className="profile-reading-list-grid">
+            {readingList.map((book) => (
+              <article key={book.isbn || book.openLibraryKey}>
+                {book.coverUrl ? (
+                  <img src={book.coverUrl} alt={`Cover of ${book.title}`} loading="lazy" />
+                ) : (
+                  <div className="profile-reading-list-placeholder">No cover</div>
+                )}
+                <div>
+                  <h3>{book.title}</h3>
+                  <p>{book.author}</p>
+                  {book.isbn ? <small>ISBN {book.isbn}</small> : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="profile-empty">Books you add from ISBN search will appear here.</p>
+        )}
       </section>
 
       <section className="profile-reviews" aria-label="Ratings and reviews">

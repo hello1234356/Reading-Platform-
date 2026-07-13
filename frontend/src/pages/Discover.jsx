@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { bookDatabasePreview, editorPicks } from "../data/books";
+import { editorPicks } from "../data/books";
 import { recommendationLists } from "../data/recommendationLists";
 import { useRequireLogin } from "../hooks/useRequireLogin";
+import { getReadingList, saveBookToReadingList } from "../lib/readingList";
 
 function getCoverUrl(isbn, size = "L") {
   return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-${size}.jpg?default=false` : "";
@@ -31,24 +32,78 @@ function Discover() {
   const { requireLogin } = useRequireLogin();
   const [searchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("search") || "");
+  const [bookResults, setBookResults] = useState([]);
+  const [searchStatus, setSearchStatus] = useState("idle");
+  const [searchMessage, setSearchMessage] = useState("");
+  const [readingList, setReadingList] = useState(getReadingList);
   const [selectedQuiz, setSelectedQuiz] = useState(readingQuizzes[0]);
   const featuredPick = editorPicks[0];
   const supportingPicks = editorPicks.slice(1);
 
-  const filteredSuggestions = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+  async function searchBooks(event) {
+    event.preventDefault();
+    const searchTerm = query.trim();
 
-    if (!normalizedQuery) {
-      return bookDatabasePreview.slice(0, 5);
+    if (!searchTerm) {
+      setBookResults([]);
+      setSearchStatus("error");
+      setSearchMessage("Enter a title, author, or ISBN to search.");
+      return;
     }
 
-    return bookDatabasePreview.filter((book) =>
-      [book.title, book.author, book.isbn, book.shelf]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery),
+    setSearchStatus("loading");
+    setSearchMessage("");
+    setBookResults([]);
+
+    try {
+      const response = await fetch(
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year&limit=10`,
+      );
+
+      if (!response.ok) {
+        throw new Error("Open Library request failed");
+      }
+
+      const data = await response.json();
+
+      if (!data.docs?.length) {
+        setSearchStatus("error");
+        setSearchMessage("Open Library could not find a matching book.");
+        return;
+      }
+
+      setBookResults(
+        data.docs.map((result) => ({
+          openLibraryKey: result.key,
+          isbn: result.isbn?.[0] || "",
+          title: result.title || "Untitled",
+          author: result.author_name?.join(", ") || "Unknown author",
+          firstPublished: result.first_publish_year || null,
+          coverUrl: result.cover_i
+            ? `https://covers.openlibrary.org/b/id/${result.cover_i}-M.jpg`
+            : "",
+        })),
+      );
+      setSearchStatus("success");
+    } catch {
+      setSearchStatus("error");
+      setSearchMessage("The book search is unavailable right now. Please try again.");
+    }
+  }
+
+  function addToReadingList(book) {
+    if (!requireLogin()) return;
+
+    setReadingList(saveBookToReadingList(book));
+  }
+
+  function isBookSaved(book) {
+    return readingList.some(
+      (savedBook) =>
+        (book.isbn && savedBook.isbn === book.isbn) ||
+        savedBook.openLibraryKey === book.openLibraryKey,
     );
-  }, [query]);
+  }
 
   return (
     <section className="home-page discover-page" aria-label="Discover books">
@@ -57,35 +112,54 @@ function Discover() {
           <p className="eyebrow">Find your next shelf obsession</p>
           <h1>Discover</h1>
         </div>
-        <label className="discovery-search-bar">
+        <form className="discovery-search-bar" onSubmit={searchBooks}>
+          <label className="sr-only" htmlFor="book-search">Book title, author, or ISBN</label>
           <input
+            id="book-search"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search books, authors, ISBNs..."
+            placeholder="Search by title, author, or ISBN..."
           />
-          <span aria-hidden="true">⌕</span>
-        </label>
-        <div className="discovery-suggestion-list" aria-label="Book search suggestions">
-          {query.trim() && filteredSuggestions.length > 0 ? (
-            filteredSuggestions.map((book) => (
-              <button
-                type="button"
-                key={book.isbn}
-                onClick={() => {
-                  if (!requireLogin()) return;
-                  setQuery(book.title);
-                }}
-              >
-                <span>
-                  <strong>{book.title}</strong>
-                  <small>{book.author}</small>
-                </span>
-                <em>{book.isbn}</em>
-              </button>
-            ))
-          ) : query.trim() ? (
-            <p>No match yet. The full ISBN database will make this much deeper.</p>
+          <button type="submit" disabled={searchStatus === "loading"}>
+            {searchStatus === "loading" ? "Searching..." : "Search"}
+          </button>
+        </form>
+        <div className="isbn-search-feedback" aria-live="polite">
+          {searchMessage ? <p className="isbn-search-message">{searchMessage}</p> : null}
+          {bookResults.length > 0 ? (
+            <div className="book-search-results" aria-label="Open Library search results">
+              {bookResults.map((book) => {
+                const isSaved = isBookSaved(book);
+
+                return (
+                  <article className="isbn-search-result" key={`${book.openLibraryKey}-${book.isbn}`}>
+                    <div className="isbn-result-cover">
+                      {book.coverUrl ? (
+                        <img src={book.coverUrl} alt={`Cover of ${book.title}`} />
+                      ) : (
+                        <span>No cover available</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="eyebrow">Open Library result</p>
+                      <h2>{book.title}</h2>
+                      <p className="isbn-result-author">{book.author}</p>
+                      {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
+                      {book.isbn ? <small>ISBN {book.isbn}</small> : null}
+                      <button
+                        className="primary-button"
+                        type="button"
+                        disabled={isSaved}
+                        onClick={() => addToReadingList(book)}
+                      >
+                        {isSaved ? "Added to My Shelf" : "Add to My Shelf"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           ) : null}
         </div>
       </header>
