@@ -5228,3 +5228,129 @@ h2 {
     justify-self: stretch;
   }
 }
+.profile-bio {
+  max-width: 560px;
+  margin-top: 10px;
+  color: var(--soft-gray);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.profile-edit-modal {
+  position: relative;
+  width: min(540px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 32px;
+  border: 1px solid rgba(138, 106, 88, 0.16);
+  border-radius: 32px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 250, 241, 0.98),
+      rgba(242, 231, 215, 0.96)
+    ),
+    var(--paper);
+  box-shadow: 0 30px 80px rgba(89, 67, 49, 0.24);
+}
+
+.profile-edit-modal h2 {
+  margin-top: 5px;
+  color: var(--mocha);
+  font-size: 42px;
+  line-height: 0.98;
+}
+
+.profile-edit-modal form {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.profile-edit-modal label {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-edit-modal label > span {
+  color: var(--charcoal);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profile-edit-modal input,
+.profile-edit-modal textarea {
+  width: 100%;
+  border: 1px solid rgba(138, 106, 88, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 250, 241, 0.94);
+  color: var(--charcoal);
+  font: inherit;
+  outline: none;
+}
+
+.profile-edit-modal input {
+  min-height: 48px;
+  padding: 0 14px;
+}
+
+.profile-edit-modal textarea {
+  resize: vertical;
+  min-height: 110px;
+  padding: 13px 14px;
+  line-height: 1.5;
+}
+
+.profile-edit-modal input:focus,
+.profile-edit-modal textarea:focus {
+  border-color: rgba(217, 125, 97, 0.72);
+  box-shadow: 0 0 0 4px rgba(217, 125, 97, 0.12);
+}
+
+.profile-edit-modal input:disabled,
+.profile-edit-modal textarea:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.profile-edit-modal label small {
+  justify-self: end;
+  color: var(--soft-gray);
+  font-size: 11px;
+}
+
+.profile-username-input {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(138, 106, 88, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 250, 241, 0.94);
+}
+
+.profile-username-input > span {
+  padding-left: 14px;
+  color: var(--mocha);
+  font-weight: 900;
+}
+
+.profile-username-input input {
+  border: 0;
+  background: transparent;
+}
+
+.profile-username-input:focus-within {
+  border-color: rgba(217, 125, 97, 0.72);
+  box-shadow: 0 0 0 4px rgba(217, 125, 97, 0.12);
+}
+
+.profile-save-error {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(217, 125, 97, 0.12);
+  color: var(--terracotta);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+}

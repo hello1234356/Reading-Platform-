@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { editorPicks } from "../data/books";
 import { recommendationLists } from "../data/recommendationLists";
 import { useRequireLogin } from "../hooks/useRequireLogin";
-import { getReadingList, saveBookToReadingList } from "../lib/readingList";
+import { useAuth } from "../hooks/useAuth";
+import { addBookToLibrary } from "../lib/libraryApi";
 
 function getCoverUrl(isbn, size = "L") {
   return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-${size}.jpg?default=false` : "";
@@ -30,12 +31,14 @@ const readingQuizzes = [
 
 function Discover() {
   const { requireLogin } = useRequireLogin();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("search") || "");
   const [bookResults, setBookResults] = useState([]);
   const [searchStatus, setSearchStatus] = useState("idle");
   const [searchMessage, setSearchMessage] = useState("");
-  const [readingList, setReadingList] = useState(getReadingList);
+  const [savedBookKeys, setSavedBookKeys] = useState([]);
+  const [savingBookKey, setSavingBookKey] = useState("");
   const [selectedQuiz, setSelectedQuiz] = useState(readingQuizzes[0]);
   const featuredPick = editorPicks[0];
   const supportingPicks = editorPicks.slice(1);
@@ -91,19 +94,47 @@ function Discover() {
     }
   }
 
-  function addToReadingList(book) {
-    if (!requireLogin()) return;
+  async function addToReadingList(book) {
+  if (!requireLogin()) return;
 
-    setReadingList(saveBookToReadingList(book));
+  if (!user?.id) {
+    setSearchStatus("error");
+    setSearchMessage("Your login session is still loading. Please try again.");
+    return;
   }
 
-  function isBookSaved(book) {
-    return readingList.some(
-      (savedBook) =>
-        (book.isbn && savedBook.isbn === book.isbn) ||
-        savedBook.openLibraryKey === book.openLibraryKey,
+  const bookKey = book.isbn || book.openLibraryKey;
+
+  setSavingBookKey(bookKey);
+  setSearchMessage("");
+
+  try {
+    await addBookToLibrary(user.id, book);
+
+    setSavedBookKeys((currentKeys) =>
+      currentKeys.includes(bookKey)
+        ? currentKeys
+        : [...currentKeys, bookKey],
     );
+
+    setSearchMessage(
+      `${book.title} was added to your To Be Read shelf.`,
+    );
+  } catch (error) {
+    console.error("Failed to add book to library:", error);
+    setSearchStatus("error");
+    setSearchMessage(error.message || "Could not save this book.");
+  } finally {
+    setSavingBookKey("");
   }
+}
+function getBookKey(book) {
+  return book.isbn || book.openLibraryKey;
+}
+
+function isBookSaved(book) {
+  return savedBookKeys.includes(getBookKey(book));
+}
 
   return (
     <section className="home-page discover-page" aria-label="Discover books">
@@ -131,6 +162,7 @@ function Discover() {
             <div className="book-search-results" aria-label="Open Library search results">
               {bookResults.map((book) => {
                 const isSaved = isBookSaved(book);
+                const isSaving = savingBookKey === getBookKey(book);
 
                 return (
                   <article className="isbn-search-result" key={`${book.openLibraryKey}-${book.isbn}`}>
@@ -147,14 +179,18 @@ function Discover() {
                       <p className="isbn-result-author">{book.author}</p>
                       {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
                       {book.isbn ? <small>ISBN {book.isbn}</small> : null}
-                      <button
-                        className="primary-button"
-                        type="button"
-                        disabled={isSaved}
-                        onClick={() => addToReadingList(book)}
-                      >
-                        {isSaved ? "Added to My Shelf" : "Add to My Shelf"}
-                      </button>
+                   <button
+                      className="primary-button"
+                      type="button"
+                      disabled={isSaved || isSaving}
+                      onClick={() => addToReadingList(book)}
+                    >
+                      {isSaving
+                        ? "Adding..."
+                        : isSaved
+                          ? "Added to To Be Read"
+                          : "Add to My Shelf"}
+                    </button>
                     </div>
                   </article>
                 );

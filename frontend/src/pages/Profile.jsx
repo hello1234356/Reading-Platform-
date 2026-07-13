@@ -212,6 +212,10 @@ function Profile() {
   const navigate = useNavigate();
   const { shelfSlug } = useParams();
   const { user, isLoggedIn, loading } = useAuth();
+    yearly_goal: 40,
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState("");
   const [selectedFavorites, setSelectedFavorites] = useState(initialFavoriteBooks);
   const [favoriteSearch, setFavoriteSearch] = useState("");
   const [isFavoritePickerOpen, setIsFavoritePickerOpen] = useState(false);
@@ -219,7 +223,139 @@ function Profile() {
   const [savedReviews] = useState(getSavedProfileReviews);
   const [reviewPage, setReviewPage] = useState(0);
   const [readingList] = useState(getReadingList);
+  useEffect(() => {
+    async function loadProfile() {
+      if (!user?.id) {
+        setProfile(null);
+        setProfileLoading(false);
+        return;
+      }
 
+      setProfileLoading(true);
+      setProfileError("");
+
+      try {
+        const supabase = requireSupabase();
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select(
+            "id, username, full_name, avatar_url, bio, yearly_goal, created_at, updated_at",
+          )
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        setProfile(data);
+      } catch (error) {
+        console.error("Failed to load profile:", error);
+        setProfileError(error.message || "Could not load your profile.");
+      } finally {
+        setProfileLoading(false);
+      }
+    }
+
+    loadProfile();
+  }, [user?.id]);
+
+  function openEditProfile() {
+    setProfileDraft({
+      full_name: profile?.full_name || "",
+      username: profile?.username || "",
+      bio: profile?.bio || "",
+      yearly_goal: profile?.yearly_goal ?? 40,
+    });
+
+    setProfileSaveError("");
+    setIsEditProfileOpen(true);
+  }
+
+  async function saveProfile(event) {
+    event.preventDefault();
+
+    if (!user?.id) {
+      setProfileSaveError("You must be logged in to edit your profile.");
+      return;
+    }
+
+    const cleanedFullName = profileDraft.full_name.trim();
+    const cleanedUsername = profileDraft.username
+      .trim()
+      .replace(/^@/, "")
+      .toLowerCase();
+
+    const yearlyGoal = Number(profileDraft.yearly_goal);
+
+    if (!cleanedFullName) {
+      setProfileSaveError("Please enter your name.");
+      return;
+    }
+
+    if (!cleanedUsername) {
+      setProfileSaveError("Please enter a username.");
+      return;
+    }
+
+    if (!/^[a-z0-9._-]+$/.test(cleanedUsername)) {
+      setProfileSaveError(
+        "Username can only contain letters, numbers, periods, underscores, and hyphens.",
+      );
+      return;
+    }
+
+    if (!Number.isInteger(yearlyGoal) || yearlyGoal < 1 || yearlyGoal > 500) {
+      setProfileSaveError(
+        "Yearly goal must be a whole number between 1 and 500.",
+      );
+      return;
+    }
+
+    setProfileSaving(true);
+    setProfileSaveError("");
+
+    try {
+      const supabase = requireSupabase();
+
+      const updates = {
+        full_name: cleanedFullName,
+        username: cleanedUsername,
+        bio: profileDraft.bio.trim() || null,
+        yearly_goal: yearlyGoal,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", user.id)
+        .select(
+          "id, username, full_name, avatar_url, bio, yearly_goal, created_at, updated_at",
+        )
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setProfile(data);
+      setIsEditProfileOpen(false);
+    } catch (error) {
+      console.error("Failed to save profile:", error);
+
+      if (error.code === "23505") {
+        setProfileSaveError(
+          "That username is already being used. Please choose another one.",
+        );
+      } else {
+        setProfileSaveError(error.message || "Could not save your profile.");
+      }
+    } finally {
+      setProfileSaving(false);
+    }
+  }
   const filteredFavoriteOptions = useMemo(() => {
     const normalizedSearch = favoriteSearch.trim().toLowerCase();
 
@@ -268,7 +404,7 @@ function Profile() {
     });
   }
 
-  if (loading) {
+  if (loading || profileLoading) {
     return <p>Loading profile...</p>;
   }
 
@@ -293,26 +429,44 @@ function Profile() {
       </section>
     );
   }
-
+  if (profileError) {
+    return (
+      <section className="home-page profile-page">
+        <div className="error-panel">
+          <p className="eyebrow">Profile error</p>
+          <h1>We could not load your profile.</h1>
+          <p>{profileError}</p>
+        </div>
+      </section>
+    );
+  }
   const joinedClubs = getJoinedClubs();
   const emailName = user?.email?.split("@")[0] || "reader";
-  const displayName = emailName
-    .split(/[._-]/)
-    .filter(Boolean)
-    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
-    .join(" ") || "Tsinglan Reader";
-  const username = `@${emailName.toLowerCase()}`;
-  const yearlyGoal = 40;
-  const booksRead = userShelves.read.length;
-  const progress = Math.min(Math.round((booksRead / yearlyGoal) * 100), 100);
-  const activeShelf = profileShelves.find((shelf) => shelf.slug === shelfSlug);
-  const profileReviews = [...savedReviews, ...recentReviews];
-  const reviewsPerPage = 5;
-  const reviewPageCount = Math.ceil(profileReviews.length / reviewsPerPage);
-  const visibleReviews = profileReviews.slice(
-    reviewPage * reviewsPerPage,
-    reviewPage * reviewsPerPage + reviewsPerPage,
-  );
+
+  const fallbackDisplayName =
+    emailName
+      .split(/[._-]/)
+      .filter(Boolean)
+      .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+      .join(" ") || "Tsinglan Reader";
+
+  const displayName = profile?.full_name?.trim() || fallbackDisplayName;
+
+  const username = profile?.username?.trim()
+    ? `@${profile.username.replace(/^@/, "")}`
+    : `@${emailName.toLowerCase()}`;
+
+  const yearlyGoal = profile?.yearly_goal ?? 40;
+    const booksRead = userShelves.read.length;
+    const progress = Math.min(Math.round((booksRead / yearlyGoal) * 100), 100);
+    const activeShelf = profileShelves.find((shelf) => shelf.slug === shelfSlug);
+    const profileReviews = [...savedReviews, ...recentReviews];
+    const reviewsPerPage = 5;
+    const reviewPageCount = Math.ceil(profileReviews.length / reviewsPerPage);
+    const visibleReviews = profileReviews.slice(
+      reviewPage * reviewsPerPage,
+      reviewPage * reviewsPerPage + reviewsPerPage,
+    );
 
   if (shelfSlug && activeShelf) {
     const books = userShelves[activeShelf.slug] || [];
@@ -377,7 +531,16 @@ function Profile() {
               <p className="eyebrow">Personal Profile</p>
               <h1>{displayName}</h1>
               <span>{username}</span>
-              <button className="profile-edit-button" type="button">
+
+              {profile?.bio ? (
+                <p className="profile-bio">{profile.bio}</p>
+              ) : null}
+
+              <button
+                className="profile-edit-button"
+                type="button"
+                onClick={openEditProfile}
+              >
                 Edit Profile
               </button>
             </div>
@@ -580,7 +743,127 @@ function Profile() {
           <p className="profile-empty">Your shelf is waiting for its first reading circle.</p>
         )}
       </section>
+      {isEditProfileOpen ? (
+        <div
+          className="composer-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !profileSaving) {
+              setIsEditProfileOpen(false);
+            }
+          }}
+        >
+          <article
+            className="profile-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-edit-title"
+          >
+            <button
+              className="modal-close"
+              type="button"
+              aria-label="Close profile editor"
+              disabled={profileSaving}
+              onClick={() => setIsEditProfileOpen(false)}
+            >
+              ×
+            </button>
 
+            <p className="eyebrow">Personal Profile</p>
+            <h2 id="profile-edit-title">Edit your profile</h2>
+
+            <form onSubmit={saveProfile}>
+              <label>
+                <span>Full name</span>
+                <input
+                  type="text"
+                  value={profileDraft.full_name}
+                  onChange={(event) =>
+                    setProfileDraft((currentDraft) => ({
+                      ...currentDraft,
+                      full_name: event.target.value,
+                    }))
+                  }
+                  placeholder="Carrie Wang"
+                  maxLength="80"
+                  disabled={profileSaving}
+                />
+              </label>
+
+              <label>
+                <span>Username</span>
+
+                <div className="profile-username-input">
+                  <span aria-hidden="true">@</span>
+                  <input
+                    type="text"
+                    value={profileDraft.username}
+                    onChange={(event) =>
+                      setProfileDraft((currentDraft) => ({
+                        ...currentDraft,
+                        username: event.target.value,
+                      }))
+                    }
+                    placeholder="carrie.wang"
+                    maxLength="40"
+                    disabled={profileSaving}
+                  />
+                </div>
+              </label>
+
+              <label>
+                <span>Bio</span>
+                <textarea
+                  value={profileDraft.bio}
+                  onChange={(event) =>
+                    setProfileDraft((currentDraft) => ({
+                      ...currentDraft,
+                      bio: event.target.value,
+                    }))
+                  }
+                  placeholder="Tell other readers a little about yourself..."
+                  rows="4"
+                  maxLength="300"
+                  disabled={profileSaving}
+                />
+                <small>{profileDraft.bio.length}/300</small>
+              </label>
+
+              <label>
+                <span>2026 reading goal</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  step="1"
+                  value={profileDraft.yearly_goal}
+                  onChange={(event) =>
+                    setProfileDraft((currentDraft) => ({
+                      ...currentDraft,
+                      yearly_goal: event.target.value,
+                    }))
+                  }
+                  disabled={profileSaving}
+                />
+              </label>
+
+              {profileSaveError ? (
+                <p className="profile-save-error" role="alert">
+                  {profileSaveError}
+                </p>
+              ) : null}
+
+              <button
+                className="primary-button full"
+                type="submit"
+                disabled={profileSaving}
+              >
+                {profileSaving ? "Saving..." : "Save profile"}
+              </button>
+            </form>
+          </article>
+        </div>
+      ) : null}
       {isFavoritePickerOpen ? (
         <div className="composer-modal-backdrop" role="presentation">
           <article
