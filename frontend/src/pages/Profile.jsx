@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getReadingList } from "../lib/readingList";
+import { isSupabaseConfigured, requireSupabase } from "../lib/supabase";
 
 const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -212,6 +213,14 @@ function Profile() {
   const navigate = useNavigate();
   const { shelfSlug } = useParams();
   const { user, isLoggedIn, loading } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({
+    full_name: "",
+    username: "",
+    bio: "",
     yearly_goal: 40,
   });
   const [profileSaving, setProfileSaving] = useState(false);
@@ -225,7 +234,7 @@ function Profile() {
   const [readingList] = useState(getReadingList);
   useEffect(() => {
     async function loadProfile() {
-      if (!user?.id) {
+      if (!user?.id || !isSupabaseConfigured) {
         setProfile(null);
         setProfileLoading(false);
         return;
@@ -240,7 +249,7 @@ function Profile() {
         const { data, error } = await supabase
           .from("profiles")
           .select(
-            "id, username, full_name, avatar_url, bio, yearly_goal, created_at, updated_at",
+            "id, name, email, profile_picture, bio, reading_goal, created_at",
           )
           .eq("id", user.id)
           .maybeSingle();
@@ -263,10 +272,10 @@ function Profile() {
 
   function openEditProfile() {
     setProfileDraft({
-      full_name: profile?.full_name || "",
-      username: profile?.username || "",
+      full_name: profile?.name || "",
+      username: profile?.email?.split("@")[0] || "",
       bio: profile?.bio || "",
-      yearly_goal: profile?.yearly_goal ?? 40,
+      yearly_goal: profile?.reading_goal || 40,
     });
 
     setProfileSaveError("");
@@ -320,11 +329,9 @@ function Profile() {
       const supabase = requireSupabase();
 
       const updates = {
-        full_name: cleanedFullName,
-        username: cleanedUsername,
+        name: cleanedFullName,
         bio: profileDraft.bio.trim() || null,
-        yearly_goal: yearlyGoal,
-        updated_at: new Date().toISOString(),
+        reading_goal: yearlyGoal,
       };
 
       const { data, error } = await supabase
@@ -332,7 +339,7 @@ function Profile() {
         .update(updates)
         .eq("id", user.id)
         .select(
-          "id, username, full_name, avatar_url, bio, yearly_goal, created_at, updated_at",
+          "id, name, email, profile_picture, bio, reading_goal, created_at",
         )
         .single();
 
@@ -450,13 +457,13 @@ function Profile() {
       .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
       .join(" ") || "Tsinglan Reader";
 
-  const displayName = profile?.full_name?.trim() || fallbackDisplayName;
+  const displayName = profile?.name?.trim() || fallbackDisplayName;
 
-  const username = profile?.username?.trim()
-    ? `@${profile.username.replace(/^@/, "")}`
+  const username = profile?.email?.split("@")[0]
+    ? `@${profile.email.split("@")[0]}`
     : `@${emailName.toLowerCase()}`;
 
-  const yearlyGoal = profile?.yearly_goal ?? 40;
+  const yearlyGoal = profile?.reading_goal || 40;
     const booksRead = userShelves.read.length;
     const progress = Math.min(Math.round((booksRead / yearlyGoal) * 100), 100);
     const activeShelf = profileShelves.find((shelf) => shelf.slug === shelfSlug);
