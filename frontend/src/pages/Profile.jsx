@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { requireSupabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { getReadingList } from "../lib/readingList";
 
@@ -212,6 +213,14 @@ function Profile() {
   const navigate = useNavigate();
   const { shelfSlug } = useParams();
   const { user, isLoggedIn, loading } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({
+    full_name: "",
+    username: "",
+    bio: "",
     yearly_goal: 40,
   });
   const [profileSaving, setProfileSaving] = useState(false);
