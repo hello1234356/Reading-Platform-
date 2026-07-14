@@ -4,13 +4,43 @@ function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
 }
 
-export async function addBookToLibrary(userId, book) {
+const allowedShelves = [
+  null,
+  "to-be-read",
+  "currently-reading",
+  "read",
+];
+
+function mapLibraryRow(row) {
+  return {
+    shelfEntryId: row.id,
+    bookId: row.book_id,
+    shelf: row.shelf,
+    progress: row.progress ?? 0,
+    rating: row.rating,
+    createdAt: row.created_at,
+
+    title: row.books.title,
+    author: row.books.author,
+    isbn: row.books.isbn,
+    genre: row.books.genre,
+    description: row.books.description,
+    coverUrl: row.books.cover_url,
+  };
+}
+
+export async function addBookToLibrary(userId, book, targetShelf = null) {
   if (!userId) {
     throw new Error("You must be logged in to save a book.");
   }
 
   const supabase = requireSupabase();
   const normalizedIsbn = normalizeIsbn(book.isbn);
+  const nextShelf = targetShelf || null;
+
+  if (!allowedShelves.includes(nextShelf)) {
+    throw new Error("That shelf is not valid.");
+  }
 
   if (!book.title?.trim()) {
     throw new Error("This book is missing a title.");
@@ -91,8 +121,8 @@ export async function addBookToLibrary(userId, book) {
       {
         user_id: userId,
         book_id: savedBook.id,
-        shelf: null,
-        progress: 0,
+        shelf: nextShelf,
+        progress: nextShelf === "read" ? 100 : 0,
         rating: null,
       },
       {
@@ -114,10 +144,7 @@ export async function addBookToLibrary(userId, book) {
   }
 
   if (shelfRow) {
-    return {
-      shelf: shelfRow,
-      book: savedBook,
-    };
+    return { shelf: shelfRow, book: savedBook };
   }
 
   const { data: existingShelfRow, error: existingShelfError } = await supabase
@@ -131,10 +158,21 @@ export async function addBookToLibrary(userId, book) {
     throw existingShelfError;
   }
 
-  return {
-    shelf: existingShelfRow,
-    book: savedBook,
-  };
+  const { data: updatedShelfRow, error: updateShelfError } = await supabase
+    .from("shelves")
+    .update({
+      shelf: nextShelf,
+      progress: nextShelf === "read" ? 100 : existingShelfRow.progress ?? 0,
+    })
+    .eq("id", existingShelfRow.id)
+    .select("id, user_id, book_id, shelf, progress, rating")
+    .single();
+
+  if (updateShelfError) {
+    throw updateShelfError;
+  }
+
+  return { shelf: updatedShelfRow, book: savedBook };
 }
 export async function getUserLibrary(userId) {
   if (!userId) {
@@ -170,35 +208,12 @@ export async function getUserLibrary(userId) {
     throw error;
   }
 
-  return (data || [])
-    .filter((row) => row.books)
-    .map((row) => ({
-      shelfEntryId: row.id,
-      bookId: row.book_id,
-      shelf: row.shelf,
-      progress: row.progress ?? 0,
-      rating: row.rating,
-      createdAt: row.created_at,
-
-      title: row.books.title,
-      author: row.books.author,
-      isbn: row.books.isbn,
-      genre: row.books.genre,
-      description: row.books.description,
-      coverUrl: row.books.cover_url,
-    }));
+  return (data || []).filter((row) => row.books).map(mapLibraryRow);
 }
 export async function moveLibraryBook(shelfEntryId, nextShelf) {
   if (!shelfEntryId) {
     throw new Error("This library entry is missing its ID.");
   }
-
-  const allowedShelves = [
-    null,
-    "to-be-read",
-    "currently-reading",
-    "read",
-  ];
 
   if (!allowedShelves.includes(nextShelf)) {
     throw new Error("That shelf is not valid.");
@@ -247,19 +262,5 @@ export async function moveLibraryBook(shelfEntryId, nextShelf) {
     throw error;
   }
 
-  return {
-    shelfEntryId: data.id,
-    bookId: data.book_id,
-    shelf: data.shelf,
-    progress: data.progress ?? 0,
-    rating: data.rating,
-    createdAt: data.created_at,
-
-    title: data.books.title,
-    author: data.books.author,
-    isbn: data.books.isbn,
-    genre: data.books.genre,
-    description: data.books.description,
-    coverUrl: data.books.cover_url,
-  };
+  return mapLibraryRow(data);
 }

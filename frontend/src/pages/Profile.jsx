@@ -2,11 +2,15 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { requireSupabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
+import BookDetailModal from "../components/BookDetailModal";
+import ReviewModal from "../components/ReviewModal";
+import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import {
   getUserLibrary,
   moveLibraryBook,
 } from "../lib/libraryApi";
-import { getUserReviews } from "../lib/reviewApi";
+import { getUserReviews, saveReview } from "../lib/reviewApi";
+import { addPublicReviewToFeed } from "../lib/socialFeed";
 
 const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
 
@@ -181,6 +185,17 @@ function Profile() {
   const [libraryError, setLibraryError] = useState("");
   const [movingBookId, setMovingBookId] = useState("");
   const [moveBookError, setMoveBookError] = useState("");
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [bookDetailLoading, setBookDetailLoading] = useState(false);
+  const [bookDetailError, setBookDetailError] = useState("");
+  const [reviewBook, setReviewBook] = useState(null);
+  const [reviewDraft, setReviewDraft] = useState({
+    rating: 5,
+    review: "",
+    visibility: "public",
+  });
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewSaveError, setReviewSaveError] = useState("");
   
   useEffect(() => {
     async function loadProfile() {
@@ -420,6 +435,10 @@ function Profile() {
             : currentBook,
         ),
       );
+
+      if (nextShelfSlug === "read") {
+        openReviewModal(updatedBook);
+      }
     } catch (error) {
       console.error("Failed to move book:", error);
       setMoveBookError(
@@ -427,6 +446,76 @@ function Profile() {
       );
     } finally {
       setMovingBookId("");
+    }
+  }
+
+  async function openBookDetails(book) {
+    setSelectedBook({
+      ...book,
+      description: book.description || "Loading official description...",
+    });
+    setBookDetailLoading(true);
+    setBookDetailError("");
+
+    const details = await getOpenLibraryBookDetails(book);
+    setSelectedBook(details);
+    setBookDetailError(details.error || "");
+    setBookDetailLoading(false);
+  }
+
+  function closeBookDetails() {
+    setSelectedBook(null);
+    setBookDetailError("");
+    setBookDetailLoading(false);
+  }
+
+  function openReviewModal(book) {
+    setReviewBook(book);
+    setReviewDraft({ rating: book.rating || 5, review: "", visibility: "public" });
+    setReviewSaveError("");
+  }
+
+  async function submitReview(event) {
+    event.preventDefault();
+
+    if (!user?.id || !reviewBook?.bookId) {
+      setReviewSaveError("This review is missing its book details.");
+      return;
+    }
+
+    setReviewSaving(true);
+    setReviewSaveError("");
+
+    try {
+      const savedReview = await saveReview({
+        userId: user.id,
+        bookId: reviewBook.bookId,
+        rating: reviewDraft.rating,
+        reviewText: reviewDraft.review,
+      });
+
+      if (reviewDraft.visibility === "public") {
+        addPublicReviewToFeed({
+          book: reviewBook,
+          rating: reviewDraft.rating,
+          reviewText: reviewDraft.review,
+          user,
+          profile,
+        });
+      }
+
+      setReviews((currentReviews) => [
+        savedReview,
+        ...currentReviews.filter((review) => review.bookId !== savedReview.bookId),
+      ]);
+      setReviewBook(null);
+      setReviewDraft({ rating: 5, review: "", visibility: "public" });
+      setReviewPage(0);
+    } catch (error) {
+      console.error("Failed to save review:", error);
+      setReviewSaveError(error.message || "Could not save this review.");
+    } finally {
+      setReviewSaving(false);
     }
   }
 
@@ -538,9 +627,11 @@ function Profile() {
         <div className="profile-book-grid">
           {books.map((book) => (
             <article className="profile-book-card" key={book.shelfEntryId}>
-              <Link
-                to={`/discover?search=${encodeURIComponent(book.title)}`}
+              <button
+                className="profile-book-detail-button"
+                type="button"
                 aria-label={`${book.title} by ${book.author}`}
+                onClick={() => openBookDetails(book)}
               >
                 <img src={getCoverUrl(book.isbn)} alt="" loading="lazy" />
                 <div className="profile-book-popover">
@@ -548,7 +639,7 @@ function Profile() {
                   <small>{book.author}</small>
                   <p>{book.description || "No description available yet."}</p>
                 </div>
-              </Link>
+              </button>
               <label className="profile-shelf-select">
                 <span>Move to</span>
                 <select
@@ -570,9 +661,39 @@ function Profile() {
                   ))}
                 </select>
               </label>
+              {activeShelf.slug === "read" ? (
+                <button
+                  className="profile-review-book-button"
+                  type="button"
+                  onClick={() => openReviewModal(book)}
+                >
+                  Add Review
+                </button>
+              ) : null}
             </article>
           ))}
         </div>
+        <BookDetailModal
+          book={selectedBook}
+          loading={bookDetailLoading}
+          error={bookDetailError}
+          onClose={closeBookDetails}
+        />
+        <ReviewModal
+          book={reviewBook}
+          draft={reviewDraft}
+          saving={reviewSaving}
+          error={reviewSaveError}
+          showVisibility
+          onChange={setReviewDraft}
+          onClose={() => {
+            if (!reviewSaving) {
+              setReviewBook(null);
+              setReviewSaveError("");
+            }
+          }}
+          onSubmit={submitReview}
+        />
       </section>
     );
   }
@@ -609,12 +730,13 @@ function Profile() {
             {selectedFavorites.length > 0 ? (
               <div>
                 {selectedFavorites.map((book) => (
-                  <Link
-                    className="profile-favorite-book"
-                    to={`/discover?search=${encodeURIComponent(book.title)}`}
-                    key={book.title}
-                    aria-label={`${book.title} by ${book.author}`}
-                  >
+	                  <button
+	                    className="profile-favorite-book"
+                      type="button"
+	                    key={book.title}
+	                    aria-label={`${book.title} by ${book.author}`}
+                      onClick={() => openBookDetails(book)}
+	                  >
                     {book.coverUrl || book.isbn ? (
                       <img
                         src={book.coverUrl || getCoverUrl(book.isbn)}
@@ -626,7 +748,7 @@ function Profile() {
                         No cover
                       </div>
                     )}
-                  </Link>
+	                  </button>
                 ))}
                 {selectedFavorites.length < 4 ? (
                   <button
@@ -720,18 +842,25 @@ function Profile() {
                 const isMoving = movingBookId === book.shelfEntryId;
 
                 return (
-                  <article key={book.shelfEntryId}>
-                    {book.coverUrl ? (
-                      <img
-                        src={book.coverUrl}
-                        alt={`Cover of ${book.title}`}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="profile-reading-list-placeholder">
-                        No cover
-                      </div>
-                    )}
+	                  <article key={book.shelfEntryId}>
+                      <button
+                        className="profile-reading-list-book-button"
+                        type="button"
+                        onClick={() => openBookDetails(book)}
+                        aria-label={`View details for ${book.title}`}
+                      >
+  	                    {book.coverUrl ? (
+  	                      <img
+  	                        src={book.coverUrl}
+  	                        alt={`Cover of ${book.title}`}
+  	                        loading="lazy"
+  	                      />
+  	                    ) : (
+  	                      <div className="profile-reading-list-placeholder">
+  	                        No cover
+  	                      </div>
+  	                    )}
+                      </button>
 
                     <div>
                       <h3>{book.title}</h3>
@@ -1054,6 +1183,27 @@ function Profile() {
           </article>
         </div>
       ) : null}
+      <BookDetailModal
+        book={selectedBook}
+        loading={bookDetailLoading}
+        error={bookDetailError}
+        onClose={closeBookDetails}
+      />
+      <ReviewModal
+        book={reviewBook}
+        draft={reviewDraft}
+        saving={reviewSaving}
+        error={reviewSaveError}
+        showVisibility
+        onChange={setReviewDraft}
+        onClose={() => {
+          if (!reviewSaving) {
+            setReviewBook(null);
+            setReviewSaveError("");
+          }
+        }}
+        onSubmit={submitReview}
+      />
     </section>
   );
 }

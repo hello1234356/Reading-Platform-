@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
+import { useAuth } from "../hooks/useAuth";
+import { addBookToLibrary, getUserLibrary } from "../lib/libraryApi";
+import { getUserProfile } from "../lib/profileApi";
+import { saveReview } from "../lib/reviewApi";
+import { createPublicReviewPost, getUserDisplayHandle } from "../lib/socialFeed";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -27,93 +32,90 @@ function saveProfileReview(review) {
   }
 }
 
-const feedItems = [
-  {
-    id: 1,
-    student: "Maya C.",
-    year: "CC '27",
-    action: "closed the back cover of",
-    book: "Normal People",
-    author: "Sally Rooney",
-    time: "12 min ago",
-    mood: "soft ache",
-    place: "Hamilton steps",
-    accent: "sea",
-    note:
-      "Read the last thirty pages between classes. The ending felt like overhearing a conversation through a thin apartment wall.",
-    rating: 4,
-    progress: 100,
-    shelf: "Contemporary Fiction",
-    likes: 42,
-    comments: ["The ending always undoes me.", "Saving this for winter break."],
-  },
-  {
-    id: 2,
-    student: "Julian R.",
-    year: "GS '26",
-    action: "marked a line in",
-    book: "Slouching Towards Bethlehem",
-    author: "Joan Didion",
-    time: "29 min ago",
-    mood: "subway weather",
-    place: "1 train uptown",
-    accent: "terracotta",
-    note:
-      "A sentence about California that somehow made the 1 train feel cinematic this morning.",
-    rating: 5,
-    progress: 64,
-    shelf: "Essays",
-    likes: 31,
-    comments: ["Didion before seminar is dangerous.", "Drop the quote at lunch."],
-  },
-  {
-    id: 3,
-    student: "Anika S.",
-    year: "Barnard '28",
-    action: "opened",
-    book: "Open City",
-    author: "Teju Cole",
-    time: "46 min ago",
-    mood: "rain walk",
-    place: "Butler 301",
-    accent: "forest",
-    note:
-      "Taking this to Butler tonight. The first chapter already reads like walking uptown after rain.",
-    rating: 0,
-    progress: 12,
-    shelf: "New York Novels",
-    likes: 18,
-    comments: ["Perfect campus book.", "Tell me if it belongs in the circle list."],
-  },
-  {
-    id: 4,
-    student: "Theo L.",
-    year: "SEAS '25",
-    action: "left a review for",
-    book: "The Great Gatsby",
-    author: "F. Scott Fitzgerald",
-    time: "1 hr ago",
-    mood: "after seminar",
-    place: "Philosophy Hall",
-    accent: "navy",
-    note:
-      "More brittle than glamorous this time. The parties feel like weather systems passing over lonely people.",
-    rating: 4,
-    progress: 100,
-    shelf: "American Classics",
-    likes: 56,
-    comments: ["This is the review.", "Adding it to professor recommendations."],
-  },
-];
+function mapLibraryBookToTrackedBook(book) {
+  return {
+    title: book.title,
+    author: book.author,
+    isbn: book.isbn,
+    coverUrl: book.coverUrl,
+    pagesRead: Number(book.progress) || 0,
+    totalPages: 100,
+    finished: false,
+    shelfEntryId: book.shelfEntryId,
+    bookId: book.bookId,
+  };
+}
+
+function getTrackedBookKey(book) {
+  return book?.shelfEntryId || book?.isbn || book?.title;
+}
+
+function formatRelativeTime(timestamp, now = Date.now()) {
+  if (!timestamp) return "";
+
+  const createdAt = new Date(timestamp).getTime();
+
+  if (Number.isNaN(createdAt)) return "";
+
+  const seconds = Math.max(0, Math.floor((now - createdAt) / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 30) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: new Date(createdAt).getFullYear() === new Date(now).getFullYear()
+      ? undefined
+      : "numeric",
+  }).format(createdAt);
+}
+
+function normalizeComment(comment) {
+  if (typeof comment === "string") {
+    return {
+      id: crypto.randomUUID(),
+      name: "Reader",
+      text: comment,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  return {
+    id: comment.id || crypto.randomUUID(),
+    name: comment.name || "Reader",
+    text: comment.text || "",
+    createdAt: comment.createdAt || new Date().toISOString(),
+  };
+}
+
+function normalizePost(post) {
+  return {
+    ...post,
+    createdAt: post.createdAt || new Date().toISOString(),
+    comments: Array.isArray(post.comments) ? post.comments.map(normalizeComment) : [],
+    liked: Boolean(post.liked),
+    draftComment: post.draftComment || "",
+  };
+}
+
+function isLegacyPlaceholderPost(post) {
+  return (
+    [1, 2, 3, 4].includes(Number(post.id)) &&
+    ["Maya C.", "Julian R.", "Anika S.", "Theo L."].includes(post.student)
+  );
+}
 
 function getInitialHomeState() {
   const fallback = {
-    posts: feedItems.map((post) => ({
-      ...post,
-      liked: false,
-      draftComment: "",
-    })),
-    trackedBook: defaultTrackedBook,
+    posts: [],
+    trackedBooks: [defaultTrackedBook],
   };
 
   try {
@@ -126,61 +128,46 @@ function getInitialHomeState() {
     return {
       ...fallback,
       ...savedState,
-      posts: Array.isArray(savedState.posts) ? savedState.posts : fallback.posts,
-      trackedBook: savedState.trackedBook || fallback.trackedBook,
+      posts: Array.isArray(savedState.posts)
+        ? savedState.posts.map(normalizePost)
+            .filter((post) => !isLegacyPlaceholderPost(post))
+        : fallback.posts,
+      trackedBooks: Array.isArray(savedState.trackedBooks)
+        ? savedState.trackedBooks
+        : Object.prototype.hasOwnProperty.call(savedState, "trackedBook")
+          ? savedState.trackedBook
+            ? [savedState.trackedBook]
+            : []
+          : fallback.trackedBooks,
     };
   } catch {
     return fallback;
   }
 }
-
-
-
-const shelfLinks = [
-  {
-    label: "Reading",
-    count: 4,
-    tone: "sea",
-    note: "books open right now",
-  },
-  {
-    label: "Want to Read",
-    count: 18,
-    tone: "forest",
-    note: "saved for later",
-  },
-  {
-    label: "To Read",
-    count: 9,
-    tone: "terracotta",
-    note: "queued this month",
-  },
-];
-
-const gradeLeaderboard = [
-  { grade: "12th Grade", books: 314, accent: "navy" },
-  { grade: "11th Grade", books: 287, accent: "forest" },
-  { grade: "10th Grade", books: 242, accent: "terracotta" },
-  { grade: "9th Grade", books: 218, accent: "sea" },
-];
-
 function Home() {
   const [initialHomeState] = useState(getInitialHomeState);
   const { requireLogin, isLoggedIn } = useRequireLogin();
+  const { user } = useAuth();
+  const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState(initialHomeState.posts);
-  const [trackedBook, setTrackedBook] = useState(initialHomeState.trackedBook);
+  const [now, setNow] = useState(() => Date.now());
+  const userHandle = getUserDisplayHandle(user, profile);
+  const [trackedBooks, setTrackedBooks] = useState(initialHomeState.trackedBooks);
+  const [finishingBook, setFinishingBook] = useState(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isLogBookOpen, setIsLogBookOpen] = useState(false);
   const [isFinishReviewOpen, setIsFinishReviewOpen] = useState(false);
   const [readingDraft, setReadingDraft] = useState({
-    bookTitle: initialHomeState.trackedBook.title,
-    totalPages: initialHomeState.trackedBook.totalPages,
+    bookTitle: initialHomeState.trackedBooks?.[0]?.title || bookDatabasePreview[0].title,
+    totalPages: initialHomeState.trackedBooks?.[0]?.totalPages || bookDatabasePreview[0].pages || 1,
   });
   const [finishReview, setFinishReview] = useState({
     rating: 5,
     review: "",
     visibility: "public",
   });
+  const [finishReviewSaving, setFinishReviewSaving] = useState(false);
+  const [finishReviewError, setFinishReviewError] = useState("");
   const [composeDraft, setComposeDraft] = useState({
     bookTitle: bookDatabasePreview[0].title,
     note: "",
@@ -192,10 +179,70 @@ function Home() {
       STORAGE_KEY,
       JSON.stringify({
         posts,
-        trackedBook,
+        trackedBooks,
       }),
     );
-  }, [posts, trackedBook]);
+  }, [posts, trackedBooks]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    async function loadProfile() {
+      if (!user?.id) {
+        setProfile(null);
+        return;
+      }
+
+      try {
+        setProfile(await getUserProfile(user.id));
+      } catch (error) {
+        console.error("Failed to load feed profile:", error);
+      }
+    }
+
+    loadProfile();
+  }, [user?.id]);
+
+  useEffect(() => {
+    async function loadCurrentReadingBook() {
+      if (!user?.id) return;
+
+      try {
+        const libraryBooks = await getUserLibrary(user.id);
+        const currentReadingBooks = libraryBooks.filter(
+          (book) => book.shelf === "currently-reading",
+        );
+
+        setTrackedBooks(currentReadingBooks.map(mapLibraryBookToTrackedBook));
+      } catch (error) {
+        console.error("Failed to load current reading book:", error);
+      }
+    }
+
+    loadCurrentReadingBook();
+  }, [user?.id]);
+
+  function getDisplayNameForSavedAuthor(savedName) {
+    const emailName = user?.email?.split("@")[0];
+
+    if (!savedName || savedName === "You" || savedName === emailName) {
+      return userHandle;
+    }
+
+    return savedName;
+  }
+
+  function getPostStudent(post) {
+    return getDisplayNameForSavedAuthor(post.student);
+  }
+
+  function getCommentName(comment) {
+    return getDisplayNameForSavedAuthor(comment.name);
+  }
 
   function toggleLike(postId) {
   if (!requireLogin()) return;
@@ -230,9 +277,17 @@ function Home() {
 
         return {
           ...post,
-          comments: [...post.comments, post.draftComment.trim()],
-          draftComment: "",
-        };
+	          comments: [
+                ...post.comments,
+                {
+                  id: crypto.randomUUID(),
+                  name: userHandle,
+                  text: post.draftComment.trim(),
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+	          draftComment: "",
+	        };
       }),
     );
   }
@@ -247,90 +302,193 @@ function Home() {
     setIsComposerOpen(false);
   }
 
-  function logCurrentBook(event) {
+  async function logCurrentBook(event) {
     event.preventDefault();
     if (!requireLogin()) return;
+    if (!user?.id) return;
 
     const selectedBook =
       bookDatabasePreview.find((book) => book.title === readingDraft.bookTitle) ||
       bookDatabasePreview[0];
 
-    setTrackedBook({
+    const nextTrackedBook = {
       title: selectedBook.title,
       author: selectedBook.author,
       isbn: selectedBook.isbn,
       pagesRead: 0,
       totalPages: Number(readingDraft.totalPages) || 1,
       finished: false,
-    });
+      coverUrl: getCoverUrl(selectedBook.isbn),
+    };
+
+    try {
+      const savedLibraryBook = await addBookToLibrary(
+        user.id,
+        {
+          title: selectedBook.title,
+          author: selectedBook.author,
+          isbn: selectedBook.isbn,
+          coverUrl: getCoverUrl(selectedBook.isbn),
+        },
+        "currently-reading",
+      );
+
+      const savedTrackedBook = {
+        ...nextTrackedBook,
+        shelfEntryId: savedLibraryBook.shelf.id,
+        bookId: savedLibraryBook.book.id,
+      };
+
+      setTrackedBooks((currentBooks) => [
+        savedTrackedBook,
+        ...currentBooks.filter(
+          (book) => getTrackedBookKey(book) !== getTrackedBookKey(savedTrackedBook),
+        ),
+      ]);
+    } catch (error) {
+      console.error("Failed to save current reading book:", error);
+      setTrackedBooks((currentBooks) => [
+        nextTrackedBook,
+        ...currentBooks.filter((book) => book.isbn !== nextTrackedBook.isbn),
+      ]);
+    }
+
     setIsLogBookOpen(false);
   }
 
-  function updateTrackedPages(value) {
+  function updateTrackedPages(bookToUpdate, value) {
     if (!requireLogin()) return;
+    if (!bookToUpdate) return;
 
-    const nextPages = Math.max(0, Math.min(Number(value) || 0, trackedBook.totalPages));
-    const shouldFinish = nextPages >= trackedBook.totalPages;
-
-    setTrackedBook((book) => ({
-      ...book,
+    const nextPages = Math.max(0, Math.min(Number(value) || 0, bookToUpdate.totalPages));
+    const shouldFinish = nextPages >= bookToUpdate.totalPages;
+    const bookKey = getTrackedBookKey(bookToUpdate);
+    const updatedBook = {
+      ...bookToUpdate,
       pagesRead: nextPages,
       finished: shouldFinish,
-    }));
+    };
 
-    if (shouldFinish && !trackedBook.finished) {
+    setTrackedBooks((currentBooks) =>
+      currentBooks.map((book) =>
+        getTrackedBookKey(book) === bookKey ? updatedBook : book,
+      ),
+    );
+
+    if (shouldFinish && !bookToUpdate.finished) {
+      setFinishingBook(updatedBook);
+      setFinishReviewError("");
       setIsFinishReviewOpen(true);
     }
   }
 
-  function finishTrackedBook() {
+  function finishTrackedBook(bookToFinish) {
     if (!requireLogin()) return;
-    setTrackedBook((book) => ({ ...book, pagesRead: book.totalPages, finished: true }));
+    if (!bookToFinish) return;
+    const bookKey = getTrackedBookKey(bookToFinish);
+    const finishedBook = {
+      ...bookToFinish,
+      pagesRead: bookToFinish.totalPages,
+      finished: true,
+    };
+
+    setTrackedBooks((currentBooks) =>
+      currentBooks.map((book) =>
+        getTrackedBookKey(book) === bookKey ? finishedBook : book,
+      ),
+    );
+    setFinishingBook(finishedBook);
+    setFinishReviewError("");
     setIsFinishReviewOpen(true);
   }
 
-  function submitFinishReview(event) {
+  function closeFinishReview() {
+    if (finishingBook) {
+      const bookKey = getTrackedBookKey(finishingBook);
+
+      setTrackedBooks((currentBooks) =>
+        currentBooks.map((book) =>
+          getTrackedBookKey(book) === bookKey
+            ? { ...book, finished: false }
+            : book,
+        ),
+      );
+    }
+
+    setFinishingBook(null);
+    setFinishReviewError("");
+    setIsFinishReviewOpen(false);
+  }
+
+  async function submitFinishReview(event) {
     event.preventDefault();
     if (!requireLogin()) return;
+    if (!finishingBook) return;
+    if (!user?.id) {
+      setFinishReviewError("Your login session is still loading. Please try again.");
+      return;
+    }
+
+    setFinishReviewSaving(true);
+    setFinishReviewError("");
 
     const savedReview = {
-      book: trackedBook.title,
-      author: trackedBook.author,
-      isbn: trackedBook.isbn,
+      book: finishingBook.title,
+      author: finishingBook.author,
+      isbn: finishingBook.isbn,
       rating: Number(finishReview.rating),
       note: finishReview.review.trim() || "Finished without a written review.",
       visibility: finishReview.visibility,
     };
 
-    saveProfileReview(savedReview);
-
-    if (finishReview.visibility === "public" && finishReview.review.trim()) {
-      setPosts((currentPosts) => [
+    try {
+      const savedLibraryBook = await addBookToLibrary(
+        user.id,
         {
-          id: Date.now(),
-          student: "You",
-          year: "Reader",
-          action: "reviewed",
-          book: trackedBook.title,
-          author: trackedBook.author,
-          time: "just now",
-          mood: "finished",
-          place: "your shelf",
-          accent: "forest",
-          note: finishReview.review.trim(),
-          rating: Number(finishReview.rating),
-          progress: 100,
-          shelf: "Finished",
-          likes: 0,
-          comments: [],
-          liked: false,
-          draftComment: "",
+          title: finishingBook.title,
+          author: finishingBook.author,
+          isbn: finishingBook.isbn,
+          coverUrl: finishingBook.coverUrl || getCoverUrl(finishingBook.isbn),
         },
+        "read",
+      );
+
+      await saveReview({
+        userId: user.id,
+        bookId: savedLibraryBook.book.id,
+        rating: finishReview.rating,
+        reviewText: finishReview.review,
+      });
+
+      saveProfileReview(savedReview);
+    } catch (error) {
+      console.error("Failed to save finished book:", error);
+      setFinishReviewError(error.message || "Could not save this finished book.");
+      setFinishReviewSaving(false);
+      return;
+    }
+
+    if (finishReview.visibility === "public") {
+      setPosts((currentPosts) => [
+        createPublicReviewPost({
+          book: finishingBook,
+          rating: finishReview.rating,
+          reviewText: finishReview.review,
+          user,
+          profile,
+        }),
         ...currentPosts,
       ]);
     }
 
     setFinishReview({ rating: 5, review: "", visibility: "public" });
+    setTrackedBooks((currentBooks) =>
+      currentBooks.filter(
+        (book) => getTrackedBookKey(book) !== getTrackedBookKey(finishingBook),
+      ),
+    );
+    setFinishingBook(null);
+    setFinishReviewSaving(false);
     setIsFinishReviewOpen(false);
   }
 
@@ -387,12 +545,12 @@ function Home() {
   setPosts((currentPosts) => [
     {
       id: Date.now(),
-      student: "You",
+	      student: userHandle,
       year: "Reader",
-      action: "posted a note about",
-      book: selectedBook.title,
-      author: selectedBook.author,
-      time: "just now",
+	      action: "posted a note about",
+	      book: selectedBook.title,
+	      author: selectedBook.author,
+	      createdAt: new Date().toISOString(),
       mood: composeDraft.tags.trim() || "new note",
       place: "your shelf",
       accent: "sea",
@@ -421,7 +579,7 @@ function Home() {
     <div className="home-page">
       <section className="reading-room-hero" aria-labelledby="home-title">
         <div>
-          <p className="eyebrow">138 readers opened a book today</p>
+	          <p className="eyebrow">Your reading room</p>
           <div className="hero-title-lockup">
             <span className="hero-seal" aria-hidden="true">L</span>
             <div>
@@ -444,116 +602,81 @@ function Home() {
           <p className="eyebrow">Grade leaderboard</p>
           <strong>Books read this month</strong>
         </div>
-        <ol>
-          {gradeLeaderboard.map((grade, index) => (
-            <li className={grade.accent} key={grade.grade}>
-              <span>{index + 1}</span>
-              <div>
-                <strong>{grade.grade}</strong>
-                <small>{grade.books} books</small>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <p className="leaderboard-empty">
+          Grade totals will appear here once reading activity is connected.
+        </p>
       </section>
 
-      <div className="home-grid">
-        <aside className="shelf-rail" aria-label="Your reading shelves">
-          {isLoggedIn ? (
-            <>
-              <section className="tracker-card">
-                <p className="eyebrow">Your year</p>
-                <div className="tracker-number">
-                  <strong>27</strong>
-                  <span>books read</span>
-                </div>
-                <div className="tracker-progress" aria-label="27 of 40 books read">
-                  <span style={{ width: "68%" }} />
-                </div>
-                <p className="tracker-caption">13 books until your annual shelf goal.</p>
-              </section>
-
-              <section className="current-book-card" aria-label="Currently reading tracker">
+	      <div className="home-grid">
+	        <aside className="shelf-rail" aria-label="Your reading shelves">
+	          {isLoggedIn ? (
+	            <>
+	              <section className="current-book-card" aria-label="Currently reading tracker">
                 <div className="section-heading compact">
               <div>
                 <p className="eyebrow">Currently Reading</p>
                 <h2>Reading Tracker</h2>
               </div>
             </div>
-            <article className="tracked-book-card home-tracked-book">
-              <img src={getCoverUrl(trackedBook.isbn)} alt="" loading="lazy" />
-              <div>
-                <p>{trackedBook.author}</p>
-                <strong>{trackedBook.title}</strong>
-                <small>
-                  {trackedBook.pagesRead} / {trackedBook.totalPages} pages
-                </small>
+            {trackedBooks.length > 0 ? (
+              <div className="tracked-books-list">
+                {trackedBooks.map((book) => (
+                  <article className="tracked-book-entry" key={getTrackedBookKey(book)}>
+                    <div className="tracked-book-card home-tracked-book">
+                      <img src={book.coverUrl || getCoverUrl(book.isbn)} alt="" loading="lazy" />
+                      <div>
+                        <p>{book.author}</p>
+                        <strong>{book.title}</strong>
+                        <small>
+                          {book.pagesRead} / {book.totalPages} pages
+                        </small>
+                      </div>
+                    </div>
+                    <div className="progress-editor compact">
+                      <label>
+                        <span>Pages read</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max={book.totalPages}
+                          value={book.pagesRead}
+                          onChange={(event) => updateTrackedPages(book, event.target.value)}
+                        />
+                      </label>
+                      <div>
+                        <span>{Math.round((book.pagesRead / book.totalPages) * 100)}%</span>
+                        <strong>{book.finished ? "Finished" : "In progress"}</strong>
+                      </div>
+                    </div>
+                    <button
+                      className="tracker-finish-inline"
+                      type="button"
+                      onClick={() => finishTrackedBook(book)}
+                    >
+                      Finish
+                    </button>
+                  </article>
+                ))}
               </div>
-            </article>
-            <div className="progress-editor compact">
-              <label>
-                <span>Pages read</span>
-                <input
-                  type="number"
-                  min="0"
-                  max={trackedBook.totalPages}
-                  value={trackedBook.pagesRead}
-                  onChange={(event) => updateTrackedPages(event.target.value)}
-                />
-              </label>
-              <div>
-                <span>{Math.round((trackedBook.pagesRead / trackedBook.totalPages) * 100)}%</span>
-                <strong>{trackedBook.finished ? "Finished" : "In progress"}</strong>
-              </div>
-            </div>
+            ) : (
+              <p className="profile-empty">
+                Nothing is being tracked right now. Log your next book when you start reading.
+              </p>
+            )}
             <div className="tracker-actions">
               <button
                 type="button"
                 onClick={() => {
                   if (!requireLogin()) return;
                   setIsLogBookOpen(true);
-                }}
-              >
-                Log Book
-              </button>
-              <button type="button" onClick={finishTrackedBook}>
-                Finish
-              </button>
-            </div>
+	                }}
+	              >
+	                Log Book
+	              </button>
+	            </div>
               </section>
 
-              <section className="shelf-card">
-                <div className="section-heading compact">
-              <div>
-                <p className="eyebrow">My shelves</p>
-                <h2>Book stacks</h2>
-              </div>
-            </div>
-            <div className="shelf-link-list">
-              {shelfLinks.map((shelf) => (
-                <button
-  className={`shelf-link ${shelf.tone}`}
-  type="button"
-  key={shelf.label}
-  onClick={() => {
-    if (!requireLogin()) return;
-  }}
->
-                  <span className="cover-stack" aria-hidden="true">
-                    <i />
-                    <i />
-                    <i />
-                  </span>
-                  <span>
-                    <strong>{shelf.label}</strong>
-                    <small>{shelf.note}</small>
-                  </span>
-                  <em>{shelf.count}</em>
-                </button>
-              ))}
-            </div>
-              </section>
-            </>
+	            </>
           ) : (
             <section className="signin-rail-card">
               <p className="eyebrow">Your private shelf</p>
@@ -584,97 +707,114 @@ function Home() {
             </button>
           </div>
 
-          <div className="feed-list">
-            {posts.map((post) => (
-              <article className={`feed-card ${post.accent}`} key={post.id}>
-                <header className="feed-card-header">
-                  <div className="avatar-stack">
-                    <div className="avatar" aria-hidden="true">
-                      {post.student
-                        .split(" ")
-                        .map((part) => part[0])
-                        .join("")}
-                    </div>
-                    <span className="activity-dot" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <p className="feed-title">
-                      <strong>{post.student}</strong> {post.action}{" "}
-                      <span>{post.book}</span>
-                    </p>
-                    <p className="feed-meta">
-                      {post.year} | {post.place} | {post.time}
-                    </p>
-                  </div>
-                </header>
+	          <div className="feed-list">
+	            {posts.length > 0 ? (
+	              posts.map((post) => (
+	                <article className={`feed-card ${post.accent}`} key={post.id}>
+	                  <header className="feed-card-header">
+	                    <div className="avatar-stack">
+	                      <div className="avatar" aria-hidden="true">
+	                        {getPostStudent(post)
+	                          .split(" ")
+	                          .map((part) => part[0])
+	                          .join("")}
+	                      </div>
+	                      <span className="activity-dot" aria-hidden="true" />
+	                    </div>
+	                    <div>
+	                      <p className="feed-title">
+	                        <strong>{getPostStudent(post)}</strong> {post.action}{" "}
+	                        <span>{post.book}</span>
+	                      </p>
+	                      <p className="feed-meta">
+	                        {post.year} | {post.place} | {formatRelativeTime(post.createdAt, now)}
+	                      </p>
+	                    </div>
+	                  </header>
 
-                <div className="feed-note-bubble">
-                  <p>{post.note}</p>
-                  <span>{post.mood}</span>
-                </div>
+	                  <div className="feed-note-bubble">
+	                    <p>{post.note}</p>
+	                    <span>{post.mood}</span>
+	                  </div>
 
-                <div className="book-strip">
-                  <div className="book-cover" aria-hidden="true">
-                    <span>{post.book}</span>
-                  </div>
-                  <div className="book-details">
-                    <p>{post.shelf}</p>
-                    <strong>{post.author}</strong>
-                    <small>{post.progress}% through the book</small>
-                    <div
-                      className="bookmark-progress"
-                      aria-label={`${post.progress}% complete`}
-                    >
-                      <span style={{ width: `${post.progress}%` }} />
-                    </div>
-                  </div>
-                  <div className="rating" aria-label={`${post.rating} out of 5`}>
-                    {post.rating > 0 ? `${post.rating} / 5` : "In progress"}
-                  </div>
-                </div>
+	                  <div className="book-strip">
+	                    <div className="book-cover" aria-hidden="true">
+	                      <span>{post.book}</span>
+	                    </div>
+	                    <div className="book-details">
+	                      <p>{post.shelf}</p>
+	                      <strong>{post.author}</strong>
+	                      <small>{post.progress}% through the book</small>
+	                      <div
+	                        className="bookmark-progress"
+	                        aria-label={`${post.progress}% complete`}
+	                      >
+	                        <span style={{ width: `${post.progress}%` }} />
+	                      </div>
+	                    </div>
+	                    <div className="rating" aria-label={`${post.rating} out of 5`}>
+	                      {post.rating > 0 ? `${post.rating} / 5` : "In progress"}
+	                    </div>
+	                  </div>
 
-                <div className="feed-actions">
-                  <button
-                    className={post.liked ? "feed-action active" : "feed-action"}
-                    type="button"
-                    onClick={() => toggleLike(post.id)}
-                    aria-label={post.liked ? "Unlike post" : "Like post"}
-                  >
-                    <span aria-hidden="true">{post.liked ? "♥" : "♡"}</span>
-                    <small>{post.likes}</small>
-                  </button>
-                  <button className="feed-action" type="button" aria-label="Comment on post">
-                    <span aria-hidden="true">↩</span>
-                    <small>{post.comments.length}</small>
-                  </button>
-                </div>
+	                  <div className="feed-actions">
+	                    <button
+	                      className={post.liked ? "feed-action active" : "feed-action"}
+	                      type="button"
+	                      onClick={() => toggleLike(post.id)}
+	                      aria-label={post.liked ? "Unlike post" : "Like post"}
+	                    >
+	                      <span aria-hidden="true">{post.liked ? "♥" : "♡"}</span>
+	                      <small>{post.likes}</small>
+	                    </button>
+	                    <button className="feed-action" type="button" aria-label="Comment on post">
+	                      <span aria-hidden="true">↩</span>
+	                      <small>{post.comments.length}</small>
+	                    </button>
+	                  </div>
 
-                <div className="comment-list">
-                  {post.comments.slice(-2).map((comment) => (
-                    <p key={comment}>{comment}</p>
-                  ))}
-                </div>
+	                  <div className="comment-list">
+	                    {post.comments.slice(-2).map((comment) => (
+	                      <p key={comment.id}>
+	                        <strong>{getCommentName(comment)}</strong>
+	                        <span>{comment.text}</span>
+	                        <small>{formatRelativeTime(comment.createdAt, now)}</small>
+	                      </p>
+	                    ))}
+	                  </div>
 
-                <div className="comment-form">
-                  <input
-                    type="text"
-                    value={post.draftComment}
-                    onChange={(event) => updateDraft(post.id, event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        addComment(post.id);
-                      }
-                    }}
-                    placeholder="Add a quiet thought..."
-                    aria-label={`Comment on ${post.book}`}
-                  />
-                  <button type="button" onClick={() => addComment(post.id)}>
-                    Send
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+	                  <div className="comment-form">
+	                    <input
+	                      type="text"
+	                      value={post.draftComment}
+	                      onChange={(event) => updateDraft(post.id, event.target.value)}
+	                      onKeyDown={(event) => {
+	                        if (event.key === "Enter") {
+	                          addComment(post.id);
+	                        }
+	                      }}
+	                      placeholder="Add a quiet thought..."
+	                      aria-label={`Comment on ${post.book}`}
+	                    />
+	                    <button type="button" onClick={() => addComment(post.id)}>
+	                      Send
+	                    </button>
+	                  </div>
+	                </article>
+	              ))
+	            ) : (
+	              <article className="feed-empty-state">
+	                <p className="eyebrow">Reading Notes</p>
+	                <h3>No posts yet.</h3>
+	                <p>
+	                  Share a quote, a review, or a reading update to start the feed.
+	                </p>
+	                <button type="button" onClick={() => openComposer()}>
+	                  Write Note
+	                </button>
+	              </article>
+	            )}
+	          </div>
         </section>
 
       </div>
@@ -817,12 +957,12 @@ function Home() {
       {isFinishReviewOpen && (
         <div className="composer-modal-backdrop" role="presentation">
           <section className="composer-modal" role="dialog" aria-modal="true">
-            <button
-              className="modal-close"
-              type="button"
-              onClick={() => setIsFinishReviewOpen(false)}
-              aria-label="Close review popup"
-            >
+	            <button
+	              className="modal-close"
+	              type="button"
+	              onClick={closeFinishReview}
+	              aria-label="Close review popup"
+	            >
               x
             </button>
             <p className="eyebrow">Finished Shelf</p>
@@ -855,8 +995,11 @@ function Home() {
                   <option value="private">Private - save to my profile only</option>
                 </select>
               </label>
-              <button className="primary-button full" type="submit">
-                Save Review
+              {finishReviewError ? (
+                <p className="profile-save-error" role="alert">{finishReviewError}</p>
+              ) : null}
+              <button className="primary-button full" type="submit" disabled={finishReviewSaving}>
+                {finishReviewSaving ? "Saving..." : "Save Review"}
               </button>
             </form>
           </section>

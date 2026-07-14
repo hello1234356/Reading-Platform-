@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { editorPicks } from "../data/books";
 import { recommendationLists } from "../data/recommendationLists";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
+import { getOpenLibraryBookDetails } from "../lib/openLibrary";
+import { getUserProfile } from "../lib/profileApi";
+import { saveReview } from "../lib/reviewApi";
+import { addPublicReviewToFeed } from "../lib/socialFeed";
+import BookDetailModal from "../components/BookDetailModal";
+import ReviewModal from "../components/ReviewModal";
 
 function getCoverUrl(isbn, size = "L") {
   return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-${size}.jpg?default=false` : "";
@@ -33,21 +39,35 @@ function Discover() {
   const { requireLogin } = useRequireLogin();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const searchHeroRef = useRef(null);
+  const [profile, setProfile] = useState(null);
   const [query, setQuery] = useState(searchParams.get("search") || "");
   const [bookResults, setBookResults] = useState([]);
   const [searchStatus, setSearchStatus] = useState("idle");
   const [searchMessage, setSearchMessage] = useState("");
   const [savedBookKeys, setSavedBookKeys] = useState([]);
   const [savingBookKey, setSavingBookKey] = useState("");
+  const [selectedShelves, setSelectedShelves] = useState({});
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [bookDetailLoading, setBookDetailLoading] = useState(false);
+  const [bookDetailError, setBookDetailError] = useState("");
+  const [reviewBook, setReviewBook] = useState(null);
+  const [reviewDraft, setReviewDraft] = useState({
+    rating: 5,
+    review: "",
+    visibility: "public",
+  });
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewError, setReviewError] = useState("");
   const [selectedQuiz, setSelectedQuiz] = useState(readingQuizzes[0]);
   const featuredPick = editorPicks[0];
   const supportingPicks = editorPicks.slice(1);
+  const authoredRecommendationPosts = recommendationLists.filter((list) => list.author);
 
-  async function searchBooks(event) {
-    event.preventDefault();
-    const searchTerm = query.trim();
+  async function runBookSearch(searchTerm) {
+    const normalizedSearchTerm = searchTerm.trim();
 
-    if (!searchTerm) {
+    if (!normalizedSearchTerm) {
       setBookResults([]);
       setSearchStatus("error");
       setSearchMessage("Enter a title, author, or ISBN to search.");
@@ -60,7 +80,7 @@ function Discover() {
 
     try {
       const response = await fetch(
-        `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year&limit=10`,
+        `https://openlibrary.org/search.json?q=${encodeURIComponent(normalizedSearchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year&limit=10`,
       );
 
       if (!response.ok) {
@@ -94,6 +114,40 @@ function Discover() {
     }
   }
 
+  useEffect(() => {
+    async function loadProfile() {
+      if (!user?.id) {
+        setProfile(null);
+        return;
+      }
+
+      try {
+        setProfile(await getUserProfile(user.id));
+      } catch (error) {
+        console.error("Failed to load discovery profile:", error);
+      }
+    }
+
+    loadProfile();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const searchTerm = searchParams.get("search") || "";
+
+    if (searchTerm.trim()) {
+      searchHeroRef.current?.scrollIntoView({ block: "start" });
+      queueMicrotask(() => {
+        searchHeroRef.current?.scrollIntoView({ block: "start" });
+        runBookSearch(searchTerm);
+      });
+    }
+  }, [searchParams]);
+
+  async function searchBooks(event) {
+    event.preventDefault();
+    runBookSearch(query);
+  }
+
   async function addToReadingList(book) {
   if (!requireLogin()) return;
 
@@ -103,24 +157,41 @@ function Discover() {
     return;
   }
 
-  const bookKey = book.isbn || book.openLibraryKey;
+	  const bookKey = book.isbn || book.openLibraryKey;
+    const targetShelf = selectedShelves[bookKey] || "to-be-read";
 
-  setSavingBookKey(bookKey);
-  setSearchMessage("");
+	  setSavingBookKey(bookKey);
+	  setSearchMessage("");
 
-  try {
-    await addBookToLibrary(user.id, book);
+	  try {
+	    const savedLibraryBook = await addBookToLibrary(user.id, book, targetShelf);
 
-    setSavedBookKeys((currentKeys) =>
-      currentKeys.includes(bookKey)
+	    setSavedBookKeys((currentKeys) =>
+	      currentKeys.includes(bookKey)
         ? currentKeys
         : [...currentKeys, bookKey],
-    );
+	    );
 
-    setSearchMessage(
-      `${book.title} was added to your reading list.`,
-    );
-  } catch (error) {
+	    setSearchMessage(
+	      `${book.title} was added to ${
+          targetShelf === "read"
+            ? "your Read shelf"
+            : targetShelf === "currently-reading"
+              ? "Currently Reading"
+              : "To Be Read"
+        }.`,
+	    );
+
+      if (targetShelf === "read") {
+        setReviewBook({
+          ...book,
+          bookId: savedLibraryBook.book.id,
+          coverUrl: book.coverUrl || savedLibraryBook.book.cover_url || "",
+        });
+        setReviewDraft({ rating: 5, review: "", visibility: "public" });
+        setReviewError("");
+      }
+	  } catch (error) {
     console.error("Failed to add book to library:", error);
     setSearchStatus("error");
     setSearchMessage(error.message || "Could not save this book.");
@@ -136,9 +207,60 @@ function isBookSaved(book) {
   return savedBookKeys.includes(getBookKey(book));
 }
 
+async function submitReview(event) {
+  event.preventDefault();
+
+  if (!requireLogin() || !reviewBook?.bookId || !user?.id) return;
+
+  setReviewSaving(true);
+  setReviewError("");
+
+  try {
+	    await saveReview({
+	      userId: user.id,
+	      bookId: reviewBook.bookId,
+	      rating: reviewDraft.rating,
+	      reviewText: reviewDraft.review,
+	    });
+
+      if (reviewDraft.visibility === "public") {
+        addPublicReviewToFeed({
+          book: reviewBook,
+          rating: reviewDraft.rating,
+          reviewText: reviewDraft.review,
+          user,
+          profile,
+        });
+      }
+	
+	    setReviewBook(null);
+	    setReviewDraft({ rating: 5, review: "", visibility: "public" });
+	    setSearchMessage(`${reviewBook.title} was added to Read with your review.`);
+  } catch (error) {
+    console.error("Failed to save review:", error);
+    setReviewError(error.message || "Could not save this review.");
+  } finally {
+    setReviewSaving(false);
+  }
+}
+
+async function openBookDetails(book) {
+  setSelectedBook({
+    ...book,
+    description: book.description || "Loading official description...",
+  });
+  setBookDetailLoading(true);
+  setBookDetailError("");
+
+  const details = await getOpenLibraryBookDetails(book);
+  setSelectedBook(details);
+  setBookDetailError(details.error || "");
+  setBookDetailLoading(false);
+}
+
   return (
     <section className="home-page discover-page" aria-label="Discover books">
-      <header className="discover-search-hero">
+      <header className="discover-search-hero" ref={searchHeroRef}>
         <div className="discover-page-title">
           <p className="eyebrow">Find your next shelf obsession</p>
           <h1>Discover</h1>
@@ -165,23 +287,49 @@ function isBookSaved(book) {
                 const isSaving = savingBookKey === getBookKey(book);
 
                 return (
-                  <article className="isbn-search-result" key={`${book.openLibraryKey}-${book.isbn}`}>
-                    <div className="isbn-result-cover">
-                      {book.coverUrl ? (
-                        <img src={book.coverUrl} alt={`Cover of ${book.title}`} />
-                      ) : (
-                        <span>No cover available</span>
-                      )}
-                    </div>
-                    <div>
-                      <p className="eyebrow">Open Library result</p>
-                      <h2>{book.title}</h2>
-                      <p className="isbn-result-author">{book.author}</p>
-                      {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
-                      {book.isbn ? <small>ISBN {book.isbn}</small> : null}
-                   <button
-                      className="primary-button"
-                      type="button"
+	                  <article className="isbn-search-result" key={`${book.openLibraryKey}-${book.isbn}`}>
+	                    <button
+                        className="isbn-result-details-button"
+                        type="button"
+                        onClick={() => openBookDetails(book)}
+                        aria-label={`View details for ${book.title}`}
+                      >
+                        <div className="isbn-result-cover">
+                          {book.coverUrl ? (
+                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} />
+                          ) : (
+                            <span>No cover available</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="eyebrow">Open Library result</p>
+                          <h2>{book.title}</h2>
+                          <p className="isbn-result-author">{book.author}</p>
+                          {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
+                          {book.isbn ? <small>ISBN {book.isbn}</small> : null}
+                        </div>
+                      </button>
+	                    <div className="isbn-result-actions">
+                        <label className="isbn-shelf-choice">
+                          <span>Add to</span>
+                          <select
+                            value={selectedShelves[getBookKey(book)] || "to-be-read"}
+                            onChange={(event) =>
+                              setSelectedShelves((currentShelves) => ({
+                                ...currentShelves,
+                                [getBookKey(book)]: event.target.value,
+                              }))
+                            }
+                            disabled={isSaving}
+                          >
+                            <option value="to-be-read">To Be Read</option>
+                            <option value="currently-reading">Currently Reading</option>
+                            <option value="read">Read</option>
+                          </select>
+                        </label>
+		                   <button
+	                      className="primary-button"
+	                      type="button"
                       disabled={isSaved || isSaving}
                       onClick={() => addToReadingList(book)}
                     >
@@ -190,9 +338,9 @@ function isBookSaved(book) {
                         : isSaved
                           ? "Added to Reading List"
                           : "Add to My Shelf"}
-                    </button>
-                    </div>
-                  </article>
+	                    </button>
+	                    </div>
+	                  </article>
                 );
               })}
             </div>
@@ -253,36 +401,39 @@ function isBookSaved(book) {
                 ))}
               </div>
             </div>
-          </section>
-
-          <section className="themed-lists-section" aria-label="Themed recommendation lists">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Themed Lists</p>
-                <h2>Recommendation Posts</h2>
-              </div>
-            </div>
-            <div className="themed-list-grid">
-              {recommendationLists.map((list) => (
-                <Link
-                  className={`themed-list-card ${list.tone}`}
-                  key={list.title}
-                  to={`/discover/lists/${list.slug}`}
-                >
-                  <div className="themed-list-preview" aria-hidden="true">
-                    <img src={list.imageUrl} alt="" loading="lazy" />
-                  </div>
+	          </section>
+	
+            {authoredRecommendationPosts.length > 0 ? (
+              <section className="themed-lists-section" aria-label="Student recommendation posts">
+                <div className="section-heading">
                   <div>
-                    <p>{list.kicker}</p>
-                    <h3>{list.title}</h3>
-                    <small>{list.blurb}</small>
-                    <em>{list.count} books</em>
+                    <p className="eyebrow">Student Essays</p>
+                    <h2>Recommendation Posts</h2>
                   </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        </main>
+                </div>
+                <div className="themed-list-grid">
+                  {authoredRecommendationPosts.map((list) => (
+                    <Link
+                      className={`themed-list-card ${list.tone}`}
+                      key={list.title}
+                      to={`/discover/lists/${list.slug}`}
+                    >
+                      <div className="themed-list-preview" aria-hidden="true">
+                        <img src={list.imageUrl} alt="" loading="lazy" />
+                      </div>
+                      <div>
+                        <p>{list.kicker}</p>
+                        <h3>{list.title}</h3>
+                        <small>{list.blurb}</small>
+                        <em>By {list.author}</em>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+	        </main>
 
         <aside className="discovery-quiz-rail" aria-label="Reading quizzes">
           <p className="eyebrow">Occasional Quiz</p>
@@ -311,6 +462,31 @@ function isBookSaved(book) {
           </div>
         </aside>
       </div>
+      <BookDetailModal
+        book={selectedBook}
+        loading={bookDetailLoading}
+        error={bookDetailError}
+        onClose={() => {
+          setSelectedBook(null);
+          setBookDetailError("");
+          setBookDetailLoading(false);
+        }}
+      />
+      <ReviewModal
+        book={reviewBook}
+        draft={reviewDraft}
+        saving={reviewSaving}
+        error={reviewError}
+        showVisibility
+        onChange={setReviewDraft}
+        onClose={() => {
+          if (!reviewSaving) {
+            setReviewBook(null);
+            setReviewError("");
+          }
+        }}
+        onSubmit={submitReview}
+      />
     </section>
   );
 }
