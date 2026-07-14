@@ -937,7 +937,7 @@ function Profile() {
                       full_name: event.target.value,
                     }))
                   }
-                  placeholder="Carrie Wang"
+                  placeholder="Aenaul Orgi"
                   maxLength="80"
                   disabled={profileSaving}
                 />
