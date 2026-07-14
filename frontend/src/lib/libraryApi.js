@@ -91,7 +91,7 @@ export async function addBookToLibrary(userId, book) {
       {
         user_id: userId,
         book_id: savedBook.id,
-        shelf: "to-be-read",
+        shelf: null,
         progress: 0,
         rating: null,
       },
@@ -134,5 +134,132 @@ export async function addBookToLibrary(userId, book) {
   return {
     shelf: existingShelfRow,
     book: savedBook,
+  };
+}
+export async function getUserLibrary(userId) {
+  if (!userId) {
+    return [];
+  }
+
+  const supabase = requireSupabase();
+
+  const { data, error } = await supabase
+    .from("shelves")
+    .select(`
+      id,
+      user_id,
+      book_id,
+      shelf,
+      progress,
+      rating,
+      created_at,
+      books (
+        id,
+        title,
+        author,
+        isbn,
+        genre,
+        description,
+        cover_url
+      )
+    `)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || [])
+    .filter((row) => row.books)
+    .map((row) => ({
+      shelfEntryId: row.id,
+      bookId: row.book_id,
+      shelf: row.shelf,
+      progress: row.progress ?? 0,
+      rating: row.rating,
+      createdAt: row.created_at,
+
+      title: row.books.title,
+      author: row.books.author,
+      isbn: row.books.isbn,
+      genre: row.books.genre,
+      description: row.books.description,
+      coverUrl: row.books.cover_url,
+    }));
+}
+export async function moveLibraryBook(shelfEntryId, nextShelf) {
+  if (!shelfEntryId) {
+    throw new Error("This library entry is missing its ID.");
+  }
+
+  const allowedShelves = [
+    null,
+    "to-be-read",
+    "currently-reading",
+    "read",
+  ];
+
+  if (!allowedShelves.includes(nextShelf)) {
+    throw new Error("That shelf is not valid.");
+  }
+
+  const supabase = requireSupabase();
+
+  const updates = {
+    shelf: nextShelf,
+  };
+
+  // These defaults make the status internally consistent.
+  if (nextShelf === "read") {
+    updates.progress = 100;
+  }
+
+  if (nextShelf === "to-be-read") {
+    updates.progress = 0;
+  }
+
+  const { data, error } = await supabase
+    .from("shelves")
+    .update(updates)
+    .eq("id", shelfEntryId)
+    .select(`
+      id,
+      user_id,
+      book_id,
+      shelf,
+      progress,
+      rating,
+      created_at,
+      books (
+        id,
+        title,
+        author,
+        isbn,
+        genre,
+        description,
+        cover_url
+      )
+    `)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    shelfEntryId: data.id,
+    bookId: data.book_id,
+    shelf: data.shelf,
+    progress: data.progress ?? 0,
+    rating: data.rating,
+    createdAt: data.created_at,
+
+    title: data.books.title,
+    author: data.books.author,
+    isbn: data.books.isbn,
+    genre: data.books.genre,
+    description: data.books.description,
+    coverUrl: data.books.cover_url,
   };
 }

@@ -2,7 +2,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { requireSupabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
-import { getReadingList } from "../lib/readingList";
+import {
+  getUserLibrary,
+  moveLibraryBook,
+} from "../lib/libraryApi";
 
 const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -228,10 +231,14 @@ function Profile() {
   const [selectedFavorites, setSelectedFavorites] = useState(initialFavoriteBooks);
   const [favoriteSearch, setFavoriteSearch] = useState("");
   const [isFavoritePickerOpen, setIsFavoritePickerOpen] = useState(false);
-  const [userShelves, setUserShelves] = useState(initialShelfBooks);
   const [savedReviews] = useState(getSavedProfileReviews);
   const [reviewPage, setReviewPage] = useState(0);
-  const [readingList] = useState(getReadingList);
+  const [libraryBooks, setLibraryBooks] = useState([]);
+  const [libraryLoading, setLibraryLoading] = useState(true);
+  const [libraryError, setLibraryError] = useState("");
+  const [movingBookId, setMovingBookId] = useState("");
+  const [moveBookError, setMoveBookError] = useState("");
+  
   useEffect(() => {
     async function loadProfile() {
       if (!user?.id) {
@@ -269,7 +276,31 @@ function Profile() {
 
     loadProfile();
   }, [user?.id]);
+  
+  useEffect(() => {
+    async function loadLibrary() {
+      if (!user?.id) {
+        setLibraryBooks([]);
+        setLibraryLoading(false);
+        return;
+      }
 
+      setLibraryLoading(true);
+      setLibraryError("");
+
+      try {
+        const books = await getUserLibrary(user.id);
+        setLibraryBooks(books);
+      } catch (error) {
+        console.error("Failed to load library:", error);
+        setLibraryError(error.message || "Could not load your reading list.");
+      } finally {
+        setLibraryLoading(false);
+      }
+    }
+
+    loadLibrary();
+  }, [user?.id]);
   function openEditProfile() {
     setProfileDraft({
       full_name: profile?.full_name || "",
@@ -393,24 +424,39 @@ function Profile() {
     setIsFavoritePickerOpen(false);
     setFavoriteSearch("");
   }
+  async function moveBookToShelf(book, nextShelfSlug) {
+    if (!book?.shelfEntryId) {
+      setMoveBookError("This book is missing its library entry ID.");
+      return;
+    }
+    if (book.shelf === nextShelfSlug) {
+      return;
+    }
 
-  function moveBookToShelf(book, currentShelfSlug, nextShelfSlug) {
-    if (currentShelfSlug === nextShelfSlug) return;
+    setMovingBookId(book.shelfEntryId);
+    setMoveBookError("");
 
-    setUserShelves((currentShelves) => {
-      const nextShelves = {
-        ...currentShelves,
-        [currentShelfSlug]: currentShelves[currentShelfSlug].filter(
-          (shelfBook) => shelfBook.isbn !== book.isbn,
+    try {
+      const updatedBook = await moveLibraryBook(
+        book.shelfEntryId,
+        nextShelfSlug,
+      );
+
+      setLibraryBooks((currentBooks) =>
+        currentBooks.map((currentBook) =>
+          currentBook.shelfEntryId === updatedBook.shelfEntryId
+            ? updatedBook
+            : currentBook,
         ),
-        [nextShelfSlug]: [
-          book,
-          ...currentShelves[nextShelfSlug].filter((shelfBook) => shelfBook.isbn !== book.isbn),
-        ],
-      };
-
-      return nextShelves;
-    });
+      );
+    } catch (error) {
+      console.error("Failed to move book:", error);
+      setMoveBookError(
+        error.message || "Could not move this book. Please try again.",
+      );
+    } finally {
+      setMovingBookId("");
+    }
   }
 
   if (loading || profileLoading) {
@@ -466,19 +512,42 @@ function Profile() {
     : `@${emailName.toLowerCase()}`;
 
   const yearlyGoal = profile?.yearly_goal ?? 40;
-    const booksRead = userShelves.read.length;
-    const progress = Math.min(Math.round((booksRead / yearlyGoal) * 100), 100);
-    const activeShelf = profileShelves.find((shelf) => shelf.slug === shelfSlug);
-    const profileReviews = [...savedReviews, ...recentReviews];
-    const reviewsPerPage = 5;
-    const reviewPageCount = Math.ceil(profileReviews.length / reviewsPerPage);
-    const visibleReviews = profileReviews.slice(
-      reviewPage * reviewsPerPage,
-      reviewPage * reviewsPerPage + reviewsPerPage,
-    );
+
+  const readingList = libraryBooks.filter(
+    (book) => book.shelf == null,
+  );  
+
+  const databaseShelves = {
+    read: libraryBooks.filter((book) => book.shelf === "read"),
+    "currently-reading": libraryBooks.filter(
+      (book) => book.shelf === "currently-reading",
+    ),
+    "to-be-read": libraryBooks.filter(
+      (book) => book.shelf === "to-be-read",
+    ),
+  };
+
+  const booksRead = databaseShelves.read.length;
+  const progress =
+    yearlyGoal > 0
+      ? Math.min(Math.round((booksRead / yearlyGoal) * 100), 100)
+      : 0;
+
+  const activeShelf = profileShelves.find(
+    (shelf) => shelf.slug === shelfSlug,
+  );
+
+  const profileReviews = [...savedReviews, ...recentReviews];
+  const reviewsPerPage = 5;
+  const reviewPageCount = Math.ceil(profileReviews.length / reviewsPerPage);
+
+  const visibleReviews = profileReviews.slice(
+    reviewPage * reviewsPerPage,
+    reviewPage * reviewsPerPage + reviewsPerPage,
+  );
 
   if (shelfSlug && activeShelf) {
-    const books = userShelves[activeShelf.slug] || [];
+    const books = databaseShelves[activeShelf.slug] || [];
 
     return (
       <section className="home-page profile-page" aria-label={`${activeShelf.label} shelf`}>
@@ -494,7 +563,7 @@ function Profile() {
 
         <div className="profile-book-grid">
           {books.map((book) => (
-            <article className="profile-book-card" key={book.title}>
+            <article className="profile-book-card" key={book.shelfEntryId}>
               <Link
                 to={`/discover?search=${encodeURIComponent(book.title)}`}
                 aria-label={`${book.title} by ${book.author}`}
@@ -503,17 +572,23 @@ function Profile() {
                 <div className="profile-book-popover">
                   <strong>{book.title}</strong>
                   <small>{book.author}</small>
-                  <p>{book.blurb}</p>
+                  <p>{book.description || "No description available yet."}</p>
                 </div>
               </Link>
               <label className="profile-shelf-select">
                 <span>Move to</span>
                 <select
-                  value={activeShelf.slug}
+                  value={book.shelf || ""}
+                  disabled={movingBookId === book.shelfEntryId}
                   onChange={(event) =>
-                    moveBookToShelf(book, activeShelf.slug, event.target.value)
+                    moveBookToShelf(
+                      book,
+                      event.target.value || null,
+                    )
                   }
                 >
+                  <option value="">My Reading List</option>
+
                   {profileShelves.map((shelf) => (
                     <option value={shelf.slug} key={shelf.slug}>
                       {shelf.label}
@@ -566,7 +641,17 @@ function Profile() {
                     key={book.title}
                     aria-label={`${book.title} by ${book.author}`}
                   >
-                    <img src={getCoverUrl(book.isbn)} alt="" loading="lazy" />
+                    {book.coverUrl || book.isbn ? (
+                      <img
+                        src={book.coverUrl || getCoverUrl(book.isbn)}
+                        alt={`Cover of ${book.title}`}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="profile-reading-list-placeholder">
+                        No cover
+                      </div>
+                    )}
                   </Link>
                 ))}
                 {selectedFavorites.length < 4 ? (
@@ -624,14 +709,14 @@ function Profile() {
               key={shelf.label}
             >
               <span>{shelf.label}</span>
-              <strong>{userShelves[shelf.slug]?.length || 0} books</strong>
+              <strong>{databaseShelves[shelf.slug]?.length || 0} books</strong>
               <small>{shelf.note}</small>
               <div
                 className="profile-shelf-mini-books"
                 aria-hidden="true"
-                style={{ "--book-count": Math.min(userShelves[shelf.slug]?.length || 0, 8) }}
+                style={{ "--book-count": Math.min(databaseShelves[shelf.slug]?.length || 0, 8) }}
               >
-                {Array.from({ length: Math.min(userShelves[shelf.slug]?.length || 0, 8) }).map(
+                {Array.from({ length: Math.min(databaseShelves[shelf.slug]?.length || 0, 8) }).map(
                   (_, index) => (
                     <i key={`${shelf.slug}-${index}`} />
                   ),
@@ -650,26 +735,85 @@ function Profile() {
           </div>
           <Link className="ghost-button" to="/discover">Find Books</Link>
         </div>
+        {libraryLoading ? (
+          <p className="profile-empty">Loading your reading list...</p>
+        ) : libraryError ? (
+          <p className="profile-save-error">{libraryError}</p>
+        ) : readingList.length > 0 ? (
+          <>
+            <div className="profile-reading-list-grid">
+              {readingList.map((book) => {
+                const isMoving = movingBookId === book.shelfEntryId;
 
-        {readingList.length > 0 ? (
-          <div className="profile-reading-list-grid">
-            {readingList.map((book) => (
-              <article key={book.isbn || book.openLibraryKey}>
-                {book.coverUrl ? (
-                  <img src={book.coverUrl} alt={`Cover of ${book.title}`} loading="lazy" />
-                ) : (
-                  <div className="profile-reading-list-placeholder">No cover</div>
-                )}
-                <div>
-                  <h3>{book.title}</h3>
-                  <p>{book.author}</p>
-                  {book.isbn ? <small>ISBN {book.isbn}</small> : null}
-                </div>
-              </article>
-            ))}
-          </div>
+                return (
+                  <article key={book.shelfEntryId}>
+                    {book.coverUrl ? (
+                      <img
+                        src={book.coverUrl}
+                        alt={`Cover of ${book.title}`}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="profile-reading-list-placeholder">
+                        No cover
+                      </div>
+                    )}
+
+                    <div>
+                      <h3>{book.title}</h3>
+                      <p>{book.author}</p>
+
+                      {book.isbn ? (
+                        <small>ISBN {book.isbn}</small>
+                      ) : null}
+
+                      <label className="profile-shelf-select">
+                        <span>Add to a shelf</span>
+
+                        <select
+                          value=""
+                          disabled={isMoving}
+                          onChange={(event) => {
+                            const nextShelf = event.target.value;
+
+                            if (nextShelf) {
+                              moveBookToShelf(book, nextShelf);
+                            }
+                          }}
+                        >
+                          <option value="">
+                            {isMoving ? "Moving..." : "Choose shelf"}
+                          </option>
+
+                          <option value="to-be-read">
+                            To Be Read
+                          </option>
+
+                          <option value="currently-reading">
+                            Currently Reading
+                          </option>
+
+                          <option value="read">
+                            Read
+                          </option>
+                        </select>
+                      </label>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            {moveBookError ? (
+              <p className="profile-save-error" role="alert">
+                {moveBookError}
+              </p>
+            ) : null}
+          </>
         ) : (
-          <p className="profile-empty">Books you add from ISBN search will appear here.</p>
+          <p className="profile-empty">
+            Books you add from ISBN search will appear here.
+          </p>
         )}
       </section>
 

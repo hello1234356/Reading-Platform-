@@ -118,7 +118,7 @@ function Discover() {
     );
 
     setSearchMessage(
-      `${book.title} was added to your To Be Read shelf.`,
+      `${book.title} was added to your reading list.`,
     );
   } catch (error) {
     console.error("Failed to add book to library:", error);
@@ -188,7 +188,7 @@ function isBookSaved(book) {
                       {isSaving
                         ? "Adding..."
                         : isSaved
-                          ? "Added to To Be Read"
+                          ? "Added to Reading List"
                           : "Add to My Shelf"}
                     </button>
                     </div>
