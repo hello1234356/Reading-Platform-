@@ -6,9 +6,9 @@ import {
   getUserLibrary,
   moveLibraryBook,
 } from "../lib/libraryApi";
+import { getUserReviews } from "../lib/reviewApi";
 
 const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
-const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
 
 const initialFavoriteBooks = [];
 
@@ -16,58 +16,6 @@ const profileShelves = [
   { label: "Read", slug: "read", tone: "butter", note: "finished and reviewed" },
   { label: "Currently Reading", slug: "currently-reading", tone: "sage", note: "open on your desk" },
   { label: "To Be Read", slug: "to-be-read", tone: "coral", note: "saved for later" },
-];
-
-const recentReviews = [
-  {
-    book: "The Goldfinch",
-    author: "Donna Tartt",
-    isbn: "9780316055444",
-    rating: "4.5",
-    note: "A sprawling, grief-soaked novel about art, loss, obsession, and the strange objects people cling to while trying to survive.",
-  },
-  {
-    book: "The Year of Magical Thinking",
-    author: "Joan Didion",
-    isbn: "9781400078431",
-    rating: "5.0",
-    note: "Didion's memoir follows the year after her husband's sudden death, tracing grief with exacting clarity and restraint.",
-  },
-  {
-    book: "Cleopatra and Frankenstein",
-    author: "Coco Mellors",
-    isbn: "9781635576818",
-    rating: "4.0",
-    note: "A New York marriage novel about desire, dependence, friendship, and the messy aftermath of choosing the wrong person beautifully.",
-  },
-  {
-    book: "Normal People",
-    author: "Sally Rooney",
-    isbn: "9781984822185",
-    rating: "4.0",
-    note: "A contemporary novel about class, intimacy, miscommunication, and the long emotional pull between two people.",
-  },
-  {
-    book: "Bluets",
-    author: "Maggie Nelson",
-    isbn: "9781933517407",
-    rating: "5.0",
-    note: "A fragmentary lyric essay about blue, desire, grief, philosophy, and the emotional texture of attention.",
-  },
-  {
-    book: "Giovanni's Room",
-    author: "James Baldwin",
-    isbn: "9780345806567",
-    rating: "5.0",
-    note: "A classic novel about desire, shame, exile, and the devastating cost of refusing the truth of oneself.",
-  },
-  {
-    book: "Open City",
-    author: "Teju Cole",
-    isbn: "9780812980097",
-    rating: "4.0",
-    note: "A meditative novel following a Nigerian-German psychiatrist walking through New York and reflecting on memory, history, and solitude.",
-  },
 ];
 
 const initialShelfBooks = {
@@ -170,14 +118,7 @@ function getJoinedClubs() {
   }
 }
 
-function getSavedProfileReviews() {
-  try {
-    const savedReviews = JSON.parse(localStorage.getItem(PROFILE_REVIEWS_KEY));
-    return Array.isArray(savedReviews) ? savedReviews : [];
-  } catch {
-    return [];
-  }
-}
+
 
 function renderStars(rating) {
   const numericRating = Number(rating);
@@ -231,7 +172,9 @@ function Profile() {
   const [selectedFavorites, setSelectedFavorites] = useState(initialFavoriteBooks);
   const [favoriteSearch, setFavoriteSearch] = useState("");
   const [isFavoritePickerOpen, setIsFavoritePickerOpen] = useState(false);
-  const [savedReviews] = useState(getSavedProfileReviews);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState("");
   const [reviewPage, setReviewPage] = useState(0);
   const [libraryBooks, setLibraryBooks] = useState([]);
   const [libraryLoading, setLibraryLoading] = useState(true);
@@ -301,6 +244,34 @@ function Profile() {
 
     loadLibrary();
   }, [user?.id]);
+
+  useEffect(() => {
+    async function loadReviews() {
+      if (!user?.id) {
+        setReviews([]);
+        setReviewsLoading(false);
+        return;
+      }
+
+      setReviewsLoading(true);
+      setReviewsError("");
+
+      try {
+        const data = await getUserReviews(user.id);
+        setReviews(data);
+      } catch (error) {
+        console.error(error);
+        setReviewsError(
+          error.message || "Could not load your reviews.",
+        );
+      } finally {
+        setReviewsLoading(false);
+      }
+    }
+
+    loadReviews();
+  }, [user?.id]);
+
   function openEditProfile() {
     setProfileDraft({
       full_name: profile?.full_name || "",
@@ -537,9 +508,12 @@ function Profile() {
     (shelf) => shelf.slug === shelfSlug,
   );
 
-  const profileReviews = [...savedReviews, ...recentReviews];
+  const profileReviews = reviews;
   const reviewsPerPage = 5;
-  const reviewPageCount = Math.ceil(profileReviews.length / reviewsPerPage);
+  const reviewPageCount = Math.max(
+    1,
+    Math.ceil(profileReviews.length / reviewsPerPage)
+  );
 
   const visibleReviews = profileReviews.slice(
     reviewPage * reviewsPerPage,
@@ -826,22 +800,44 @@ function Profile() {
         </div>
 
         <div className="profile-review-list">
-          {visibleReviews.map((review) => (
-            <article className="profile-review" key={review.book}>
-              <div className="profile-review-media">
-                <img src={getCoverUrl(review.isbn)} alt="" loading="lazy" />
-                <div className="profile-review-stars" aria-label={`${review.rating} out of 5 stars`}>
-                  {renderStars(review.rating)}
+          {reviewsLoading ? (
+            <p className="profile-empty">Loading reviews...</p>
+          ) : reviewsError ? (
+            <p className="profile-save-error">{reviewsError}</p>
+          ) : visibleReviews.length > 0 ? (
+            visibleReviews.map((review) => (
+              <article
+                className="profile-review"
+                key={review.id || review.bookId}
+              >
+                <div className="profile-review-media">
+                  <img
+                    src={review.coverUrl || getCoverUrl(review.isbn)}
+                    alt=""
+                    loading="lazy"
+                  />
+
+                  <div
+                    className="profile-review-stars"
+                    aria-label={`${review.rating} out of 5 stars`}
+                  >
+                    {renderStars(review.rating)}
+                  </div>
                 </div>
-              </div>
-              <section>
-                <p>{review.author}</p>
-                <h3>{review.book}</h3>
-                <strong>{review.rating}/5</strong>
-                <small>{review.note}</small>
-              </section>
-            </article>
-          ))}
+
+                <section>
+                  <p>{review.author}</p>
+                  <h3>{review.book}</h3>
+                  <strong>{review.rating}/5</strong>
+                  <small>{review.text}</small>
+                </section>
+              </article>
+            ))
+          ) : (
+            <p className="profile-empty">
+              You haven't reviewed any books yet.
+            </p>
+          )}
         </div>
         {reviewPageCount > 1 ? (
           <div className="profile-review-pagination">

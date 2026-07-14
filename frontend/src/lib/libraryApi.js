@@ -83,7 +83,7 @@ export async function addBookToLibrary(userId, book) {
 
   /*
    * Then connect that book to this user's personal library.
-   * New books begin on the To Be Read shelf.
+   * New books begin in the uncategorized My Reading List area
    */
   const { data: shelfRow, error: shelfError } = await supabase
     .from("shelves")
