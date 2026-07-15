@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
-import { useAuth } from "../hooks/useAuth";
-import { addBookToLibrary, getUserLibrary } from "../lib/libraryApi";
-import { getUserProfile } from "../lib/profileApi";
-import { saveReview } from "../lib/reviewApi";
-import { createPublicReviewPost, getUserDisplayHandle } from "../lib/socialFeed";
+import {useAuth} from "../hooks/useAuth";
+import { getUserLibrary } from "../lib/libraryApi";
+import { createPost, getFeedPosts } from "../lib/postApi";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -32,90 +30,9 @@ function saveProfileReview(review) {
   }
 }
 
-function mapLibraryBookToTrackedBook(book) {
-  return {
-    title: book.title,
-    author: book.author,
-    isbn: book.isbn,
-    coverUrl: book.coverUrl,
-    pagesRead: Number(book.progress) || 0,
-    totalPages: 100,
-    finished: false,
-    shelfEntryId: book.shelfEntryId,
-    bookId: book.bookId,
-  };
-}
-
-function getTrackedBookKey(book) {
-  return book?.shelfEntryId || book?.isbn || book?.title;
-}
-
-function formatRelativeTime(timestamp, now = Date.now()) {
-  if (!timestamp) return "";
-
-  const createdAt = new Date(timestamp).getTime();
-
-  if (Number.isNaN(createdAt)) return "";
-
-  const seconds = Math.max(0, Math.floor((now - createdAt) / 1000));
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (seconds < 30) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: new Date(createdAt).getFullYear() === new Date(now).getFullYear()
-      ? undefined
-      : "numeric",
-  }).format(createdAt);
-}
-
-function normalizeComment(comment) {
-  if (typeof comment === "string") {
-    return {
-      id: crypto.randomUUID(),
-      name: "Reader",
-      text: comment,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  return {
-    id: comment.id || crypto.randomUUID(),
-    name: comment.name || "Reader",
-    text: comment.text || "",
-    createdAt: comment.createdAt || new Date().toISOString(),
-  };
-}
-
-function normalizePost(post) {
-  return {
-    ...post,
-    createdAt: post.createdAt || new Date().toISOString(),
-    comments: Array.isArray(post.comments) ? post.comments.map(normalizeComment) : [],
-    liked: Boolean(post.liked),
-    draftComment: post.draftComment || "",
-  };
-}
-
-function isLegacyPlaceholderPost(post) {
-  return (
-    [1, 2, 3, 4].includes(Number(post.id)) &&
-    ["Maya C.", "Julian R.", "Anika S.", "Theo L."].includes(post.student)
-  );
-}
-
 function getInitialHomeState() {
   const fallback = {
-    posts: [],
-    trackedBooks: [defaultTrackedBook],
+    trackedBook: defaultTrackedBook,
   };
 
   try {
@@ -126,34 +43,54 @@ function getInitialHomeState() {
     }
 
     return {
-      ...fallback,
-      ...savedState,
-      posts: Array.isArray(savedState.posts)
-        ? savedState.posts.map(normalizePost)
-            .filter((post) => !isLegacyPlaceholderPost(post))
-        : fallback.posts,
-      trackedBooks: Array.isArray(savedState.trackedBooks)
-        ? savedState.trackedBooks
-        : Object.prototype.hasOwnProperty.call(savedState, "trackedBook")
-          ? savedState.trackedBook
-            ? [savedState.trackedBook]
-            : []
-          : fallback.trackedBooks,
+      trackedBook: savedState.trackedBook || fallback.trackedBook,
     };
   } catch {
     return fallback;
   }
 }
+
+const shelfLinks = [
+  {
+    label: "Reading",
+    count: 4,
+    tone: "sea",
+    note: "books open right now",
+  },
+  {
+    label: "Want to Read",
+    count: 18,
+    tone: "forest",
+    note: "saved for later",
+  },
+  {
+    label: "To Read",
+    count: 9,
+    tone: "terracotta",
+    note: "queued this month",
+  },
+];
+
+const gradeLeaderboard = [
+  { grade: "12th Grade", books: 314, accent: "navy" },
+  { grade: "11th Grade", books: 287, accent: "forest" },
+  { grade: "10th Grade", books: 242, accent: "terracotta" },
+  { grade: "9th Grade", books: 218, accent: "sea" },
+];
+
 function Home() {
   const [initialHomeState] = useState(getInitialHomeState);
   const { requireLogin, isLoggedIn } = useRequireLogin();
   const { user } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState(initialHomeState.posts);
-  const [now, setNow] = useState(() => Date.now());
-  const userHandle = getUserDisplayHandle(user, profile);
-  const [trackedBooks, setTrackedBooks] = useState(initialHomeState.trackedBooks);
-  const [finishingBook, setFinishingBook] = useState(null);
+
+  const [posts, setPosts] = useState([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState("");
+
+  const [trackedBook, setTrackedBook] = useState(
+    initialHomeState.trackedBook,
+  );
+
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isLogBookOpen, setIsLogBookOpen] = useState(false);
   const [isFinishReviewOpen, setIsFinishReviewOpen] = useState(false);
@@ -169,80 +106,107 @@ function Home() {
   const [finishReviewSaving, setFinishReviewSaving] = useState(false);
   const [finishReviewError, setFinishReviewError] = useState("");
   const [composeDraft, setComposeDraft] = useState({
-    bookTitle: bookDatabasePreview[0].title,
+    bookId: "",
     note: "",
-    tags: "",
   });
+  const [libraryBooks, setLibraryBooks] = useState([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryError, setLibraryError] = useState("");
+
+  const [publishingNote, setPublishingNote] = useState(false);
+  const [publishNoteError, setPublishNoteError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFeed() {
+      setFeedLoading(true);
+      setFeedError("");
+
+      try {
+        const loadedPosts = await getFeedPosts(user?.id || null);
+
+        if (!cancelled) {
+          setPosts(loadedPosts);
+        }
+      } catch (error) {
+        console.error("Failed to load reading feed:", error);
+
+        if (!cancelled) {
+          setFeedError(
+            error.message || "Could not load the reading feed.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setFeedLoading(false);
+        }
+      }
+    }
+
+    loadFeed();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLibraryBooks() {
+      if (!user?.id) {
+        setLibraryBooks([]);
+        setLibraryLoading(false);
+        return;
+      }
+
+      setLibraryLoading(true);
+      setLibraryError("");
+
+      try {
+        const books = await getUserLibrary(user.id);
+
+        if (!cancelled) {
+          setLibraryBooks(books);
+
+          setComposeDraft((currentDraft) => ({
+            ...currentDraft,
+            bookId:
+              currentDraft.bookId ||
+              String(books[0]?.bookId || ""),
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load books for composer:", error);
+
+        if (!cancelled) {
+          setLibraryError(
+            error.message || "Could not load your books.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLibraryLoading(false);
+        }
+      }
+    }
+
+    loadLibraryBooks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        posts,
-        trackedBooks,
+        trackedBook,
       }),
     );
-  }, [posts, trackedBooks]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30000);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    async function loadProfile() {
-      if (!user?.id) {
-        setProfile(null);
-        return;
-      }
-
-      try {
-        setProfile(await getUserProfile(user.id));
-      } catch (error) {
-        console.error("Failed to load feed profile:", error);
-      }
-    }
-
-    loadProfile();
-  }, [user?.id]);
-
-  useEffect(() => {
-    async function loadCurrentReadingBook() {
-      if (!user?.id) return;
-
-      try {
-        const libraryBooks = await getUserLibrary(user.id);
-        const currentReadingBooks = libraryBooks.filter(
-          (book) => book.shelf === "currently-reading",
-        );
-
-        setTrackedBooks(currentReadingBooks.map(mapLibraryBookToTrackedBook));
-      } catch (error) {
-        console.error("Failed to load current reading book:", error);
-      }
-    }
-
-    loadCurrentReadingBook();
-  }, [user?.id]);
-
-  function getDisplayNameForSavedAuthor(savedName) {
-    const emailName = user?.email?.split("@")[0];
-
-    if (!savedName || savedName === "You" || savedName === emailName) {
-      return userHandle;
-    }
-
-    return savedName;
-  }
-
-  function getPostStudent(post) {
-    return getDisplayNameForSavedAuthor(post.student);
-  }
-
-  function getCommentName(comment) {
-    return getDisplayNameForSavedAuthor(comment.name);
-  }
+  }, [trackedBook]);
 
   function toggleLike(postId) {
   if (!requireLogin()) return;
@@ -292,9 +256,21 @@ function Home() {
     );
   }
 
-  function openComposer(bookTitle = composeDraft.bookTitle || bookDatabasePreview[0].title) {
+  function openComposer(bookId = null) {
     if (!requireLogin()) return;
-    setComposeDraft((draft) => ({ ...draft, bookTitle }));
+
+    setPublishNoteError("");
+
+    setComposeDraft((currentDraft) => ({
+      ...currentDraft,
+      bookId: String(
+        bookId ||
+        currentDraft.bookId ||
+        libraryBooks[0]?.bookId ||
+        "",
+      ),
+    }));
+
     setIsComposerOpen(true);
   }
 
@@ -527,53 +503,65 @@ function Home() {
     );
   }
 
-  function publishNote(event) {
-  event.preventDefault();
+  async function publishNote(event) {
+    event.preventDefault();
 
-  if (!requireLogin()) return;
+    if (!requireLogin()) return;
 
-  const selectedBook =
-    bookDatabasePreview.find((book) => book.title === composeDraft.bookTitle) ||
-    bookDatabasePreview[0];
+    if (!user?.id) {
+      setPublishNoteError("You must be logged in to publish.");
+      return;
+    }
 
-  const note = composeDraft.note.trim();
+    const note = composeDraft.note.trim();
+    const selectedBook = libraryBooks.find(
+      (book) => String(book.bookId) === String(composeDraft.bookId),
+    );
 
-  if (!note) {
-    return;
+    if (!selectedBook) {
+      setPublishNoteError("Please choose a book.");
+      return;
+    }
+
+    if (!note) {
+      setPublishNoteError("Please write a note before publishing.");
+      return;
+    }
+
+    setPublishingNote(true);
+    setPublishNoteError("");
+
+    try {
+      const createdPost = await createPost({
+        userId: user.id,
+        bookId: selectedBook.bookId,
+        note,
+        postType: "note",
+        progress: selectedBook.progress ?? 0,
+        rating: 0,
+      });
+
+      setPosts((currentPosts) => [
+        createdPost,
+        ...currentPosts,
+      ]);
+
+      setComposeDraft({
+        bookId: String(selectedBook.bookId),
+        note: "",
+      });
+
+      setIsComposerOpen(false);
+    } catch (error) {
+      console.error("Failed to publish reading note:", error);
+
+      setPublishNoteError(
+        error.message || "Could not publish your note.",
+      );
+    } finally {
+      setPublishingNote(false);
+    }
   }
-
-  setPosts((currentPosts) => [
-    {
-      id: Date.now(),
-	      student: userHandle,
-      year: "Reader",
-	      action: "posted a note about",
-	      book: selectedBook.title,
-	      author: selectedBook.author,
-	      createdAt: new Date().toISOString(),
-      mood: composeDraft.tags.trim() || "new note",
-      place: "your shelf",
-      accent: "sea",
-      note,
-      rating: 0,
-      progress: 0,
-      shelf: selectedBook.shelf,
-      likes: 0,
-      comments: [],
-      liked: false,
-      draftComment: "",
-    },
-    ...currentPosts,
-  ]);
-
-  setComposeDraft({
-    bookTitle: selectedBook.title,
-    note: "",
-    tags: "",
-  });
-
-  setIsComposerOpen(false);
-}
 
   return (
     <div className="home-page">
@@ -707,114 +695,172 @@ function Home() {
             </button>
           </div>
 
-	          <div className="feed-list">
-	            {posts.length > 0 ? (
-	              posts.map((post) => (
-	                <article className={`feed-card ${post.accent}`} key={post.id}>
-	                  <header className="feed-card-header">
-	                    <div className="avatar-stack">
-	                      <div className="avatar" aria-hidden="true">
-	                        {getPostStudent(post)
-	                          .split(" ")
-	                          .map((part) => part[0])
-	                          .join("")}
-	                      </div>
-	                      <span className="activity-dot" aria-hidden="true" />
-	                    </div>
-	                    <div>
-	                      <p className="feed-title">
-	                        <strong>{getPostStudent(post)}</strong> {post.action}{" "}
-	                        <span>{post.book}</span>
-	                      </p>
-	                      <p className="feed-meta">
-	                        {post.year} | {post.place} | {formatRelativeTime(post.createdAt, now)}
-	                      </p>
-	                    </div>
-	                  </header>
+          <div className="feed-list">
+          {feedLoading ? (
+            <p className="profile-empty">Loading reading notes...</p>
+          ) : feedError ? (
+            <p className="profile-save-error" role="alert">
+              {feedError}
+            </p>
+          ) : posts.length === 0 ? (
+            <p className="profile-empty">
+              No reading notes have been published yet.
+            </p>
+          ) : (
+            posts.map((post) => (
+              <article className="feed-card sea" key={post.id}>
+                <header className="feed-card-header">
+                  <div className="avatar-stack">
+                    <div className="avatar" aria-hidden="true">
+                      {post.student
+                        .split(" ")
+                        .filter(Boolean)
+                        .map((part) => part[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </div>
 
-	                  <div className="feed-note-bubble">
-	                    <p>{post.note}</p>
-	                    <span>{post.mood}</span>
-	                  </div>
+                    <span className="activity-dot" aria-hidden="true" />
+                  </div>
 
-	                  <div className="book-strip">
-	                    <div className="book-cover" aria-hidden="true">
-	                      <span>{post.book}</span>
-	                    </div>
-	                    <div className="book-details">
-	                      <p>{post.shelf}</p>
-	                      <strong>{post.author}</strong>
-	                      <small>{post.progress}% through the book</small>
-	                      <div
-	                        className="bookmark-progress"
-	                        aria-label={`${post.progress}% complete`}
-	                      >
-	                        <span style={{ width: `${post.progress}%` }} />
-	                      </div>
-	                    </div>
-	                    <div className="rating" aria-label={`${post.rating} out of 5`}>
-	                      {post.rating > 0 ? `${post.rating} / 5` : "In progress"}
-	                    </div>
-	                  </div>
+                  <div>
+                    <p className="feed-title">
+                      <strong>{post.student}</strong>{" "}
+                      {post.action}{" "}
+                      <span>{post.book}</span>
+                    </p>
 
-	                  <div className="feed-actions">
-	                    <button
-	                      className={post.liked ? "feed-action active" : "feed-action"}
-	                      type="button"
-	                      onClick={() => toggleLike(post.id)}
-	                      aria-label={post.liked ? "Unlike post" : "Like post"}
-	                    >
-	                      <span aria-hidden="true">{post.liked ? "♥" : "♡"}</span>
-	                      <small>{post.likes}</small>
-	                    </button>
-	                    <button className="feed-action" type="button" aria-label="Comment on post">
-	                      <span aria-hidden="true">↩</span>
-	                      <small>{post.comments.length}</small>
-	                    </button>
-	                  </div>
+                    <p className="feed-meta">
+                      {post.username
+                        ? `@${post.username.replace(/^@/, "")} | `
+                        : ""}
+                      {post.time}
+                    </p>
+                  </div>
+                </header>
 
-	                  <div className="comment-list">
-	                    {post.comments.slice(-2).map((comment) => (
-	                      <p key={comment.id}>
-	                        <strong>{getCommentName(comment)}</strong>
-	                        <span>{comment.text}</span>
-	                        <small>{formatRelativeTime(comment.createdAt, now)}</small>
-	                      </p>
-	                    ))}
-	                  </div>
+                <div className="feed-note-bubble">
+                  <p>{post.note}</p>
+                </div>
 
-	                  <div className="comment-form">
-	                    <input
-	                      type="text"
-	                      value={post.draftComment}
-	                      onChange={(event) => updateDraft(post.id, event.target.value)}
-	                      onKeyDown={(event) => {
-	                        if (event.key === "Enter") {
-	                          addComment(post.id);
-	                        }
-	                      }}
-	                      placeholder="Add a quiet thought..."
-	                      aria-label={`Comment on ${post.book}`}
-	                    />
-	                    <button type="button" onClick={() => addComment(post.id)}>
-	                      Send
-	                    </button>
-	                  </div>
-	                </article>
-	              ))
-	            ) : (
-	              <article className="feed-empty-state">
-	                <p className="eyebrow">Reading Notes</p>
-	                <h3>No posts yet.</h3>
-	                <p>
-	                  Share a quote, a review, or a reading update to start the feed.
-	                </p>
-	                <button type="button" onClick={() => openComposer()}>
-	                  Write Note
-	                </button>
-	              </article>
-	            )}
-	          </div>
+                <div className="book-strip">
+                  <div className="book-cover" aria-hidden="true">
+                    {post.coverUrl ? (
+                      <img
+                        src={post.coverUrl}
+                        alt=""
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span>{post.book}</span>
+                    )}
+                  </div>
+
+                  <div className="book-details">
+                    <p>{post.genre}</p>
+                    <strong>{post.author}</strong>
+
+                    <small>
+                      {post.progress}% through the book
+                    </small>
+
+                    <div
+                      className="bookmark-progress"
+                      aria-label={`${post.progress}% complete`}
+                    >
+                      <span
+                        style={{
+                          width: `${Math.min(
+                            Math.max(post.progress, 0),
+                            100,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className="rating"
+                    aria-label={
+                      post.rating > 0
+                        ? `${post.rating} out of 5`
+                        : "No rating"
+                    }
+                  >
+                    {post.rating > 0
+                      ? `${post.rating} / 5`
+                      : post.postType === "finished"
+                        ? "Finished"
+                        : "In progress"}
+                  </div>
+                </div>
+
+                <div className="feed-actions">
+                  <button
+                    className={
+                      post.liked
+                        ? "feed-action active"
+                        : "feed-action"
+                    }
+                    type="button"
+                    onClick={() => toggleLike(post.id)}
+                    aria-label={
+                      post.liked ? "Unlike post" : "Like post"
+                    }
+                  >
+                    <span aria-hidden="true">
+                      {post.liked ? "♥" : "♡"}
+                    </span>
+                    <small>{post.likes}</small>
+                  </button>
+
+                  <button
+                    className="feed-action"
+                    type="button"
+                    aria-label="Comment on post"
+                  >
+                    <span aria-hidden="true">↩</span>
+                    <small>{post.comments.length}</small>
+                  </button>
+                </div>
+
+                <div className="comment-list">
+                  {post.comments.slice(-2).map((comment) => (
+                    <p key={comment.id}>
+                      <strong>{comment.commenterName}</strong>{" "}
+                      {comment.text}
+                    </p>
+                  ))}
+                </div>
+
+                <div className="comment-form">
+                  <input
+                    type="text"
+                    value={post.draftComment}
+                    onChange={(event) =>
+                      updateDraft(post.id, event.target.value)
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        addComment(post.id);
+                      }
+                    }}
+                    placeholder="Add a quiet thought..."
+                    aria-label={`Comment on ${post.book}`}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => addComment(post.id)}
+                  >
+                    Send
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
         </section>
 
       </div>
@@ -848,21 +894,37 @@ function Home() {
             <form onSubmit={publishNote}>
               <label>
                 <span>Book</span>
-                <select
-                  value={composeDraft.bookTitle}
-                  onChange={(event) =>
-                    setComposeDraft((draft) => ({
-                      ...draft,
-                      bookTitle: event.target.value,
-                    }))
-                  }
-                >
-                  {bookDatabasePreview.map((book) => (
-                    <option value={book.title} key={book.isbn}>
-                      {book.title} - {book.author}
-                    </option>
-                  ))}
-                </select>
+                {libraryLoading ? (
+                  <p>Loading your books...</p>
+                ) : libraryError ? (
+                  <p className="profile-save-error">
+                    {libraryError}
+                  </p>
+                ) : libraryBooks.length === 0 ? (
+                  <p className="profile-empty">
+                    Add a book from Discover before writing a reading note.
+                  </p>
+                ) : (
+                  <select
+                    value={composeDraft.bookId}
+                    disabled={publishingNote}
+                    onChange={(event) =>
+                      setComposeDraft((draft) => ({
+                        ...draft,
+                        bookId: event.target.value,
+                      }))
+                    }
+                  >
+                    {libraryBooks.map((book) => (
+                      <option
+                        value={String(book.bookId)}
+                        key={book.shelfEntryId}
+                      >
+                        {book.title} - {book.author}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </label>
               <label>
                 <span>Your note or quote</span>
@@ -878,26 +940,20 @@ function Home() {
                   rows="6"
                 />
               </label>
-              <label>
-                <span>Tags</span>
-                <input
-                  type="text"
-                  value={composeDraft.tags}
-                  onChange={(event) =>
-                    setComposeDraft((draft) => ({
-                      ...draft,
-                      tags: event.target.value,
-                    }))
-                  }
-                  placeholder="rainy read, favorite quote, review..."
-                />
-              </label>
-              <div className="modal-preview">
-                <div className="tracked-cover" aria-hidden="true">
-                  <span>{composeDraft.bookTitle}</span>
+                <div className="modal-preview">
+                  <div className="tracked-cover" aria-hidden="true">
+                    <span>
+                      {libraryBooks.find(
+                        (book) =>
+                          String(book.bookId) === String(composeDraft.bookId),
+                      )?.title || "Choose a book"}
+                    </span>
+                  </div>
+
+                  <p>
+                    This will appear in the social feed as your newest note.
+                  </p>
                 </div>
-                <p>This will appear in the social feed as your newest note.</p>
-              </div>
               <button className="primary-button full" type="submit">
                 Publish note
               </button>
