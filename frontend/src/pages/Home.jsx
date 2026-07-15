@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import {useAuth} from "../hooks/useAuth";
-import { getUserLibrary } from "../lib/libraryApi";
+import { addBookToLibrary, getUserLibrary } from "../lib/libraryApi";
 import { createPost, getFeedPosts } from "../lib/postApi";
+import { saveReview } from "../lib/reviewApi";
+import { createPublicReviewPost, getUserDisplayHandle } from "../lib/socialFeed";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -28,6 +30,85 @@ function saveProfileReview(review) {
   } catch {
     localStorage.setItem(PROFILE_REVIEWS_KEY, JSON.stringify([review]));
   }
+}
+function mapLibraryBookToTrackedBook(book) {
+  return {
+    title: book.title,
+    author: book.author,
+    isbn: book.isbn,
+    coverUrl: book.coverUrl,
+    pagesRead: Number(book.progress) || 0,
+    totalPages: 100,
+    finished: false,
+    shelfEntryId: book.shelfEntryId,
+    bookId: book.bookId,
+  };
+}
+
+function getTrackedBookKey(book) {
+  return book?.shelfEntryId || book?.isbn || book?.title;
+}
+
+function formatRelativeTime(timestamp, now = Date.now()) {
+  if (!timestamp) return "";
+
+  const createdAt = new Date(timestamp).getTime();
+
+  if (Number.isNaN(createdAt)) return "";
+
+  const seconds = Math.max(0, Math.floor((now - createdAt) / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 30) return "just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: new Date(createdAt).getFullYear() === new Date(now).getFullYear()
+      ? undefined
+      : "numeric",
+  }).format(createdAt);
+}
+
+function normalizeComment(comment) {
+  if (typeof comment === "string") {
+    return {
+      id: crypto.randomUUID(),
+      name: "Reader",
+      text: comment,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  return {
+    id: comment.id || crypto.randomUUID(),
+    name: comment.name || "Reader",
+    text: comment.text || "",
+    createdAt: comment.createdAt || new Date().toISOString(),
+  };
+}
+
+function normalizePost(post) {
+  return {
+    ...post,
+    createdAt: post.createdAt || new Date().toISOString(),
+    comments: Array.isArray(post.comments) ? post.comments.map(normalizeComment) : [],
+    liked: Boolean(post.liked),
+    draftComment: post.draftComment || "",
+  };
+}
+
+function isLegacyPlaceholderPost(post) {
+  return (
+    [1, 2, 3, 4].includes(Number(post.id)) &&
+    ["Maya C.", "Julian R.", "Anika S.", "Theo L."].includes(post.student)
+  );
 }
 
 function getInitialHomeState() {
