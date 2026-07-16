@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
-import {useAuth} from "../hooks/useAuth";
+import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary, getUserLibrary } from "../lib/libraryApi";
 import { createPost, getFeedPosts } from "../lib/postApi";
+import { getUserProfile } from "../lib/profileApi";
 import { saveReview } from "../lib/reviewApi";
-import { createPublicReviewPost, getUserDisplayHandle } from "../lib/socialFeed";
+import { getUserDisplayHandle } from "../lib/socialFeed";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -49,71 +50,9 @@ function getTrackedBookKey(book) {
   return book?.shelfEntryId || book?.isbn || book?.title;
 }
 
-function formatRelativeTime(timestamp, now = Date.now()) {
-  if (!timestamp) return "";
-
-  const createdAt = new Date(timestamp).getTime();
-
-  if (Number.isNaN(createdAt)) return "";
-
-  const seconds = Math.max(0, Math.floor((now - createdAt) / 1000));
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (seconds < 30) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: new Date(createdAt).getFullYear() === new Date(now).getFullYear()
-      ? undefined
-      : "numeric",
-  }).format(createdAt);
-}
-
-function normalizeComment(comment) {
-  if (typeof comment === "string") {
-    return {
-      id: crypto.randomUUID(),
-      name: "Reader",
-      text: comment,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  return {
-    id: comment.id || crypto.randomUUID(),
-    name: comment.name || "Reader",
-    text: comment.text || "",
-    createdAt: comment.createdAt || new Date().toISOString(),
-  };
-}
-
-function normalizePost(post) {
-  return {
-    ...post,
-    createdAt: post.createdAt || new Date().toISOString(),
-    comments: Array.isArray(post.comments) ? post.comments.map(normalizeComment) : [],
-    liked: Boolean(post.liked),
-    draftComment: post.draftComment || "",
-  };
-}
-
-function isLegacyPlaceholderPost(post) {
-  return (
-    [1, 2, 3, 4].includes(Number(post.id)) &&
-    ["Maya C.", "Julian R.", "Anika S.", "Theo L."].includes(post.student)
-  );
-}
-
 function getInitialHomeState() {
   const fallback = {
-    trackedBook: defaultTrackedBook,
+    trackedBooks: [defaultTrackedBook],
   };
 
   try {
@@ -124,53 +63,32 @@ function getInitialHomeState() {
     }
 
     return {
-      trackedBook: savedState.trackedBook || fallback.trackedBook,
+      trackedBooks: Array.isArray(savedState.trackedBooks)
+        ? savedState.trackedBooks
+        : Object.prototype.hasOwnProperty.call(savedState, "trackedBook")
+          ? savedState.trackedBook
+            ? [savedState.trackedBook]
+            : []
+          : fallback.trackedBooks,
     };
   } catch {
     return fallback;
   }
 }
 
-const shelfLinks = [
-  {
-    label: "Reading",
-    count: 4,
-    tone: "sea",
-    note: "books open right now",
-  },
-  {
-    label: "Want to Read",
-    count: 18,
-    tone: "forest",
-    note: "saved for later",
-  },
-  {
-    label: "To Read",
-    count: 9,
-    tone: "terracotta",
-    note: "queued this month",
-  },
-];
-
-const gradeLeaderboard = [
-  { grade: "12th Grade", books: 314, accent: "navy" },
-  { grade: "11th Grade", books: 287, accent: "forest" },
-  { grade: "10th Grade", books: 242, accent: "terracotta" },
-  { grade: "9th Grade", books: 218, accent: "sea" },
-];
-
 function Home() {
   const [initialHomeState] = useState(getInitialHomeState);
   const { requireLogin, isLoggedIn } = useRequireLogin();
   const { user } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const userHandle = getUserDisplayHandle(user, profile);
 
   const [posts, setPosts] = useState([]);
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState("");
 
-  const [trackedBook, setTrackedBook] = useState(
-    initialHomeState.trackedBook,
-  );
+  const [trackedBooks, setTrackedBooks] = useState(initialHomeState.trackedBooks);
+  const [finishingBook, setFinishingBook] = useState(null);
 
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isLogBookOpen, setIsLogBookOpen] = useState(false);
@@ -196,6 +114,23 @@ function Home() {
 
   const [publishingNote, setPublishingNote] = useState(false);
   const [publishNoteError, setPublishNoteError] = useState("");
+
+  useEffect(() => {
+    async function loadProfile() {
+      if (!user?.id) {
+        setProfile(null);
+        return;
+      }
+
+      try {
+        setProfile(await getUserProfile(user.id));
+      } catch (error) {
+        console.error("Failed to load reading room profile:", error);
+      }
+    }
+
+    loadProfile();
+  }, [user?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -250,6 +185,11 @@ function Home() {
 
         if (!cancelled) {
           setLibraryBooks(books);
+          setTrackedBooks(
+            books
+              .filter((book) => book.shelf === "currently-reading")
+              .map(mapLibraryBookToTrackedBook),
+          );
 
           setComposeDraft((currentDraft) => ({
             ...currentDraft,
@@ -281,13 +221,13 @@ function Home() {
   }, [user?.id]);
 
   useEffect(() => {
-    localStorage.setItem(
+      localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        trackedBook,
+        trackedBooks,
       }),
     );
-  }, [trackedBook]);
+  }, [trackedBooks]);
 
   function toggleLike(postId) {
   if (!requireLogin()) return;
@@ -488,6 +428,7 @@ function Home() {
 
     setFinishReviewSaving(true);
     setFinishReviewError("");
+    let createdFeedPost = null;
 
     const savedReview = {
       book: finishingBook.title,
@@ -518,6 +459,17 @@ function Home() {
       });
 
       saveProfileReview(savedReview);
+
+      if (finishReview.visibility === "public") {
+        createdFeedPost = await createPost({
+          userId: user.id,
+          bookId: savedLibraryBook.book.id,
+          note: savedReview.note,
+          postType: "review",
+          progress: 100,
+          rating: finishReview.rating,
+        });
+      }
     } catch (error) {
       console.error("Failed to save finished book:", error);
       setFinishReviewError(error.message || "Could not save this finished book.");
@@ -525,17 +477,8 @@ function Home() {
       return;
     }
 
-    if (finishReview.visibility === "public") {
-      setPosts((currentPosts) => [
-        createPublicReviewPost({
-          book: finishingBook,
-          rating: finishReview.rating,
-          reviewText: finishReview.review,
-          user,
-          profile,
-        }),
-        ...currentPosts,
-      ]);
+    if (createdFeedPost) {
+      setPosts((currentPosts) => [createdFeedPost, ...currentPosts]);
     }
 
     setFinishReview({ rating: 5, review: "", visibility: "public" });
@@ -1035,8 +978,17 @@ function Home() {
                     This will appear in the social feed as your newest note.
                   </p>
                 </div>
-              <button className="primary-button full" type="submit">
-                Publish note
+              {publishNoteError ? (
+                <p className="profile-save-error" role="alert">
+                  {publishNoteError}
+                </p>
+              ) : null}
+              <button
+                className="primary-button full"
+                type="submit"
+                disabled={publishingNote}
+              >
+                {publishingNote ? "Publishing..." : "Publish note"}
               </button>
             </form>
           </section>
