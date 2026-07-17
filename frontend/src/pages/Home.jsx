@@ -14,8 +14,7 @@ const defaultTrackedBook = {
   title: "Bluets",
   author: "Maggie Nelson",
   isbn: "9781933517407",
-  pagesRead: 38,
-  totalPages: 112,
+  progress: 34,
   finished: false,
 };
 
@@ -38,8 +37,7 @@ function mapLibraryBookToTrackedBook(book) {
     author: book.author,
     isbn: book.isbn,
     coverUrl: book.coverUrl,
-    pagesRead: Number(book.progress) || 0,
-    totalPages: 100,
+    progress: Number(book.progress) || 0,
     finished: false,
     shelfEntryId: book.shelfEntryId,
     bookId: book.bookId,
@@ -48,6 +46,21 @@ function mapLibraryBookToTrackedBook(book) {
 
 function getTrackedBookKey(book) {
   return book?.shelfEntryId || book?.isbn || book?.title;
+}
+
+function normalizeTrackedBook(book) {
+  if (Object.prototype.hasOwnProperty.call(book, "progress")) {
+    return {
+      ...book,
+      progress: Math.max(0, Math.min(Number(book.progress) || 0, 100)),
+    };
+  }
+
+  const legacyProgress = book.totalPages
+    ? Math.round(((Number(book.pagesRead) || 0) / Number(book.totalPages)) * 100)
+    : 0;
+
+  return { ...book, progress: Math.max(0, Math.min(legacyProgress, 100)) };
 }
 
 function getInitialHomeState() {
@@ -64,10 +77,10 @@ function getInitialHomeState() {
 
     return {
       trackedBooks: Array.isArray(savedState.trackedBooks)
-        ? savedState.trackedBooks
+        ? savedState.trackedBooks.map(normalizeTrackedBook)
         : Object.prototype.hasOwnProperty.call(savedState, "trackedBook")
           ? savedState.trackedBook
-            ? [savedState.trackedBook]
+            ? [normalizeTrackedBook(savedState.trackedBook)]
             : []
           : fallback.trackedBooks,
     };
@@ -95,7 +108,6 @@ function Home() {
   const [isFinishReviewOpen, setIsFinishReviewOpen] = useState(false);
   const [readingDraft, setReadingDraft] = useState({
     bookTitle: initialHomeState.trackedBooks?.[0]?.title || bookDatabasePreview[0].title,
-    totalPages: initialHomeState.trackedBooks?.[0]?.totalPages || bookDatabasePreview[0].pages || 1,
   });
   const [finishReview, setFinishReview] = useState({
     rating: 5,
@@ -312,8 +324,7 @@ function Home() {
       title: selectedBook.title,
       author: selectedBook.author,
       isbn: selectedBook.isbn,
-      pagesRead: 0,
-      totalPages: Number(readingDraft.totalPages) || 1,
+      progress: 0,
       finished: false,
       coverUrl: getCoverUrl(selectedBook.isbn),
     };
@@ -353,16 +364,16 @@ function Home() {
     setIsLogBookOpen(false);
   }
 
-  function updateTrackedPages(bookToUpdate, value) {
+  function updateTrackedProgress(bookToUpdate, value) {
     if (!requireLogin()) return;
     if (!bookToUpdate) return;
 
-    const nextPages = Math.max(0, Math.min(Number(value) || 0, bookToUpdate.totalPages));
-    const shouldFinish = nextPages >= bookToUpdate.totalPages;
+    const nextProgress = Math.max(0, Math.min(Number(value) || 0, 100));
+    const shouldFinish = nextProgress >= 100;
     const bookKey = getTrackedBookKey(bookToUpdate);
     const updatedBook = {
       ...bookToUpdate,
-      pagesRead: nextPages,
+      progress: nextProgress,
       finished: shouldFinish,
     };
 
@@ -385,7 +396,7 @@ function Home() {
     const bookKey = getTrackedBookKey(bookToFinish);
     const finishedBook = {
       ...bookToFinish,
-      pagesRead: bookToFinish.totalPages,
+      progress: 100,
       finished: true,
     };
 
@@ -639,24 +650,22 @@ function Home() {
                       <div>
                         <p>{book.author}</p>
                         <strong>{book.title}</strong>
-                        <small>
-                          {book.pagesRead} / {book.totalPages} pages
-                        </small>
+                        <small>{book.progress}% complete</small>
                       </div>
                     </div>
                     <div className="progress-editor compact">
                       <label>
-                        <span>Pages read</span>
+                        <span>Progress</span>
                         <input
                           type="number"
                           min="0"
-                          max={book.totalPages}
-                          value={book.pagesRead}
-                          onChange={(event) => updateTrackedPages(book, event.target.value)}
+                          max="100"
+                          value={book.progress}
+                          onChange={(event) => updateTrackedProgress(book, event.target.value)}
                         />
                       </label>
                       <div>
-                        <span>{Math.round((book.pagesRead / book.totalPages) * 100)}%</span>
+                        <span>{book.progress}%</span>
                         <strong>{book.finished ? "Finished" : "In progress"}</strong>
                       </div>
                     </div>
@@ -1023,17 +1032,6 @@ function Home() {
                     </option>
                   ))}
                 </select>
-              </label>
-              <label>
-                <span>Total pages</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={readingDraft.totalPages}
-                  onChange={(event) =>
-                    setReadingDraft((draft) => ({ ...draft, totalPages: event.target.value }))
-                  }
-                />
               </label>
               <button className="primary-button full" type="submit">
                 Start Tracking

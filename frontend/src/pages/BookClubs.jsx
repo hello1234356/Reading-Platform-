@@ -7,7 +7,12 @@ const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
 
 const clubGenres = ["All", "Fiction", "Essays", "Classics", "Campus", "Memoir"];
 
-const defaultMembers = ["Maya C.", "Julian R.", "Anika S.", "Theo L.", "Carrie L.", "Jenna W."];
+const DEMO_CLUB_IDS = new Set([
+  "didion-after-school",
+  "rooney-room",
+  "baldwin-circle",
+  "open-city-walkers",
+]);
 
 function getDefaultSchedule(duration = "4 weeks") {
   return [
@@ -32,9 +37,7 @@ function withCoverUrl(club) {
     schedule: Array.isArray(club.schedule) && club.schedule.length > 0
       ? club.schedule
       : getDefaultSchedule(club.duration),
-    members: Array.isArray(club.members) && club.members.length > 0
-      ? club.members
-      : defaultMembers.slice(0, Math.min(club.membersJoined || 4, defaultMembers.length)),
+    members: Array.isArray(club.members) ? club.members : [],
     coverUrl: club.coverUrl || getCoverUrl(club.isbn),
   };
 }
@@ -57,81 +60,6 @@ function parseSchedule(scheduleText, duration) {
   }));
 }
 
-const starterClubs = [
-  {
-    id: "didion-after-school",
-    title: "Didion After School",
-    bookTitle: "Slouching Towards Bethlehem",
-    author: "Joan Didion",
-    creator: "Jenna W.",
-    membersWanted: 12,
-    membersJoined: 7,
-    duration: "4 weeks",
-    genre: "Essays",
-    tone: "navy",
-    description:
-      "For readers who like essays that feel like overheard city weather. We meet once a week to talk about voice, place, and sentences worth underlining.",
-    isbn: "9780374531386",
-    coverUrl: getCoverUrl("9780374531386"),
-    members: ["Jenna W.", "Maya C.", "Noah H.", "Claire S.", "Ari K.", "Yiru Z.", "You"],
-    schedule: getDefaultSchedule("4 weeks"),
-  },
-  {
-    id: "rooney-room",
-    title: "The Rooney Room",
-    bookTitle: "Normal People",
-    author: "Sally Rooney",
-    creator: "Carrie L.",
-    membersWanted: 10,
-    membersJoined: 6,
-    duration: "3 weeks",
-    genre: "Fiction",
-    tone: "sea",
-    description:
-      "A quiet circle for contemporary fiction, complicated friendships, and books that make ordinary conversations feel charged.",
-    isbn: "9781984822178",
-    coverUrl: getCoverUrl("9781984822178"),
-    members: ["Carrie L.", "Emily W.", "Jason T.", "Mia Q.", "Leo N.", "Sasha P."],
-    schedule: getDefaultSchedule("3 weeks"),
-  },
-  {
-    id: "baldwin-circle",
-    title: "Baldwin Circle",
-    bookTitle: "Giovanni's Room",
-    author: "James Baldwin",
-    creator: "Yiru Z.",
-    membersWanted: 14,
-    membersJoined: 9,
-    duration: "5 weeks",
-    genre: "Classics",
-    tone: "terracotta",
-    description:
-      "Close reading, honest conversation, and a shared doc for favorite passages. Best for people who like talking about character choices after class.",
-    isbn: "9780345806567",
-    coverUrl: getCoverUrl("9780345806567"),
-    members: ["Yiru Z.", "Theo L.", "Iris M.", "Ben A.", "Lina H.", "Tara S.", "Evan C.", "Mei F.", "Nora J."],
-    schedule: getDefaultSchedule("5 weeks"),
-  },
-  {
-    id: "open-city-walkers",
-    title: "Open City Walkers",
-    bookTitle: "Open City",
-    author: "Teju Cole",
-    creator: "Mina R.",
-    membersWanted: 8,
-    membersJoined: 4,
-    duration: "4 weeks",
-    genre: "Campus",
-    tone: "forest",
-    description:
-      "Reading as wandering. Each week pairs chapters with a walk, a photo, or one small observation from the city.",
-    isbn: "9780812980097",
-    coverUrl: getCoverUrl("9780812980097"),
-    members: ["Mina R.", "Anika S.", "Kai W.", "Sofia P."],
-    schedule: getDefaultSchedule("4 weeks"),
-  },
-];
-
 function getInitialClubState() {
   try {
     const saved = JSON.parse(localStorage.getItem(CLUB_STORAGE_KEY));
@@ -139,22 +67,29 @@ function getInitialClubState() {
     if (!saved) {
       return {
         joinedIds: [],
-        clubs: starterClubs.map(withCoverUrl),
+        clubs: [],
         posts: {},
       };
     }
 
-    return {
-      joinedIds: Array.isArray(saved.joinedIds) ? saved.joinedIds : [],
+    const clubState = {
+      joinedIds: Array.isArray(saved.joinedIds)
+        ? saved.joinedIds.filter((clubId) => !DEMO_CLUB_IDS.has(clubId))
+        : [],
       clubs: Array.isArray(saved.clubs)
-        ? saved.clubs.map((club) => withCoverUrl({ genre: "Fiction", ...club }))
-        : starterClubs.map(withCoverUrl),
+        ? saved.clubs
+            .filter((club) => !DEMO_CLUB_IDS.has(club.id))
+            .map((club) => withCoverUrl({ genre: "Fiction", ...club }))
+        : [],
       posts: saved.posts || {},
     };
+
+    localStorage.setItem(CLUB_STORAGE_KEY, JSON.stringify(clubState));
+    return clubState;
   } catch {
     return {
       joinedIds: [],
-      clubs: starterClubs.map(withCoverUrl),
+      clubs: [],
       posts: {},
     };
   }
@@ -567,7 +502,9 @@ function BookClubs() {
           ))}
           {filteredClubs.length === 0 && (
             <p className="club-empty-state">
-              No circles in this genre yet. Start one and make the first shelf.
+              {clubs.length === 0
+                ? "No reading circles have been created yet. Start the first one when you are ready."
+                : "No circles in this genre yet. Start one and make the first shelf."}
             </p>
           )}
         </section>
