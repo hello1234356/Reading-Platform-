@@ -1,5 +1,11 @@
-function BookDetailModal({ book, loading, error, onClose }) {
-  if (!book) return null;
+function BookDetailModal({
+  book,
+  loading,
+  error,
+  onClose,
+  footer,
+}) {
+    if (!book) return null;
 
   return (
     <div
@@ -47,6 +53,11 @@ function BookDetailModal({ book, loading, error, onClose }) {
           )}
 
           {error ? <p className="book-detail-error">{error}</p> : null}
+          {footer ? (
+            <div className="book-detail-footer">
+              {footer}
+            </div>
+          ) : null}
         </section>
       </article>
     </div>

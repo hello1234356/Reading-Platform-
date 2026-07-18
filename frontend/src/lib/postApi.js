@@ -1,6 +1,6 @@
 import { requireSupabase } from "./supabase";
 
-function getPostAction(postType) {
+function getPostAction(postType, hasBook) {
   switch (postType) {
     case "review":
       return "reviewed";
@@ -10,7 +10,9 @@ function getPostAction(postType) {
       return "updated progress on";
     case "note":
     default:
-      return "posted a note about";
+      return hasBook
+      ? "posted a note about"
+      : "posted a reading note";
   }
 }
 
@@ -96,8 +98,9 @@ function mapPost(row, currentUserId = null) {
     username: profile?.username || "",
     avatarUrl: profile?.avatar_url || "",
 
-    action: getPostAction(row.post_type),
+    action: getPostAction(row.post_type, Boolean(book)),
     postType: row.post_type || "note",
+    hasBook: Boolean(book),
 
     book: book?.title || "Untitled",
     author: book?.author || "Unknown author",
@@ -198,9 +201,9 @@ export async function createPost({
     throw new Error("You must be logged in to publish a post.");
   }
 
-  if (!bookId) {
-    throw new Error("Please choose a book.");
-  }
+  if (postType !== "note" && !bookId) {
+  throw new Error("This type of post must be connected to a book.");
+}
 
   const cleanedNote = note?.trim();
 
@@ -244,7 +247,7 @@ export async function createPost({
     .from("posts")
     .insert({
       user_id: userId,
-      book_id: bookId,
+      book_id: bookId || null,
       note: cleanedNote,
       post_type: postType,
       progress: Math.round(numericProgress),
@@ -262,7 +265,7 @@ export async function createPost({
   return mapPost(data, userId);
 }
 
-export async function likePost(postId, userId) {
+export async function likePost({postId, userId}) {
   if (!postId || !userId) {
     throw new Error("The post or user is missing.");
   }
@@ -285,7 +288,7 @@ export async function likePost(postId, userId) {
   }
 }
 
-export async function unlikePost(postId, userId) {
+export async function unlikePost({postId, userId}) {
   if (!postId || !userId) {
     throw new Error("The post or user is missing.");
   }

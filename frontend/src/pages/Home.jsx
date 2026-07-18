@@ -3,10 +3,12 @@ import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary, getUserLibrary } from "../lib/libraryApi";
-import { createPost, getFeedPosts } from "../lib/postApi";
+import { createPost, getFeedPosts, addPostComment, likePost, unlikePost,} from "../lib/postApi";
 import { getUserProfile } from "../lib/profileApi";
 import { saveReview } from "../lib/reviewApi";
 import { getUserDisplayHandle } from "../lib/socialFeed";
+import BookDetailModal from "../components/BookDetailModal";
+import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -95,7 +97,12 @@ function Home() {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const userHandle = getUserDisplayHandle(user, profile);
-
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [bookDetailLoading, setBookDetailLoading] = useState(false);
+  const [bookDetailError, setBookDetailError] = useState(""); 
+  const [modalShelf, setModalShelf] = useState("to-be-read");
+  const [addingBook, setAddingBook] = useState(false);
+  const [bookAdded, setBookAdded] = useState(false);
   const [posts, setPosts] = useState([]);
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState("");
@@ -203,12 +210,6 @@ function Home() {
               .map(mapLibraryBookToTrackedBook),
           );
 
-          setComposeDraft((currentDraft) => ({
-            ...currentDraft,
-            bookId:
-              currentDraft.bookId ||
-              String(books[0]?.bookId || ""),
-          }));
         }
       } catch (error) {
         console.error("Failed to load books for composer:", error);
@@ -241,19 +242,41 @@ function Home() {
     );
   }, [trackedBooks]);
 
-  function toggleLike(postId) {
-  if (!requireLogin()) return;
-    setPosts((currentPosts) =>
-      currentPosts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              liked: !post.liked,
-              likes: post.liked ? post.likes - 1 : post.likes + 1,
-            }
-          : post,
-      ),
-    );
+  async function toggleLike(postId) {
+    if (!requireLogin()) return;
+    if (!user?.id) return;
+
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    try {
+      if (post.liked) {
+        await unlikePost({
+          postId,
+          userId: user.id,
+        });
+      } else {
+        await likePost({
+          postId,
+          userId: user.id,
+        });
+      }
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id !== postId
+            ? currentPost
+            : {
+                ...currentPost,
+                liked: !currentPost.liked,
+                likes:
+                  currentPost.likes + (currentPost.liked ? -1 : 1),
+              },
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   function updateDraft(postId, value) {
@@ -263,30 +286,55 @@ function Home() {
       ),
     );
   }
+  async function openBookDetails(book) {
+    setModalShelf("to-be-read");
+    setBookAdded(false);
+    setSelectedBook({
+      ...book,
+      description: book.description || "Loading official description...",
+    });
 
-  function addComment(postId) {
+    setBookDetailLoading(true);
+    setBookDetailError("");
+
+    const details = await getOpenLibraryBookDetails(book);
+
+    setSelectedBook(details);
+    setBookDetailError(details.error || "");
+    setBookDetailLoading(false);
+  }
+  async function addComment(postId) {
     if (!requireLogin()) return;
-    setPosts((currentPosts) =>
-      currentPosts.map((post) => {
-        if (post.id !== postId || !post.draftComment.trim()) {
-          return post;
-        }
+    if (!user?.id) return;
 
-        return {
-          ...post,
-	          comments: [
-                ...post.comments,
-                {
-                  id: crypto.randomUUID(),
-                  name: userHandle,
-                  text: post.draftComment.trim(),
-                  createdAt: new Date().toISOString(),
-                },
-              ],
-	          draftComment: "",
-	        };
-      }),
-    );
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    const comment = post.draftComment.trim();
+
+    if (!comment) return;
+
+    try {
+      const createdComment = await addPostComment({
+        postId,
+        userId: user.id,
+        comment,
+      });
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id !== postId
+            ? currentPost
+            : {
+                ...currentPost,
+                comments: [...currentPost.comments, createdComment],
+                draftComment: "",
+              },
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   function openComposer(bookId = null) {
@@ -296,12 +344,9 @@ function Home() {
 
     setComposeDraft((currentDraft) => ({
       ...currentDraft,
-      bookId: String(
-        bookId ||
-        currentDraft.bookId ||
-        libraryBooks[0]?.bookId ||
-        "",
-      ),
+      bookId: bookId
+        ? String(bookId)
+        : currentDraft.bookId || "",
     }));
 
     setIsComposerOpen(true);
@@ -537,7 +582,26 @@ function Home() {
       </div>
     );
   }
+  async function addModalBookToShelf() {
+    if (!requireLogin()) return;
+    if (!user?.id || !selectedBook) return;
 
+    setAddingBook(true);
+
+    try {
+      await addBookToLibrary(
+        user.id,
+        selectedBook,
+        modalShelf,
+      );
+
+      setBookAdded(true);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setAddingBook(false);
+    }
+  }
   async function publishNote(event) {
     event.preventDefault();
 
@@ -551,12 +615,7 @@ function Home() {
     const note = composeDraft.note.trim();
     const selectedBook = libraryBooks.find(
       (book) => String(book.bookId) === String(composeDraft.bookId),
-    );
-
-    if (!selectedBook) {
-      setPublishNoteError("Please choose a book.");
-      return;
-    }
+    ) ?? null;
 
     if (!note) {
       setPublishNoteError("Please write a note before publishing.");
@@ -569,10 +628,9 @@ function Home() {
     try {
       const createdPost = await createPost({
         userId: user.id,
-        bookId: selectedBook.bookId,
-        note,
+        bookId: selectedBook?.bookId ?? null,note,
         postType: "note",
-        progress: selectedBook.progress ?? 0,
+        progress: selectedBook?.progress ?? 0,
         rating: 0,
       });
 
@@ -582,7 +640,7 @@ function Home() {
       ]);
 
       setComposeDraft({
-        bookId: String(selectedBook.bookId),
+        bookId: "",
         note: "",
       });
 
@@ -760,8 +818,13 @@ function Home() {
                   <div>
                     <p className="feed-title">
                       <strong>{post.student}</strong>{" "}
-                      {post.action}{" "}
-                      <span>{post.book}</span>
+                      {post.action}
+                      {post.hasBook ? (
+                        <>
+                          {" "}
+                          <span>{post.book}</span>
+                        </>
+                      ) : null}
                     </p>
 
                     <p className="feed-meta">
@@ -776,8 +839,19 @@ function Home() {
                 <div className="feed-note-bubble">
                   <p>{post.note}</p>
                 </div>
-
-                <div className="book-strip">
+                {post.hasBook && (
+                <button
+                  type="button"
+                  className="book-strip"
+                  onClick={() =>
+                    openBookDetails({
+                      title: post.book,
+                      author: post.author,
+                      isbn: post.isbn,
+                      coverUrl: post.coverUrl,
+                    })
+                  }
+                >                  
                   <div className="book-cover" aria-hidden="true">
                     {post.coverUrl ? (
                       <img
@@ -823,12 +897,12 @@ function Home() {
                   >
                     {post.rating > 0
                       ? `${post.rating} / 5`
-                      : post.postType === "finished"
+                      : post.postType === "review"
                         ? "Finished"
                         : "In progress"}
                   </div>
-                </div>
-
+                  </button>
+)}
                 <div className="feed-actions">
                   <button
                     className={
@@ -925,40 +999,39 @@ function Home() {
             <p className="eyebrow">Publish to the feed</p>
             <h2 id="composer-title">Add a reading note</h2>
             <form onSubmit={publishNote}>
-              <label>
-                <span>Book</span>
-                {libraryLoading ? (
-                  <p>Loading your books...</p>
-                ) : libraryError ? (
-                  <p className="profile-save-error">
-                    {libraryError}
-                  </p>
-                ) : libraryBooks.length === 0 ? (
-                  <p className="profile-empty">
-                    Add a book from Discover before writing a reading note.
-                  </p>
-                ) : (
-                  <select
-                    value={composeDraft.bookId}
-                    disabled={publishingNote}
-                    onChange={(event) =>
-                      setComposeDraft((draft) => ({
-                        ...draft,
-                        bookId: event.target.value,
-                      }))
-                    }
-                  >
-                    {libraryBooks.map((book) => (
-                      <option
-                        value={String(book.bookId)}
-                        key={book.shelfEntryId}
-                      >
-                        {book.title} - {book.author}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </label>
+            <label>
+              <span>Book — optional</span>
+
+              {libraryLoading ? (
+                <p>Loading your books...</p>
+              ) : libraryError ? (
+                <p className="profile-save-error">
+                  {libraryError}
+                </p>
+              ) : (
+                <select
+                  value={composeDraft.bookId}
+                  disabled={publishingNote}
+                  onChange={(event) =>
+                    setComposeDraft((draft) => ({
+                      ...draft,
+                      bookId: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">No specific book</option>
+
+                  {libraryBooks.map((book) => (
+                    <option
+                      value={String(book.bookId)}
+                      key={book.shelfEntryId}
+                    >
+                      {book.title} - {book.author}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </label>
               <label>
                 <span>Your note or quote</span>
                 <textarea
@@ -979,7 +1052,7 @@ function Home() {
                       {libraryBooks.find(
                         (book) =>
                           String(book.bookId) === String(composeDraft.bookId),
-                      )?.title || "Choose a book"}
+                      )?.title || "General reading note"}
                     </span>
                   </div>
 
@@ -1092,6 +1165,46 @@ function Home() {
           </section>
         </div>
       )}
+      <BookDetailModal
+        book={selectedBook}
+        loading={bookDetailLoading}
+        error={bookDetailError}
+        onClose={() => {
+          setSelectedBook(null);
+          setBookDetailError("");
+          setBookDetailLoading(false);
+        }}
+        footer={
+          <>
+            <label className="isbn-shelf-choice">
+              <span>Add to</span>
+
+              <select
+                value={modalShelf}
+                onChange={(e) => setModalShelf(e.target.value)}
+                disabled={addingBook || bookAdded}
+              >
+                <option value="to-be-read">To Be Read</option>
+                <option value="currently-reading">Currently Reading</option>
+                <option value="read">Read</option>
+              </select>
+            </label>
+
+            <button
+              className="primary-button full"
+              type="button"
+              onClick={addModalBookToShelf}
+              disabled={addingBook || bookAdded}
+            >
+              {addingBook
+                ? "Adding..."
+                : bookAdded
+                  ? "Added to Shelf"
+                  : "Add to My Shelf"}
+            </button>
+          </>
+        }
+      />
     </div>
   );
 }

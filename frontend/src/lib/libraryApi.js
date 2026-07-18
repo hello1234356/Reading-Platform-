@@ -264,3 +264,19 @@ export async function moveLibraryBook(shelfEntryId, nextShelf) {
 
   return mapLibraryRow(data);
 }
+export async function removeLibraryBook(shelfEntryId) {
+  if (!shelfEntryId) {
+    throw new Error("This library entry is missing its ID.");
+  }
+
+  const supabase = requireSupabase();
+
+  const { error } = await supabase
+    .from("shelves")
+    .delete()
+    .eq("id", shelfEntryId);
+
+  if (error) {
+    throw error;
+  }
+}

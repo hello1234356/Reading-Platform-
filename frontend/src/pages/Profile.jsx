@@ -8,101 +8,18 @@ import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import {
   getUserLibrary,
   moveLibraryBook,
+  removeLibraryBook,
 } from "../lib/libraryApi";
 import { getUserReviews, saveReview } from "../lib/reviewApi";
 import { addPublicReviewToFeed } from "../lib/socialFeed";
 
 const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
 
-const initialFavoriteBooks = [];
-
 const profileShelves = [
   { label: "Read", slug: "read", tone: "butter", note: "finished and reviewed" },
   { label: "Currently Reading", slug: "currently-reading", tone: "sage", note: "open on your desk" },
   { label: "To Be Read", slug: "to-be-read", tone: "coral", note: "saved for later" },
 ];
-
-const initialShelfBooks = {
-  read: [
-    {
-      title: "The Goldfinch",
-      author: "Donna Tartt",
-      isbn: "9780316055444",
-      blurb: "A Pulitzer Prize-winning novel about grief, art, class, obsession, and a stolen painting that follows one boy into adulthood.",
-    },
-    {
-      title: "The Year of Magical Thinking",
-      author: "Joan Didion",
-      isbn: "9781400078431",
-      blurb: "A precise, devastating memoir about mourning, memory, and the strange unreality that follows sudden loss.",
-    },
-    {
-      title: "Normal People",
-      author: "Sally Rooney",
-      isbn: "9781984822185",
-      blurb: "A spare, intimate novel about class, friendship, first love, and the long afterlife of almost saying what you mean.",
-    },
-    {
-      title: "Giovanni's Room",
-      author: "James Baldwin",
-      isbn: "9780345806567",
-      blurb: "A classic novel of desire, shame, exile, and self-recognition set between America and Paris.",
-    },
-  ],
-  "currently-reading": [
-    {
-      title: "Bluets",
-      author: "Maggie Nelson",
-      isbn: "9781933517407",
-      blurb: "A lyrical, fragmentary meditation on blue, grief, love, philosophy, and looking closely at ordinary feeling.",
-    },
-    {
-      title: "The White Album",
-      author: "Joan Didion",
-      isbn: "9780374532079",
-      blurb: "Essays on California, culture, violence, celebrity, and the stories people tell when meaning starts to collapse.",
-    },
-    {
-      title: "My Friends",
-      author: "Fredrik Backman",
-      isbn: "9781982112820",
-      blurb: "A novel about friendship, art, and the families people build when the world has not been gentle with them.",
-    },
-  ],
-  "to-be-read": [
-    {
-      title: "Wuthering Heights",
-      author: "Emily Bronte",
-      isbn: "9780141439556",
-      blurb: "A gothic story of obsession, revenge, inheritance, and a love that turns destructive across generations.",
-    },
-    {
-      title: "The Great Gatsby",
-      author: "F. Scott Fitzgerald",
-      isbn: "9780743273565",
-      blurb: "A glittering American classic about reinvention, wealth, longing, and the impossible green light across the bay.",
-    },
-    {
-      title: "Better Than the Movies",
-      author: "Lynn Painter",
-      isbn: "9781534467620",
-      blurb: "A romantic comedy about enemies, fake dating, movie-perfect fantasies, and the person who has been there all along.",
-    },
-    {
-      title: "Cleopatra and Frankenstein",
-      author: "Coco Mellors",
-      isbn: "9781635576818",
-      blurb: "A stylish contemporary novel about marriage, loneliness, art, addiction, and messy love in New York.",
-    },
-  ],
-};
-
-const favoriteBookOptions = Object.values(initialShelfBooks)
-  .flat()
-  .filter(
-    (book, index, books) =>
-      books.findIndex((candidate) => candidate.isbn === book.isbn) === index,
-  );
 
 function getCoverUrl(isbn) {
   return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
@@ -173,7 +90,7 @@ function Profile() {
   });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState("");
-  const [selectedFavorites, setSelectedFavorites] = useState(initialFavoriteBooks);
+  const [selectedFavorites, setSelectedFavorites] = useState([]);
   const [favoriteSearch, setFavoriteSearch] = useState("");
   const [isFavoritePickerOpen, setIsFavoritePickerOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
@@ -214,7 +131,7 @@ function Profile() {
         const { data, error } = await supabase
           .from("profiles")
           .select(
-            "id, username, full_name, avatar_url, bio, yearly_goal, created_at, updated_at",
+            "id, username, full_name, avatar_url, bio, yearly_goal, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
           )
           .eq("id", user.id)
           .maybeSingle();
@@ -224,6 +141,9 @@ function Profile() {
         }
 
         setProfile(data);
+        if (data) {
+          loadFavoriteBooks(data);
+        }
       } catch (error) {
         console.error("Failed to load profile:", error);
         setProfileError(error.message || "Could not load your profile.");
@@ -358,7 +278,7 @@ function Profile() {
         .update(updates)
         .eq("id", user.id)
         .select(
-          "id, username, full_name, avatar_url, bio, yearly_goal, created_at, updated_at",
+          "id, username, full_name, avatar_url, bio, yearly_goal, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
         )
         .single();
 
@@ -385,30 +305,97 @@ function Profile() {
   const filteredFavoriteOptions = useMemo(() => {
     const normalizedSearch = favoriteSearch.trim().toLowerCase();
 
-    return favoriteBookOptions.filter((book) => {
-      const alreadySelected = selectedFavorites.some((favorite) => favorite.isbn === book.isbn);
+    return libraryBooks.filter((book) => {
+      const alreadySelected = selectedFavorites.some(
+        (favorite) => favorite.isbn === book.isbn,
+      );
+
       const matchesSearch = [book.title, book.author, book.isbn]
+        .filter(Boolean)
         .join(" ")
         .toLowerCase()
         .includes(normalizedSearch);
 
       return !alreadySelected && (!normalizedSearch || matchesSearch);
     });
-  }, [favoriteSearch, selectedFavorites]);
+  }, [favoriteSearch, selectedFavorites, libraryBooks]);
 
-  function addFavoriteBook(book) {
-    setSelectedFavorites((currentFavorites) => {
-      if (
-        currentFavorites.length >= 4 ||
-        currentFavorites.some((favorite) => favorite.isbn === book.isbn)
-      ) {
-        return currentFavorites;
+  async function addFavoriteBook(book) {
+    if (!user?.id || !profile) return;
+
+    const favoriteColumns = [
+      "favorite_book_1",
+      "favorite_book_2",
+      "favorite_book_3",
+      "favorite_book_4",
+    ];
+
+    const updates = {};
+
+    for (const column of favoriteColumns) {
+      if (!profile[column]) {
+        updates[column] = book.isbn;
+        break;
       }
+    }
 
-      return [...currentFavorites, book];
-    });
-    setIsFavoritePickerOpen(false);
+    if (Object.keys(updates).length === 0) {
+      return;
+    }
+
+    const supabase = requireSupabase();
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setProfile(data);
+    loadFavoriteBooks(data);
+
     setFavoriteSearch("");
+    setIsFavoritePickerOpen(false);
+  }
+  async function removeFavoriteBook(isbn) {
+    if (!user?.id || !profile) return;
+
+    const remainingFavorites = [
+      profile.favorite_book_1,
+      profile.favorite_book_2,
+      profile.favorite_book_3,
+      profile.favorite_book_4,
+    ].filter((favoriteIsbn) => favoriteIsbn && favoriteIsbn !== isbn);
+
+    const updates = {
+      favorite_book_1: remainingFavorites[0] || null,
+      favorite_book_2: remainingFavorites[1] || null,
+      favorite_book_3: remainingFavorites[2] || null,
+      favorite_book_4: remainingFavorites[3] || null,
+    };
+
+    const supabase = requireSupabase();
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", user.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Failed to remove favorite:", error);
+      return;
+    }
+
+    setProfile(data);
+    loadFavoriteBooks(data);
   }
   async function moveBookToShelf(book, nextShelfSlug) {
     if (!book?.shelfEntryId) {
@@ -448,7 +435,45 @@ function Profile() {
       setMovingBookId("");
     }
   }
+  async function deleteLibraryBook(book) {
+    if (!book?.shelfEntryId) {
+      setMoveBookError("This book is missing its library entry ID.");
+      return;
+    }
 
+    setMovingBookId(book.shelfEntryId);
+    setMoveBookError("");
+
+    try {
+      await removeLibraryBook(book.shelfEntryId);
+
+      setLibraryBooks((currentBooks) =>
+        currentBooks.filter(
+          (currentBook) =>
+            currentBook.shelfEntryId !== book.shelfEntryId,
+        ),
+      );
+
+      const isFavorite = [
+        profile?.favorite_book_1,
+        profile?.favorite_book_2,
+        profile?.favorite_book_3,
+        profile?.favorite_book_4,
+      ].includes(book.isbn);
+
+      if (isFavorite) {
+        await removeFavoriteBook(book.isbn);
+      }
+    } catch (error) {
+      console.error("Failed to remove library book:", error);
+
+      setMoveBookError(
+        error.message || "Could not remove this book.",
+      );
+    } finally {
+      setMovingBookId("");
+    }
+  }
   async function openBookDetails(book) {
     setSelectedBook({
       ...book,
@@ -461,6 +486,28 @@ function Profile() {
     setSelectedBook(details);
     setBookDetailError(details.error || "");
     setBookDetailLoading(false);
+  }
+
+  async function loadFavoriteBooks(profile) {
+    const ids = [
+      profile.favorite_book_1,
+      profile.favorite_book_2,
+      profile.favorite_book_3,
+      profile.favorite_book_4,
+    ].filter(Boolean);
+
+    if (ids.length === 0) {
+      setSelectedFavorites([]);
+      return;
+    }
+
+    const books = await Promise.all(
+      ids.map((isbn) =>
+        getOpenLibraryBookDetails({ isbn })
+      )
+    );
+
+    setSelectedFavorites(books);
   }
 
   function closeBookDetails() {
@@ -645,12 +692,15 @@ function Profile() {
                 <select
                   value={book.shelf || ""}
                   disabled={movingBookId === book.shelfEntryId}
-                  onChange={(event) =>
-                    moveBookToShelf(
-                      book,
-                      event.target.value || null,
-                    )
-                  }
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+
+                    if (nextValue === "remove") {
+                      deleteLibraryBook(book);
+                    } else {
+                      moveBookToShelf(book, nextValue || null);
+                    }
+                  }}
                 >
                   <option value="">My Reading List</option>
 
@@ -658,7 +708,9 @@ function Profile() {
                     <option value={shelf.slug} key={shelf.slug}>
                       {shelf.label}
                     </option>
+                    
                   ))}
+                  <option value="remove">Remove from Library</option>
                 </select>
               </label>
               {activeShelf.slug === "read" ? (
@@ -673,6 +725,11 @@ function Profile() {
             </article>
           ))}
         </div>
+        {moveBookError ? (
+          <p className="profile-save-error" role="alert">
+            {moveBookError}
+          </p>
+        ) : null}
         <BookDetailModal
           book={selectedBook}
           loading={bookDetailLoading}
@@ -730,25 +787,40 @@ function Profile() {
             {selectedFavorites.length > 0 ? (
               <div>
                 {selectedFavorites.map((book) => (
-	                  <button
-	                    className="profile-favorite-book"
+                  <div
+                    className="profile-favorite-wrapper"
+                    key={book.isbn}
+                  >
+                    <button
+                      className="profile-favorite-remove"
                       type="button"
-	                    key={book.title}
-	                    aria-label={`${book.title} by ${book.author}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        removeFavoriteBook(book.isbn);
+                      }}
+                    >
+                      ×
+                    </button>
+
+                    <button
+                      className="profile-favorite-book"
+                      type="button"
+                      aria-label={`${book.title} by ${book.author}`}
                       onClick={() => openBookDetails(book)}
-	                  >
-                    {book.coverUrl || book.isbn ? (
-                      <img
-                        src={book.coverUrl || getCoverUrl(book.isbn)}
-                        alt={`Cover of ${book.title}`}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="profile-reading-list-placeholder">
-                        No cover
-                      </div>
-                    )}
-	                  </button>
+                    >
+                      {book.coverUrl || book.isbn ? (
+                        <img
+                          src={book.coverUrl || getCoverUrl(book.isbn)}
+                          alt={`Cover of ${book.title}`}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="profile-reading-list-placeholder">
+                          No cover
+                        </div>
+                      )}
+                    </button>
+                  </div>
                 ))}
                 {selectedFavorites.length < 4 ? (
                   <button
@@ -879,7 +951,9 @@ function Profile() {
                           onChange={(event) => {
                             const nextShelf = event.target.value;
 
-                            if (nextShelf) {
+                            if (nextShelf === "remove") {
+                              deleteLibraryBook(book);
+                            } else if (nextShelf) {
                               moveBookToShelf(book, nextShelf);
                             }
                           }}
@@ -898,6 +972,9 @@ function Profile() {
 
                           <option value="read">
                             Read
+                          </option>
+                          <option value="remove">
+                            Remove from Library
                           </option>
                         </select>
                       </label>
@@ -1171,14 +1248,36 @@ function Profile() {
             </label>
             <div className="favorite-picker-results">
               {filteredFavoriteOptions.slice(0, 6).map((book) => (
-                <button type="button" key={book.isbn} onClick={() => addFavoriteBook(book)}>
-                  <img src={getCoverUrl(book.isbn)} alt="" loading="lazy" />
+                <button
+                  type="button"
+                  key={book.bookId || book.isbn}
+                  onClick={() => addFavoriteBook(book)}
+                >
+                  {book.coverUrl || book.isbn ? (
+                    <img
+                      src={book.coverUrl || getCoverUrl(book.isbn)}
+                      alt={`Cover of ${book.title}`}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="profile-reading-list-placeholder">
+                      No cover
+                    </div>
+                  )}
+
                   <span>
                     <strong>{book.title}</strong>
                     <small>{book.author}</small>
                   </span>
                 </button>
               ))}
+              {filteredFavoriteOptions.length === 0 ? (
+                <p className="profile-empty">
+                  {libraryBooks.length === 0
+                    ? "Add books from Discover before choosing your favorites."
+                    : "No matching books found in your library."}
+                </p>
+              ) : null}
             </div>
           </article>
         </div>
