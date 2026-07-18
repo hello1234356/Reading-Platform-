@@ -620,10 +620,6 @@ function Profile() {
 
   const yearlyGoal = profile?.yearly_goal ?? 40;
 
-  const readingList = libraryBooks.filter(
-    (book) => book.shelf == null,
-  );  
-
   const databaseShelves = {
     read: libraryBooks.filter((book) => book.shelf === "read"),
     "currently-reading": libraryBooks.filter(
@@ -702,7 +698,6 @@ function Profile() {
                     }
                   }}
                 >
-                  <option value="">My Reading List</option>
 
                   {profileShelves.map((shelf) => (
                     <option value={shelf.slug} key={shelf.slug}>
@@ -893,108 +888,6 @@ function Profile() {
             </Link>
           ))}
         </div>
-      </section>
-
-      <section className="profile-reading-list" aria-label="My reading list">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Saved from search</p>
-            <h2>My Reading List</h2>
-          </div>
-          <Link className="ghost-button" to="/discover">Find Books</Link>
-        </div>
-        {libraryLoading ? (
-          <p className="profile-empty">Loading your reading list...</p>
-        ) : libraryError ? (
-          <p className="profile-save-error">{libraryError}</p>
-        ) : readingList.length > 0 ? (
-          <>
-            <div className="profile-reading-list-grid">
-              {readingList.map((book) => {
-                const isMoving = movingBookId === book.shelfEntryId;
-
-                return (
-	                  <article key={book.shelfEntryId}>
-                      <button
-                        className="profile-reading-list-book-button"
-                        type="button"
-                        onClick={() => openBookDetails(book)}
-                        aria-label={`View details for ${book.title}`}
-                      >
-  	                    {book.coverUrl ? (
-  	                      <img
-  	                        src={book.coverUrl}
-  	                        alt={`Cover of ${book.title}`}
-  	                        loading="lazy"
-  	                      />
-  	                    ) : (
-  	                      <div className="profile-reading-list-placeholder">
-  	                        No cover
-  	                      </div>
-  	                    )}
-                      </button>
-
-                    <div>
-                      <h3>{book.title}</h3>
-                      <p>{book.author}</p>
-
-                      {book.isbn ? (
-                        <small>ISBN {book.isbn}</small>
-                      ) : null}
-
-                      <label className="profile-shelf-select">
-                        <span>Add to a shelf</span>
-
-                        <select
-                          value=""
-                          disabled={isMoving}
-                          onChange={(event) => {
-                            const nextShelf = event.target.value;
-
-                            if (nextShelf === "remove") {
-                              deleteLibraryBook(book);
-                            } else if (nextShelf) {
-                              moveBookToShelf(book, nextShelf);
-                            }
-                          }}
-                        >
-                          <option value="">
-                            {isMoving ? "Moving..." : "Choose shelf"}
-                          </option>
-
-                          <option value="to-be-read">
-                            To Be Read
-                          </option>
-
-                          <option value="currently-reading">
-                            Currently Reading
-                          </option>
-
-                          <option value="read">
-                            Read
-                          </option>
-                          <option value="remove">
-                            Remove from Library
-                          </option>
-                        </select>
-                      </label>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-
-            {moveBookError ? (
-              <p className="profile-save-error" role="alert">
-                {moveBookError}
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <p className="profile-empty">
-            Books you add from ISBN search will appear here.
-          </p>
-        )}
       </section>
 
       <section className="profile-reviews" aria-label="Ratings and reviews">
