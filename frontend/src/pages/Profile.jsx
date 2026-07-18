@@ -1139,7 +1139,7 @@ function Profile() {
                       full_name: event.target.value,
                     }))
                   }
-                  placeholder="Aenaul Orgi"
+                  placeholder="Full Name"
                   maxLength="80"
                   disabled={profileSaving}
                 />
