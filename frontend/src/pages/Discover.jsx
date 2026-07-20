@@ -20,6 +20,40 @@ function hideBrokenCover(event) {
   event.currentTarget.hidden = true;
 }
 
+function simplifySearchTerm(searchTerm) {
+  return searchTerm
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchOpenLibraryResults(searchTerm) {
+  const response = await fetch(
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year&limit=10`,
+  );
+
+  if (!response.ok) {
+    throw new Error("Open Library request failed");
+  }
+
+  const data = await response.json();
+
+  return data.docs || [];
+}
+
+function mapOpenLibraryResult(result) {
+  return {
+    openLibraryKey: result.key,
+    isbn: result.isbn?.[0] || "",
+    title: result.title || "Untitled",
+    author: result.author_name?.join(", ") || "Unknown author",
+    firstPublished: result.first_publish_year || null,
+    coverUrl: result.cover_i
+      ? `https://covers.openlibrary.org/b/id/${result.cover_i}-M.jpg`
+      : "",
+  };
+}
+
 const readingQuizzes = [
   {
     title: "Discover Your Reading Identity",
@@ -79,34 +113,22 @@ function Discover() {
     setBookResults([]);
 
     try {
-      const response = await fetch(
-        `https://openlibrary.org/search.json?q=${encodeURIComponent(normalizedSearchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year&limit=10`,
-      );
+      const simplifiedSearchTerm = simplifySearchTerm(normalizedSearchTerm);
+      let results = await fetchOpenLibraryResults(normalizedSearchTerm);
 
-      if (!response.ok) {
-        throw new Error("Open Library request failed");
+      if (!results.length && simplifiedSearchTerm !== normalizedSearchTerm) {
+        results = await fetchOpenLibraryResults(simplifiedSearchTerm);
       }
 
-      const data = await response.json();
-
-      if (!data.docs?.length) {
+      if (!results.length) {
         setSearchStatus("error");
-        setSearchMessage("Open Library could not find a matching book.");
+        setSearchMessage(
+          "No matching books found. Check the spelling, try fewer words, or search by author, title, or ISBN.",
+        );
         return;
       }
 
-      setBookResults(
-        data.docs.map((result) => ({
-          openLibraryKey: result.key,
-          isbn: result.isbn?.[0] || "",
-          title: result.title || "Untitled",
-          author: result.author_name?.join(", ") || "Unknown author",
-          firstPublished: result.first_publish_year || null,
-          coverUrl: result.cover_i
-            ? `https://covers.openlibrary.org/b/id/${result.cover_i}-M.jpg`
-            : "",
-        })),
-      );
+      setBookResults(results.map(mapOpenLibraryResult));
       setSearchStatus("success");
     } catch {
       setSearchStatus("error");
@@ -353,12 +375,17 @@ async function openBookDetails(book) {
           <section className="discovery-editor-picks" aria-label="This month's editor picks">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Carrie, Jenna, Yiru</p>
+                <p className="eyebrow">Seasonal shelf</p>
                 <h2>Monthly Editors' Picks</h2>
               </div>
             </div>
             <div className="discovery-pick-showcase">
-              <article className={`discovery-featured-pick ${featuredPick.tone}`}>
+              <button
+                className={`discovery-featured-pick ${featuredPick.tone}`}
+                type="button"
+                onClick={() => openBookDetails(featuredPick)}
+                aria-label={`View details for ${featuredPick.title}`}
+              >
                 <div className="discovery-book-cover featured" aria-hidden="true">
                   {featuredPick.isbn && (
                     <img
@@ -374,13 +401,19 @@ async function openBookDetails(book) {
                   <p>Recommended by the editors</p>
                   <h3>{featuredPick.title}</h3>
                   <blockquote>{featuredPick.blurb}</blockquote>
-                  <button type="button" onClick={requireLogin}>Read More</button>
+                  <span className="editor-pick-cta">Read More</span>
                 </div>
-              </article>
+              </button>
 
               <div className="discovery-pick-grid">
                 {supportingPicks.map((book) => (
-                  <article className={`discovery-pick-card ${book.tone}`} key={book.title}>
+                  <button
+                    className={`discovery-pick-card ${book.tone}`}
+                    type="button"
+                    key={book.title}
+                    onClick={() => openBookDetails(book)}
+                    aria-label={`View details for ${book.title}`}
+                  >
                     <div className="discovery-book-cover" aria-hidden="true">
                       {book.isbn && (
                         <img
@@ -397,7 +430,7 @@ async function openBookDetails(book) {
                       <h3>{book.title}</h3>
                       <blockquote>{book.blurb}</blockquote>
                     </div>
-                  </article>
+                  </button>
                 ))}
               </div>
             </div>

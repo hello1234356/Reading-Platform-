@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { requireSupabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import BookDetailModal from "../components/BookDetailModal";
@@ -98,8 +98,6 @@ function Profile() {
   const [reviewsError, setReviewsError] = useState("");
   const [reviewPage, setReviewPage] = useState(0);
   const [libraryBooks, setLibraryBooks] = useState([]);
-  const [libraryLoading, setLibraryLoading] = useState(true);
-  const [libraryError, setLibraryError] = useState("");
   const [movingBookId, setMovingBookId] = useState("");
   const [moveBookError, setMoveBookError] = useState("");
   const [selectedBook, setSelectedBook] = useState(null);
@@ -113,6 +111,26 @@ function Profile() {
   });
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewSaveError, setReviewSaveError] = useState("");
+
+  const loadFavoriteBooks = useCallback(async (profileData) => {
+    const ids = [
+      profileData.favorite_book_1,
+      profileData.favorite_book_2,
+      profileData.favorite_book_3,
+      profileData.favorite_book_4,
+    ].filter(Boolean);
+
+    if (ids.length === 0) {
+      setSelectedFavorites([]);
+      return;
+    }
+
+    const books = await Promise.all(
+      ids.map((isbn) => getOpenLibraryBookDetails({ isbn })),
+    );
+
+    setSelectedFavorites(books);
+  }, []);
   
   useEffect(() => {
     async function loadProfile() {
@@ -153,27 +171,20 @@ function Profile() {
     }
 
     loadProfile();
-  }, [user?.id]);
+  }, [loadFavoriteBooks, user?.id]);
   
   useEffect(() => {
     async function loadLibrary() {
       if (!user?.id) {
         setLibraryBooks([]);
-        setLibraryLoading(false);
         return;
       }
-
-      setLibraryLoading(true);
-      setLibraryError("");
 
       try {
         const books = await getUserLibrary(user.id);
         setLibraryBooks(books);
       } catch (error) {
         console.error("Failed to load library:", error);
-        setLibraryError(error.message || "Could not load your reading list.");
-      } finally {
-        setLibraryLoading(false);
       }
     }
 
@@ -486,28 +497,6 @@ function Profile() {
     setSelectedBook(details);
     setBookDetailError(details.error || "");
     setBookDetailLoading(false);
-  }
-
-  async function loadFavoriteBooks(profile) {
-    const ids = [
-      profile.favorite_book_1,
-      profile.favorite_book_2,
-      profile.favorite_book_3,
-      profile.favorite_book_4,
-    ].filter(Boolean);
-
-    if (ids.length === 0) {
-      setSelectedFavorites([]);
-      return;
-    }
-
-    const books = await Promise.all(
-      ids.map((isbn) =>
-        getOpenLibraryBookDetails({ isbn })
-      )
-    );
-
-    setSelectedFavorites(books);
   }
 
   function closeBookDetails() {

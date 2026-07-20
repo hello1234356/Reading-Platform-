@@ -264,6 +264,47 @@ export async function moveLibraryBook(shelfEntryId, nextShelf) {
 
   return mapLibraryRow(data);
 }
+
+export async function updateLibraryBookProgress(shelfEntryId, progress) {
+  if (!shelfEntryId) {
+    throw new Error("This library entry is missing its ID.");
+  }
+
+  const nextProgress = Math.max(0, Math.min(Number(progress) || 0, 100));
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("shelves")
+    .update({
+      progress: nextProgress,
+      shelf: nextProgress >= 100 ? "read" : "currently-reading",
+    })
+    .eq("id", shelfEntryId)
+    .select(`
+      id,
+      user_id,
+      book_id,
+      shelf,
+      progress,
+      rating,
+      created_at,
+      books (
+        id,
+        title,
+        author,
+        isbn,
+        genre,
+        description,
+        cover_url
+      )
+    `)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapLibraryRow(data);
+}
 export async function removeLibraryBook(shelfEntryId) {
   if (!shelfEntryId) {
     throw new Error("This library entry is missing its ID.");

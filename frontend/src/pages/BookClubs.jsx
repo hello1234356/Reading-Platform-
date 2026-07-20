@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
+import { getOpenLibraryBookDetails } from "../lib/openLibrary";
+import { getUserProfile } from "../lib/profileApi";
+import { getUserDisplayHandle } from "../lib/socialFeed";
 
 const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
 
@@ -31,6 +33,38 @@ function hideBrokenCover(event) {
   event.currentTarget.hidden = true;
 }
 
+function simplifySearchTerm(searchTerm) {
+  return searchTerm
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchOpenLibraryBooks(searchTerm) {
+  const response = await fetch(
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year&limit=12`,
+  );
+
+  if (!response.ok) {
+    throw new Error("Open Library request failed");
+  }
+
+  const data = await response.json();
+
+  return (data.docs || [])
+    .filter((result) => result.isbn?.length)
+    .map((result) => ({
+      openLibraryKey: result.key,
+      title: result.title || "Untitled",
+      author: result.author_name?.join(", ") || "Unknown author",
+      isbn: result.isbn[0],
+      firstPublished: result.first_publish_year || null,
+      coverUrl: result.cover_i
+        ? `https://covers.openlibrary.org/b/id/${result.cover_i}-M.jpg`
+        : getCoverUrl(result.isbn[0], "M"),
+    }));
+}
+
 function withCoverUrl(club) {
   return {
     ...club,
@@ -43,20 +77,33 @@ function withCoverUrl(club) {
 }
 
 function parseSchedule(scheduleText, duration) {
-  const lines = scheduleText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const lines = Array.isArray(scheduleText)
+    ? scheduleText
+        .filter((step) => step.theme?.trim() || step.chapters?.trim())
+        .map((step, index) => ({
+          week: `Week ${index + 1}`,
+          milestone: step.theme?.trim() || `Checkpoint ${index + 1}`,
+          pages: step.chapters?.trim() || "Reading to be announced",
+          note: "",
+        }))
+    : scheduleText
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
 
   if (lines.length === 0) {
     return getDefaultSchedule(duration);
+  }
+
+  if (Array.isArray(scheduleText)) {
+    return lines;
   }
 
   return lines.map((line, index) => ({
     week: `Week ${index + 1}`,
     milestone: line.split(":")[0] || `Checkpoint ${index + 1}`,
     pages: line.includes(":") ? line.split(":").slice(1).join(":").trim() : "Manager-set reading",
-    note: "Set by the club manager.",
+    note: "",
   }));
 }
 
@@ -96,7 +143,7 @@ function getInitialClubState() {
 }
 
 function BookClubs() {
-  const { requireLogin } = useRequireLogin();
+  const { requireLogin, user } = useRequireLogin();
   const navigate = useNavigate();
   const { clubId } = useParams();
   const [initialState] = useState(getInitialClubState);
@@ -104,52 +151,166 @@ function BookClubs() {
   const [joinedIds, setJoinedIds] = useState(initialState.joinedIds);
   const [clubPosts, setClubPosts] = useState(initialState.posts);
   const [detailClubId, setDetailClubId] = useState(null);
+  const [detailBlurb, setDetailBlurb] = useState("");
+  const [detailBlurbLoading, setDetailBlurbLoading] = useState(false);
+  const [detailBlurbError, setDetailBlurbError] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [genreFilter, setGenreFilter] = useState("All");
+  const [clubSearchQuery, setClubSearchQuery] = useState("");
   const [postDraft, setPostDraft] = useState("");
   const [newClub, setNewClub] = useState({
     creator: "",
-    bookTitle: bookDatabasePreview[0].title,
+    clubName: "",
+    bookTitle: "",
     membersWanted: "10",
     duration: "4 weeks",
-    schedule: "Week 1: Opening chapters\nWeek 2: First half\nWeek 3: Finish the book\nWeek 4: Final reflection",
+    schedule: [
+      { theme: "Opening chapters", chapters: "Chapters 1-4" },
+      { theme: "First half", chapters: "Chapters 5-8" },
+      { theme: "Finish the book", chapters: "Chapters 9-end" },
+      { theme: "Final reflection", chapters: "Full book" },
+    ],
     genre: "Fiction",
     description: "",
   });
+  const [bookSearchResults, setBookSearchResults] = useState([]);
+  const [bookSearchStatus, setBookSearchStatus] = useState("idle");
+  const [bookSearchMessage, setBookSearchMessage] = useState("");
+  const [selectedClubBook, setSelectedClubBook] = useState(null);
+  const [profile, setProfile] = useState(null);
 
   const detailClub = clubs.find((club) => club.id === detailClubId);
   const routeClub = clubs.find((club) => club.id === clubId);
   const lockedClub = routeClub && !joinedIds.includes(routeClub.id) ? routeClub : null;
   const activeClub = routeClub && joinedIds.includes(routeClub.id) ? routeClub : null;
-  const filteredClubs =
-    genreFilter === "All" ? clubs : clubs.filter((club) => club.genre === genreFilter);
-
-  const bookOptions = useMemo(
-    () =>
-      bookDatabasePreview.map((book) => ({
-        title: book.title,
-        author: book.author,
-        isbn: book.isbn,
-      })),
-    [],
-  );
-  const matchingBookOptions = bookOptions
-    .filter((book) =>
-      `${book.title} ${book.author} ${book.isbn}`
+  const currentReaderName = getUserDisplayHandle(user, profile);
+  const displayReaderName = (name) =>
+    name === "Anonymous Reader" || name === "You" ? currentReaderName : name;
+  const normalizedClubSearch = clubSearchQuery.trim().toLowerCase();
+  const filteredClubs = clubs.filter((club) => {
+    const matchesGenre = genreFilter === "All" || club.genre === genreFilter;
+    const matchesSearch =
+      !normalizedClubSearch ||
+      [
+        club.title,
+        club.bookTitle,
+        club.author,
+        club.creator,
+        club.genre,
+        club.description,
+      ]
+        .filter(Boolean)
+        .join(" ")
         .toLowerCase()
-        .includes(newClub.bookTitle.trim().toLowerCase()),
-    )
-    .slice(0, 4);
+        .includes(normalizedClubSearch);
+
+    return matchesGenre && matchesSearch;
+  });
   const previewBook =
-    bookOptions.find((book) => book.title === newClub.bookTitle) ||
-    matchingBookOptions[0] || {
+    selectedClubBook ||
+    bookSearchResults[0] || {
       title: newClub.bookTitle.trim() || "Search for a book",
       author: "Author will sync from the ISBN database",
       isbn: "Pending ISBN",
     };
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProfile() {
+      if (!user?.id) {
+        setProfile(null);
+        return;
+      }
+
+      try {
+        const nextProfile = await getUserProfile(user.id);
+        if (!cancelled) {
+          setProfile(nextProfile);
+        }
+      } catch (error) {
+        console.error("Failed to load book club profile:", error);
+        if (!cancelled) {
+          setProfile(null);
+        }
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   function saveState(nextState) {
     localStorage.setItem(CLUB_STORAGE_KEY, JSON.stringify(nextState));
+  }
+
+  useEffect(() => {
+    if (!isCreateOpen) return undefined;
+
+    const searchTerm = newClub.bookTitle.trim();
+
+    if (searchTerm.length < 2) {
+      return undefined;
+    }
+
+    if (selectedClubBook && searchTerm === selectedClubBook.title) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(async () => {
+      setBookSearchStatus("loading");
+      setBookSearchMessage("");
+
+      try {
+        const simplifiedSearchTerm = simplifySearchTerm(searchTerm);
+        let results = await fetchOpenLibraryBooks(searchTerm);
+
+        if (!results.length && simplifiedSearchTerm !== searchTerm) {
+          results = await fetchOpenLibraryBooks(simplifiedSearchTerm);
+        }
+
+        setBookSearchResults(results);
+        setBookSearchStatus(results.length ? "success" : "error");
+        setBookSearchMessage(
+          results.length
+            ? ""
+            : "No ISBN-backed results found. Check the spelling or try the author name.",
+        );
+      } catch (error) {
+        console.error("Failed to search Open Library:", error);
+        setBookSearchStatus("error");
+        setBookSearchMessage("Book search is unavailable right now. Please try again.");
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [isCreateOpen, newClub.bookTitle, selectedClubBook]);
+
+  async function openClubDetails(club) {
+    setDetailClubId(club.id);
+    setDetailBlurb("");
+    setDetailBlurbError("");
+    setDetailBlurbLoading(true);
+
+    try {
+      const details = await getOpenLibraryBookDetails({
+        title: club.bookTitle,
+        author: club.author,
+        isbn: club.isbn,
+        coverUrl: club.coverUrl,
+      });
+
+      setDetailBlurb(details.description || "");
+      setDetailBlurbError(details.error || "");
+    } catch (error) {
+      console.error("Failed to load club book details:", error);
+      setDetailBlurbError(error.message || "Could not load the official book blurb.");
+    } finally {
+      setDetailBlurbLoading(false);
+    }
   }
 
   function joinClub(clubId) {
@@ -160,7 +321,7 @@ function BookClubs() {
         ? {
             ...club,
             membersJoined: Math.min(club.membersJoined + 1, club.membersWanted),
-            members: Array.from(new Set([...(club.members || []), "You"])),
+            members: Array.from(new Set([...(club.members || []), currentReaderName])),
           }
         : club,
     );
@@ -179,7 +340,9 @@ function BookClubs() {
         ? {
             ...club,
             membersJoined: Math.max(club.membersJoined - 1, 0),
-            members: (club.members || []).filter((member) => member !== "You"),
+            members: (club.members || []).filter(
+              (member) => displayReaderName(member) !== currentReaderName,
+            ),
           }
         : club,
     );
@@ -194,6 +357,32 @@ function BookClubs() {
     }
   }
 
+  function updateScheduleStep(index, field, value) {
+    setNewClub((draft) => ({
+      ...draft,
+      schedule: (Array.isArray(draft.schedule) ? draft.schedule : []).map((step, stepIndex) =>
+        stepIndex === index ? { ...step, [field]: value } : step,
+      ),
+    }));
+  }
+
+  function addScheduleStep() {
+    setNewClub((draft) => ({
+      ...draft,
+      schedule: [...(Array.isArray(draft.schedule) ? draft.schedule : []), { theme: "", chapters: "" }],
+    }));
+  }
+
+  function deleteScheduleStep(index) {
+    setNewClub((draft) => ({
+      ...draft,
+      schedule:
+        Array.isArray(draft.schedule) && draft.schedule.length > 1
+          ? draft.schedule.filter((_, stepIndex) => stepIndex !== index)
+          : draft.schedule,
+    }));
+  }
+
   function publishClubPost(event) {
     if (!requireLogin()) return;
     event.preventDefault();
@@ -206,8 +395,8 @@ function BookClubs() {
       ...clubPosts,
       [activeClub.id]: [
         {
-          id: Date.now(),
-          author: "You",
+          id: `${activeClub.id}-message-${(clubPosts[activeClub.id]?.length || 0) + 1}`,
+          author: currentReaderName,
           body: postDraft.trim(),
           time: "just now",
         },
@@ -223,16 +412,24 @@ function BookClubs() {
   function createClub(event) {
     event.preventDefault();
     if (!requireLogin()) return;
-    const selectedBook = previewBook;
-    const creator = newClub.creator.trim() || "Anonymous Reader";
+    const selectedBook = selectedClubBook || bookSearchResults[0];
+
+    if (!selectedBook?.isbn) {
+      setBookSearchStatus("error");
+      setBookSearchMessage("Choose a book from the ISBN search results before creating a club.");
+      return;
+    }
+
+    const creator = newClub.creator.trim() || currentReaderName;
+    const clubName = newClub.clubName.trim() || `${selectedBook.title} Circle`;
     const matchingTitleCount = clubs.filter((club) => club.bookTitle === selectedBook.title).length;
-    const id = `${selectedBook.title}-${creator}-${matchingTitleCount + 1}`
+    const id = `${selectedBook.title}-${clubName}-${creator}-${matchingTitleCount + 1}`
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-");
 
     const createdClub = {
       id,
-      title: `${selectedBook.title} Circle`,
+      title: clubName,
       bookTitle: selectedBook.title,
       author: selectedBook.author,
       creator,
@@ -243,11 +440,11 @@ function BookClubs() {
       genre: newClub.genre,
       tone: "navy",
       description:
-        newClub.description.trim() ||
+        newClub.description.trim().slice(0, 350) ||
         "A new reading circle for people who want to read slowly, talk honestly, and keep each other turning pages.",
       isbn: selectedBook.isbn,
-      coverUrl: getCoverUrl(selectedBook.isbn),
-      members: Array.from(new Set([creator, "You"])),
+      coverUrl: selectedBook.coverUrl || getCoverUrl(selectedBook.isbn),
+      members: Array.from(new Set([creator, currentReaderName])),
     };
 
     const nextClubs = [createdClub, ...clubs];
@@ -260,13 +457,23 @@ function BookClubs() {
     setIsCreateOpen(false);
     setNewClub({
       creator: "",
-      bookTitle: bookDatabasePreview[0].title,
+      clubName: "",
+      bookTitle: "",
       membersWanted: "10",
       duration: "4 weeks",
-      schedule: "Week 1: Opening chapters\nWeek 2: First half\nWeek 3: Finish the book\nWeek 4: Final reflection",
+      schedule: [
+        { theme: "Opening chapters", chapters: "Chapters 1-4" },
+        { theme: "First half", chapters: "Chapters 5-8" },
+        { theme: "Finish the book", chapters: "Chapters 9-end" },
+        { theme: "Final reflection", chapters: "Full book" },
+      ],
       genre: "Fiction",
       description: "",
     });
+    setSelectedClubBook(null);
+    setBookSearchResults([]);
+    setBookSearchStatus("idle");
+    setBookSearchMessage("");
     saveState({ joinedIds: nextJoinedIds, clubs: nextClubs, posts: clubPosts });
   }
 
@@ -297,15 +504,24 @@ function BookClubs() {
                 </button>
               ))}
             </div>
+            <label className="club-search-control">
+              <span className="sr-only">Search book clubs</span>
+              <input
+                type="search"
+                value={clubSearchQuery}
+                onChange={(event) => setClubSearchQuery(event.target.value)}
+                placeholder="Search clubs by book, creator, or genre..."
+              />
+            </label>
             <button
-            className="primary-button"
-           type="button"
-          onClick={() => {
-          if (!requireLogin()) return;
-           setIsCreateOpen(true);
-         }}
-          >
-          Create Club
+              className="primary-button"
+              type="button"
+              onClick={() => {
+                if (!requireLogin()) return;
+                setIsCreateOpen(true);
+              }}
+            >
+              Create Club
             </button>
           </section>
         </>
@@ -362,9 +578,10 @@ function BookClubs() {
             <div>
               <p className="eyebrow">You Joined</p>
               <h2>{activeClub.title}</h2>
-              <p>
-                {activeClub.bookTitle} by {activeClub.author} | managed by{" "}
-                {activeClub.creator}
+              <p className="club-room-meta">
+                <strong>{activeClub.bookTitle}</strong>
+                <span>by {activeClub.author}</span>
+                <em>Host: {displayReaderName(activeClub.creator)}</em>
               </p>
               <button className="club-danger-action" type="button" onClick={() => quitClub(activeClub.id)}>
                 Quit Club
@@ -382,7 +599,9 @@ function BookClubs() {
                     <div>
                       <strong>{step.week}: {step.milestone}</strong>
                       <small>{step.pages}</small>
-                      <p>{step.note}</p>
+                      {step.note && step.note !== "Set by the club manager." ? (
+                        <p>{step.note}</p>
+                      ) : null}
                     </div>
                   </article>
                 ))}
@@ -404,9 +623,12 @@ function BookClubs() {
                   },
                 ]).map((post) => (
                   <article key={post.id}>
-                    <span className="message-avatar">{post.author.slice(0, 1)}</span>
+                    <span className="message-avatar">{displayReaderName(post.author).slice(0, 1)}</span>
                     <div>
-                      <strong>{post.author}</strong>
+                      <strong>{displayReaderName(post.author)}</strong>
+                      {displayReaderName(post.author) === displayReaderName(activeClub.creator) && (
+                        <span className="club-host-label">Host</span>
+                      )}
                       <small>{post.time}</small>
                       <p>{post.body}</p>
                     </div>
@@ -431,8 +653,8 @@ function BookClubs() {
               <strong>{activeClub.membersJoined}/{activeClub.membersWanted}</strong>
               <div>
                 {(activeClub.members || []).map((member) => (
-                  <span className="member-avatar" key={member} title={member}>
-                    {member.slice(0, 1)}
+                  <span className="member-avatar" key={member} title={displayReaderName(member)}>
+                    {displayReaderName(member).slice(0, 1)}
                   </span>
                 ))}
               </div>
@@ -452,13 +674,13 @@ function BookClubs() {
                       onError={hideBrokenCover}
                     />
                   )}
-                  <span>{club.bookTitle}</span>
                 </div>
                 <div>
-                  <p>{club.title}</p>
                   <h2>{club.bookTitle}</h2>
-                  <small>Started by {club.creator}</small>
-                  <span className="club-genre">{club.genre}</span>
+                  <p className="club-card-name">{club.title}</p>
+                  <small className="club-card-founder">
+                    Started by {displayReaderName(club.creator)}
+                  </small>
                   <p className="club-card-description">{club.description}</p>
                   <div className="club-capacity">
                     <span style={{ width: `${(club.membersJoined / club.membersWanted) * 100}%` }} />
@@ -470,7 +692,7 @@ function BookClubs() {
                     <button
                       className="ghost-button"
                       type="button"
-                      onClick={() => setDetailClubId(club.id)}
+                      onClick={() => openClubDetails(club)}
                     >
                       Details
                     </button>
@@ -504,7 +726,7 @@ function BookClubs() {
             <p className="club-empty-state">
               {clubs.length === 0
                 ? "No reading circles have been created yet. Start the first one when you are ready."
-                : "No circles in this genre yet. Start one and make the first shelf."}
+                : "No circles match that search yet. Try another title, creator, or genre."}
             </p>
           )}
         </section>
@@ -550,7 +772,15 @@ function BookClubs() {
             <p>
               <strong>{detailClub.bookTitle}</strong> by {detailClub.author}
             </p>
-            <p>{detailClub.description}</p>
+            {detailBlurbLoading ? (
+              <p>Loading the official book blurb...</p>
+            ) : (
+              <p>
+                {detailBlurb ||
+                  detailBlurbError ||
+                  "No official Open Library blurb is available for this book yet."}
+              </p>
+            )}
             <dl>
               <div>
                 <dt>Genre</dt>
@@ -558,7 +788,7 @@ function BookClubs() {
               </div>
               <div>
                 <dt>Started by</dt>
-                <dd>{detailClub.creator}</dd>
+                <dd>{displayReaderName(detailClub.creator)}</dd>
               </div>
               <div>
                 <dt>Looking for</dt>
@@ -635,7 +865,18 @@ function BookClubs() {
                     onChange={(event) =>
                       setNewClub((draft) => ({ ...draft, creator: event.target.value }))
                     }
-                    placeholder="Carrie L."
+                    placeholder={currentReaderName}
+                  />
+                </label>
+                <label>
+                  <span>Book club name</span>
+                  <input
+                    type="text"
+                    value={newClub.clubName}
+                    onChange={(event) =>
+                      setNewClub((draft) => ({ ...draft, clubName: event.target.value }))
+                    }
+                    placeholder="Sunday Subway Readers"
                   />
                 </label>
                 <label className="book-search-field">
@@ -643,24 +884,52 @@ function BookClubs() {
                   <input
                     type="search"
                     value={newClub.bookTitle}
-                    onChange={(event) =>
-                      setNewClub((draft) => ({ ...draft, bookTitle: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      const nextBookTitle = event.target.value;
+
+                      setNewClub((draft) => ({ ...draft, bookTitle: nextBookTitle }));
+                      setSelectedClubBook(null);
+
+                      if (nextBookTitle.trim().length < 2) {
+                        setBookSearchResults([]);
+                        setBookSearchStatus("idle");
+                        setBookSearchMessage("");
+                      }
+                    }}
                     placeholder="Search title, author, or ISBN..."
                   />
                 </label>
-                {matchingBookOptions.length > 0 && (
+                {bookSearchStatus === "loading" && (
+                  <p className="book-search-status">Searching the ISBN database...</p>
+                )}
+                {bookSearchMessage ? (
+                  <p className="book-search-status error">{bookSearchMessage}</p>
+                ) : null}
+                {bookSearchResults.length > 0 && (
                   <div className="book-search-suggestions" aria-label="Book suggestions">
-                    {matchingBookOptions.map((book) => (
+                    {bookSearchResults.map((book) => (
                       <button
                         type="button"
-                        key={book.isbn}
+                        className={selectedClubBook?.isbn === book.isbn ? "selected" : ""}
+                        key={`${book.openLibraryKey}-${book.isbn}`}
                         onClick={() =>
-                          setNewClub((draft) => ({ ...draft, bookTitle: book.title }))
+                          {
+                            setSelectedClubBook(book);
+                            setNewClub((draft) => ({ ...draft, bookTitle: book.title }));
+                            setBookSearchResults([]);
+                            setBookSearchStatus("idle");
+                            setBookSearchMessage("");
+                          }
                         }
                       >
+                        {book.coverUrl ? (
+                          <img src={book.coverUrl} alt="" loading="lazy" onError={hideBrokenCover} />
+                        ) : null}
                         <strong>{book.title}</strong>
-                        <small>{book.author}</small>
+                        <small>
+                          {book.author}
+                          {book.firstPublished ? ` / ${book.firstPublished}` : ""} / ISBN {book.isbn}
+                        </small>
                       </button>
                     ))}
                   </div>
@@ -705,20 +974,49 @@ function BookClubs() {
                     placeholder="4 weeks"
                   />
                 </label>
-                <label>
-                  <span>Reading schedule</span>
-                  <textarea
-                    value={newClub.schedule}
-                    onChange={(event) =>
-                      setNewClub((draft) => ({ ...draft, schedule: event.target.value }))
-                    }
-                    placeholder={"Week 1: Chapters 1-4\nWeek 2: Chapters 5-8"}
-                    rows="4"
-                  />
-                </label>
+                <fieldset className="schedule-builder">
+                  <legend>Reading schedule</legend>
+                  <div className="schedule-builder-list">
+                    {(Array.isArray(newClub.schedule) ? newClub.schedule : []).map((step, index) => (
+                      <div className="schedule-builder-row" key={`schedule-step-${index + 1}`}>
+                        <span>Week {index + 1}</span>
+                        <input
+                          type="text"
+                          value={step.theme}
+                          onChange={(event) =>
+                            updateScheduleStep(index, "theme", event.target.value)
+                          }
+                          placeholder="Theme"
+                        />
+                        <input
+                          type="text"
+                          value={step.chapters}
+                          onChange={(event) =>
+                            updateScheduleStep(index, "chapters", event.target.value)
+                          }
+                          placeholder="Chapters"
+                        />
+                        <button
+                          className="schedule-remove-button"
+                          type="button"
+                          onClick={() => deleteScheduleStep(index)}
+                          disabled={
+                            !Array.isArray(newClub.schedule) || newClub.schedule.length <= 1
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="schedule-add-button" type="button" onClick={addScheduleStep}>
+                    Add Week
+                  </button>
+                </fieldset>
                 <label>
                   <span>Description</span>
                   <textarea
+                    maxLength="350"
                     value={newClub.description}
                     onChange={(event) =>
                       setNewClub((draft) => ({ ...draft, description: event.target.value }))
@@ -726,6 +1024,7 @@ function BookClubs() {
                     placeholder="What kind of reading circle are you creating?"
                     rows="4"
                   />
+                  <small className="character-count">{newClub.description.length}/350 characters</small>
                 </label>
                 <button className="primary-button full" type="submit">
                   Create club
@@ -735,7 +1034,7 @@ function BookClubs() {
                 <div className="club-detail-cover">
                   {previewBook.isbn && (
                     <img
-                      src={getCoverUrl(previewBook.isbn)}
+                      src={previewBook.coverUrl || getCoverUrl(previewBook.isbn)}
                       alt=""
                       loading="lazy"
                       onError={hideBrokenCover}

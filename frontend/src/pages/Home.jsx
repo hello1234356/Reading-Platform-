@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
-import { addBookToLibrary, getUserLibrary } from "../lib/libraryApi";
+import {
+  addBookToLibrary,
+  getUserLibrary,
+  updateLibraryBookProgress,
+} from "../lib/libraryApi";
 import { createPost, getFeedPosts, addPostComment, likePost, unlikePost,} from "../lib/postApi";
-import { getUserProfile } from "../lib/profileApi";
 import { saveReview } from "../lib/reviewApi";
-import { getUserDisplayHandle } from "../lib/socialFeed";
 import BookDetailModal from "../components/BookDetailModal";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 
@@ -19,6 +21,51 @@ const defaultTrackedBook = {
   progress: 34,
   finished: false,
 };
+
+const dailyLiteraryQuotes = [
+  {
+    quote: "We tell ourselves stories in order to live.",
+    author: "Joan Didion",
+    source: "The White Album",
+    note: "For rainy windows, annotated margins, and the first quiet thought of the day.",
+  },
+  {
+    quote: "I am, I am, I am.",
+    author: "Sylvia Plath",
+    source: "The Bell Jar",
+    note: "A small pulse from the reading room before the feed begins.",
+  },
+  {
+    quote: "The only way out is through.",
+    author: "Robert Frost",
+    source: "A Servant to Servants",
+    note: "For pages read between classes and trains taken somewhere softer.",
+  },
+  {
+    quote: "I have measured out my life with coffee spoons.",
+    author: "T. S. Eliot",
+    source: "The Love Song of J. Alfred Prufrock",
+    note: "A sentence for cafe tables, library stacks, and half-finished chapters.",
+  },
+  {
+    quote: "There is no friend as loyal as a book.",
+    author: "Ernest Hemingway",
+    source: "commonly attributed",
+    note: "For the paperback that stays in your bag all week.",
+  },
+  {
+    quote: "I was within and without, simultaneously enchanted and repelled.",
+    author: "F. Scott Fitzgerald",
+    source: "The Great Gatsby",
+    note: "For city nights, classroom conversations, and complicated favorite characters.",
+  },
+  {
+    quote: "Time is the longest distance between two places.",
+    author: "Tennessee Williams",
+    source: "The Glass Menagerie",
+    note: "For books that make the room feel wider than it is.",
+  },
+];
 
 function getCoverUrl(isbn) {
   return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
@@ -48,6 +95,32 @@ function mapLibraryBookToTrackedBook(book) {
 
 function getTrackedBookKey(book) {
   return book?.shelfEntryId || book?.isbn || book?.title;
+}
+
+function getShelfLabel(shelf) {
+  switch (shelf) {
+    case "currently-reading":
+      return "Currently Reading";
+    case "read":
+      return "Read";
+    case "to-be-read":
+      return "To Be Read";
+    default:
+      return "My Shelf";
+  }
+}
+
+function getBookCoverSource(book) {
+  if (!book) return "";
+
+  return book.coverUrl || getCoverUrl(book.isbn);
+}
+
+function getDailyLiteraryQuote(date = new Date()) {
+  const startOfYear = new Date(date.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date - startOfYear) / 86400000);
+
+  return dailyLiteraryQuotes[dayOfYear % dailyLiteraryQuotes.length];
 }
 
 function normalizeTrackedBook(book) {
@@ -93,10 +166,9 @@ function getInitialHomeState() {
 
 function Home() {
   const [initialHomeState] = useState(getInitialHomeState);
+  const [dailyQuote] = useState(() => getDailyLiteraryQuote());
   const { requireLogin, isLoggedIn } = useRequireLogin();
   const { user } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const userHandle = getUserDisplayHandle(user, profile);
   const [selectedBook, setSelectedBook] = useState(null);
   const [bookDetailLoading, setBookDetailLoading] = useState(false);
   const [bookDetailError, setBookDetailError] = useState(""); 
@@ -133,23 +205,9 @@ function Home() {
 
   const [publishingNote, setPublishingNote] = useState(false);
   const [publishNoteError, setPublishNoteError] = useState("");
-
-  useEffect(() => {
-    async function loadProfile() {
-      if (!user?.id) {
-        setProfile(null);
-        return;
-      }
-
-      try {
-        setProfile(await getUserProfile(user.id));
-      } catch (error) {
-        console.error("Failed to load reading room profile:", error);
-      }
-    }
-
-    loadProfile();
-  }, [user?.id]);
+  const selectedComposerBook = libraryBooks.find(
+    (book) => String(book.bookId) === String(composeDraft.bookId),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -209,6 +267,15 @@ function Home() {
               .filter((book) => book.shelf === "currently-reading")
               .map(mapLibraryBookToTrackedBook),
           );
+          setComposeDraft((currentDraft) => ({
+            ...currentDraft,
+            bookId:
+              currentDraft.bookId && books.some(
+                (book) => String(book.bookId) === String(currentDraft.bookId),
+              )
+                ? currentDraft.bookId
+                : String(books[0]?.bookId || ""),
+          }));
 
         }
       } catch (error) {
@@ -346,7 +413,7 @@ function Home() {
       ...currentDraft,
       bookId: bookId
         ? String(bookId)
-        : currentDraft.bookId || "",
+        : currentDraft.bookId || String(libraryBooks[0]?.bookId || ""),
     }));
 
     setIsComposerOpen(true);
@@ -391,6 +458,19 @@ function Home() {
         shelfEntryId: savedLibraryBook.shelf.id,
         bookId: savedLibraryBook.book.id,
       };
+      const savedLibraryEntry = {
+        shelfEntryId: savedLibraryBook.shelf.id,
+        bookId: savedLibraryBook.book.id,
+        shelf: savedLibraryBook.shelf.shelf,
+        progress: savedLibraryBook.shelf.progress ?? 0,
+        rating: savedLibraryBook.shelf.rating,
+        title: savedLibraryBook.book.title,
+        author: savedLibraryBook.book.author,
+        isbn: savedLibraryBook.book.isbn,
+        genre: savedLibraryBook.book.genre,
+        description: savedLibraryBook.book.description,
+        coverUrl: savedLibraryBook.book.cover_url,
+      };
 
       setTrackedBooks((currentBooks) => [
         savedTrackedBook,
@@ -398,6 +478,16 @@ function Home() {
           (book) => getTrackedBookKey(book) !== getTrackedBookKey(savedTrackedBook),
         ),
       ]);
+      setLibraryBooks((currentBooks) => [
+        savedLibraryEntry,
+        ...currentBooks.filter(
+          (book) => String(book.bookId) !== String(savedLibraryEntry.bookId),
+        ),
+      ]);
+      setComposeDraft((draft) => ({
+        ...draft,
+        bookId: draft.bookId || String(savedLibraryEntry.bookId),
+      }));
     } catch (error) {
       console.error("Failed to save current reading book:", error);
       setTrackedBooks((currentBooks) => [
@@ -409,7 +499,7 @@ function Home() {
     setIsLogBookOpen(false);
   }
 
-  function updateTrackedProgress(bookToUpdate, value) {
+  async function updateTrackedProgress(bookToUpdate, value) {
     if (!requireLogin()) return;
     if (!bookToUpdate) return;
 
@@ -427,6 +517,32 @@ function Home() {
         getTrackedBookKey(book) === bookKey ? updatedBook : book,
       ),
     );
+    setLibraryBooks((currentBooks) =>
+      currentBooks.map((book) =>
+        String(book.shelfEntryId) === String(bookToUpdate.shelfEntryId)
+          ? { ...book, progress: nextProgress }
+          : book,
+      ),
+    );
+
+    if (bookToUpdate.shelfEntryId) {
+      try {
+        const savedBook = await updateLibraryBookProgress(
+          bookToUpdate.shelfEntryId,
+          nextProgress,
+        );
+
+        setLibraryBooks((currentBooks) =>
+          currentBooks.map((book) =>
+            String(book.shelfEntryId) === String(savedBook.shelfEntryId)
+              ? savedBook
+              : book,
+          ),
+        );
+      } catch (error) {
+        console.error("Failed to save reading progress:", error);
+      }
+    }
 
     if (shouldFinish && !bookToUpdate.finished) {
       setFinishingBook(updatedBook);
@@ -589,12 +705,36 @@ function Home() {
     setAddingBook(true);
 
     try {
-      await addBookToLibrary(
+      const savedLibraryBook = await addBookToLibrary(
         user.id,
         selectedBook,
         modalShelf,
       );
 
+      const nextLibraryBook = {
+        shelfEntryId: savedLibraryBook.shelf.id,
+        bookId: savedLibraryBook.book.id,
+        shelf: savedLibraryBook.shelf.shelf,
+        progress: savedLibraryBook.shelf.progress ?? 0,
+        rating: savedLibraryBook.shelf.rating,
+        title: savedLibraryBook.book.title,
+        author: savedLibraryBook.book.author,
+        isbn: savedLibraryBook.book.isbn,
+        genre: savedLibraryBook.book.genre,
+        description: savedLibraryBook.book.description,
+        coverUrl: savedLibraryBook.book.cover_url,
+      };
+
+      setLibraryBooks((currentBooks) => [
+        nextLibraryBook,
+        ...currentBooks.filter(
+          (book) => String(book.bookId) !== String(nextLibraryBook.bookId),
+        ),
+      ]);
+      setComposeDraft((draft) => ({
+        ...draft,
+        bookId: String(nextLibraryBook.bookId),
+      }));
       setBookAdded(true);
     } catch (error) {
       console.error(error);
@@ -613,10 +753,6 @@ function Home() {
     }
 
     const note = composeDraft.note.trim();
-    const selectedBook = libraryBooks.find(
-      (book) => String(book.bookId) === String(composeDraft.bookId),
-    ) ?? null;
-
     if (!note) {
       setPublishNoteError("Please write a note before publishing.");
       return;
@@ -628,9 +764,10 @@ function Home() {
     try {
       const createdPost = await createPost({
         userId: user.id,
-        bookId: selectedBook?.bookId ?? null,note,
+        bookId: selectedComposerBook?.bookId || null,
+        note,
         postType: "note",
-        progress: selectedBook?.progress ?? 0,
+        progress: selectedComposerBook?.progress ?? 0,
         rating: 0,
       });
 
@@ -640,7 +777,7 @@ function Home() {
       ]);
 
       setComposeDraft({
-        bookId: "",
+        bookId: selectedComposerBook ? String(selectedComposerBook.bookId) : "",
         note: "",
       });
 
@@ -659,22 +796,27 @@ function Home() {
   return (
     <div className="home-page">
       <section className="reading-room-hero" aria-labelledby="home-title">
-        <div>
-	          <p className="eyebrow">Your reading room</p>
-          <div className="hero-title-lockup">
-            <span className="hero-seal" aria-hidden="true">L</span>
-            <div>
-              <h1 id="home-title">What are you reading today?</h1>
-              <p>LitShelf | The Reading Room</p>
-            </div>
+        <div className="daily-quote-panel">
+          <div className="daily-quote-meta">
+            <span>{new Intl.DateTimeFormat(undefined, {
+              month: "long",
+              day: "numeric",
+            }).format(new Date())}</span>
           </div>
-          <p className="hero-copy">
-            Start by logging your currently reading books to cultivate a reading
-            community at Tsinglan.
-          </p>
-          <button className="primary-button hero-action" type="button" onClick={() => openComposer()}>
-            Share your reading
-          </button>
+          <blockquote>
+            <span aria-hidden="true">“</span>
+            <h1 id="home-title">{dailyQuote.quote}</h1>
+            <span aria-hidden="true">”</span>
+          </blockquote>
+          <div className="daily-quote-credit">
+            <p>{dailyQuote.author}</p>
+            <small>{dailyQuote.source}</small>
+          </div>
+          <div className="daily-quote-actions">
+            <button className="primary-button hero-action" type="button" onClick={() => openComposer()}>
+              Share your reading
+            </button>
+          </div>
         </div>
       </section>
 
@@ -683,9 +825,23 @@ function Home() {
           <p className="eyebrow">Grade leaderboard</p>
           <strong>Books read this month</strong>
         </div>
-        <p className="leaderboard-empty">
-          Grade totals will appear here once reading activity is connected.
-        </p>
+        <div className="leaderboard-podium" aria-label="Leaderboard places awaiting data">
+          <div className="podium-step second">
+            <span>2</span>
+            <strong>Grade</strong>
+            <small>Awaiting Totals</small>
+          </div>
+          <div className="podium-step first">
+            <span>1</span>
+            <strong>Grade</strong>
+            <small>Awaiting Totals</small>
+          </div>
+          <div className="podium-step third">
+            <span>3</span>
+            <strong>Grade</strong>
+            <small>Awaiting Totals</small>
+          </div>
+        </div>
       </section>
 
 	      <div className="home-grid">
@@ -739,7 +895,7 @@ function Home() {
               </div>
             ) : (
               <p className="profile-empty">
-                Nothing is being tracked right now. Log your next book when you start reading.
+                No Books Open Right Now
               </p>
             )}
             <div className="tracker-actions">
@@ -866,7 +1022,8 @@ function Home() {
 
                   <div className="book-details">
                     <p>{post.genre}</p>
-                    <strong>{post.author}</strong>
+                    <strong>{post.book}</strong>
+                    <small>{post.author}</small>
 
                     <small>
                       {post.progress}% through the book
@@ -1000,7 +1157,7 @@ function Home() {
             <h2 id="composer-title">Add a reading note</h2>
             <form onSubmit={publishNote}>
             <label>
-              <span>Book — optional</span>
+              <span>Book</span>
 
               {libraryLoading ? (
                 <p>Loading your books...</p>
@@ -1026,7 +1183,7 @@ function Home() {
                       value={String(book.bookId)}
                       key={book.shelfEntryId}
                     >
-                      {book.title} - {book.author}
+                      {book.title} - {book.author} / {getShelfLabel(book.shelf)}
                     </option>
                   ))}
                 </select>
@@ -1048,17 +1205,27 @@ function Home() {
               </label>
                 <div className="modal-preview">
                   <div className="tracked-cover" aria-hidden="true">
-                    <span>
-                      {libraryBooks.find(
-                        (book) =>
-                          String(book.bookId) === String(composeDraft.bookId),
-                      )?.title || "General reading note"}
-                    </span>
+                    {selectedComposerBook ? (
+                      <img
+                        src={getBookCoverSource(selectedComposerBook)}
+                        alt=""
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span>General reading note</span>
+                    )}
                   </div>
 
-                  <p>
-                    This will appear in the social feed as your newest note.
-                  </p>
+                  <div>
+                    <strong>
+                      {selectedComposerBook?.title || "No book linked"}
+                    </strong>
+                    <small>
+                      {selectedComposerBook
+                        ? `${selectedComposerBook.author} / ${getShelfLabel(selectedComposerBook.shelf)}`
+                        : "Post a thought that is not attached to a specific title."}
+                    </small>
+                  </div>
                 </div>
               {publishNoteError ? (
                 <p className="profile-save-error" role="alert">
