@@ -355,6 +355,24 @@ export async function addPostComment({
   return mapComment(data);
 }
 
+export async function deletePostComment(commentId, userId) {
+  if (!commentId || !userId) {
+    throw new Error("The comment or user is missing.");
+  }
+
+  const supabase = requireSupabase();
+
+  const { error } = await supabase
+    .from("comments")
+    .delete()
+    .eq("id", commentId)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function deletePost(postId, userId) {
   if (!postId || !userId) {
     throw new Error("The post or user is missing.");

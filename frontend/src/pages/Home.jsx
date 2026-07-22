@@ -7,7 +7,15 @@ import {
   getUserLibrary,
   updateLibraryBookProgress,
 } from "../lib/libraryApi";
-import { createPost, getFeedPosts, addPostComment, likePost, unlikePost,} from "../lib/postApi";
+import {
+  addPostComment,
+  createPost,
+  deletePost,
+  deletePostComment,
+  getFeedPosts,
+  likePost,
+  unlikePost,
+} from "../lib/postApi";
 import { saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
@@ -178,6 +186,9 @@ function Home() {
   const [posts, setPosts] = useState([]);
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState("");
+  const [deletingPostId, setDeletingPostId] = useState(null);
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
+  const [deletePostError, setDeletePostError] = useState("");
 
   const [trackedBooks, setTrackedBooks] = useState(initialHomeState.trackedBooks);
   const [finishingBook, setFinishingBook] = useState(null);
@@ -346,6 +357,30 @@ function Home() {
     }
   }
 
+  async function removePost(postId) {
+    if (!requireLogin() || !user?.id) return;
+
+    const post = posts.find((currentPost) => currentPost.id === postId);
+
+    if (!post || post.userId !== user.id) return;
+    if (!window.confirm("Delete this reading note? This cannot be undone.")) return;
+
+    setDeletingPostId(postId);
+    setDeletePostError("");
+
+    try {
+      await deletePost(postId, user.id);
+      setPosts((currentPosts) =>
+        currentPosts.filter((currentPost) => currentPost.id !== postId),
+      );
+    } catch (error) {
+      console.error("Failed to delete reading note:", error);
+      setDeletePostError(error.message || "Could not delete your reading note.");
+    } finally {
+      setDeletingPostId(null);
+    }
+  }
+
   function updateDraft(postId, value) {
     setPosts((currentPosts) =>
       currentPosts.map((post) =>
@@ -401,6 +436,42 @@ function Home() {
       );
     } catch (error) {
       console.error(error);
+    }
+  }
+
+  async function removeComment(postId, commentId) {
+    if (!requireLogin() || !user?.id) return;
+
+    const post = posts.find((currentPost) => currentPost.id === postId);
+    const comment = post?.comments.find(
+      (currentComment) => currentComment.id === commentId,
+    );
+
+    if (!comment || comment.userId !== user.id) return;
+    if (!window.confirm("Delete this comment?")) return;
+
+    setDeletingCommentId(commentId);
+    setDeletePostError("");
+
+    try {
+      await deletePostComment(commentId, user.id);
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id !== postId
+            ? currentPost
+            : {
+                ...currentPost,
+                comments: currentPost.comments.filter(
+                  (currentComment) => currentComment.id !== commentId,
+                ),
+              },
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
+      setDeletePostError(error.message || "Could not delete your comment.");
+    } finally {
+      setDeletingCommentId(null);
     }
   }
 
@@ -943,6 +1014,11 @@ function Home() {
           </div>
 
           <div className="feed-list">
+          {deletePostError ? (
+            <p className="profile-save-error" role="alert">
+              {deletePostError}
+            </p>
+          ) : null}
           {feedLoading ? (
             <p className="profile-empty">Loading reading notes...</p>
           ) : feedError ? (
@@ -1087,14 +1163,40 @@ function Home() {
                     <span aria-hidden="true">↩</span>
                     <small>{post.comments.length}</small>
                   </button>
+
+                  {post.userId === user?.id && (
+                    <button
+                      className="feed-action feed-delete-action"
+                      type="button"
+                      onClick={() => removePost(post.id)}
+                      disabled={deletingPostId === post.id}
+                    >
+                      <span aria-hidden="true">×</span>
+                      <small>
+                        {deletingPostId === post.id ? "Deleting..." : "Delete"}
+                      </small>
+                    </button>
+                  )}
                 </div>
 
                 <div className="comment-list">
                   {post.comments.slice(-2).map((comment) => (
-                    <p key={comment.id}>
-                      <strong>{comment.commenterName}</strong>{" "}
-                      {comment.text}
-                    </p>
+                    <div className="comment-item" key={comment.id}>
+                      <p>
+                        <strong>{comment.commenterName}</strong>{" "}
+                        {comment.text}
+                      </p>
+                      {comment.userId === user?.id && (
+                        <button
+                          type="button"
+                          onClick={() => removeComment(post.id, comment.id)}
+                          disabled={deletingCommentId === comment.id}
+                          aria-label="Delete your comment"
+                        >
+                          {deletingCommentId === comment.id ? "Deleting..." : "Delete"}
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
 

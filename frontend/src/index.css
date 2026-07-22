@@ -463,6 +463,124 @@ h2 {
     0 0 0 5px rgba(244, 220, 123, 0.22);
 }
 
+.recent-finishes {
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+  padding: 22px 0 4px;
+  border-top: 1px solid rgba(138, 106, 88, 0.13);
+}
+
+.recent-finishes-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.recent-finishes-heading h2 {
+  color: var(--mocha);
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 0.96;
+}
+
+.recent-finishes-heading > span {
+  color: var(--soft-gray);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.recent-finishes-list {
+  display: grid;
+  grid-auto-columns: minmax(220px, 1fr);
+  grid-auto-flow: column;
+  gap: 12px;
+  padding: 4px 2px 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+
+.recent-finish-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 102px;
+  padding: 10px;
+  border: 1px solid rgba(138, 106, 88, 0.12);
+  border-radius: 22px;
+  background: rgba(255, 250, 241, 0.78);
+  color: var(--charcoal);
+  text-align: left;
+  scroll-snap-align: start;
+  box-shadow: 0 10px 24px rgba(89, 67, 49, 0.07);
+}
+
+.recent-finish-card:hover {
+  border-color: rgba(201, 122, 90, 0.3);
+  transform: translateY(-2px);
+}
+
+.recent-finish-card > div:last-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.recent-finish-card strong,
+.recent-finish-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-finish-card strong {
+  font-family: var(--heading);
+  font-size: 17px;
+}
+
+.recent-finish-card small {
+  color: var(--soft-gray);
+  font-size: 11px;
+}
+
+.recent-finish-cover {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 6px 12px 12px 6px;
+  background: linear-gradient(145deg, var(--mocha), var(--terracotta));
+  color: var(--paper);
+  font-family: var(--heading);
+  font-size: 9px;
+  text-align: center;
+}
+
+.recent-finish-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recent-finish-rating {
+  width: fit-content;
+  margin-top: 3px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(244, 220, 123, 0.38);
+  color: var(--terracotta);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.recent-finishes-status {
+  color: var(--soft-gray);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .isbn-search-feedback {
   display: grid;
   gap: 14px;
@@ -2781,6 +2899,15 @@ h2 {
   color: var(--terracotta);
 }
 
+.feed-delete-action {
+  color: var(--terracotta);
+}
+
+.feed-delete-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .feed-action:hover span,
 .feed-action.active span {
   background: rgba(170, 182, 150, 0.22);
@@ -2811,6 +2938,12 @@ h2 {
   margin: 10px 0 0 68px;
 }
 
+.comment-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .comment-list p {
   display: inline-grid;
   gap: 2px;
@@ -2823,6 +2956,22 @@ h2 {
   color: var(--soft-gray);
   font-size: 14px;
   line-height: 1.45;
+}
+
+.comment-item > button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--terracotta);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  text-decoration: underline;
+}
+
+.comment-item > button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .comment-list strong {

@@ -7,7 +7,7 @@ import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import { getUserProfile } from "../lib/profileApi";
-import { saveReview } from "../lib/reviewApi";
+import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import { addPublicReviewToFeed } from "../lib/socialFeed";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
@@ -79,6 +79,9 @@ function Discover() {
   const [bookResults, setBookResults] = useState([]);
   const [searchStatus, setSearchStatus] = useState("idle");
   const [searchMessage, setSearchMessage] = useState("");
+  const [recentFinishes, setRecentFinishes] = useState([]);
+  const [recentFinishesLoading, setRecentFinishesLoading] = useState(true);
+  const [recentFinishesError, setRecentFinishesError] = useState("");
   const [savedBookKeys, setSavedBookKeys] = useState([]);
   const [savingBookKey, setSavingBookKey] = useState("");
   const [selectedShelves, setSelectedShelves] = useState({});
@@ -135,6 +138,39 @@ function Discover() {
       setSearchMessage("The book search is unavailable right now. Please try again.");
     }
   }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRecentFinishes() {
+      setRecentFinishesLoading(true);
+      setRecentFinishesError("");
+
+      try {
+        const finishedBooks = await getRecentFinishedBooks(10);
+
+        if (!cancelled) {
+          setRecentFinishes(finishedBooks);
+        }
+      } catch (error) {
+        console.error("Failed to load recent finished books:", error);
+
+        if (!cancelled) {
+          setRecentFinishesError("Recent finishes are unavailable right now.");
+        }
+      } finally {
+        if (!cancelled) {
+          setRecentFinishesLoading(false);
+        }
+      }
+    }
+
+    loadRecentFinishes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     async function loadProfile() {
@@ -300,6 +336,55 @@ async function openBookDetails(book) {
             {searchStatus === "loading" ? "Searching..." : "Search"}
           </button>
         </form>
+        <section className="recent-finishes" aria-labelledby="recent-finishes-title">
+          <div className="recent-finishes-heading">
+            <div>
+              <p className="eyebrow">Around the reading room</p>
+              <h2 id="recent-finishes-title">Recently Finished</h2>
+            </div>
+            <span>Anonymous activity</span>
+          </div>
+
+          {recentFinishesLoading ? (
+            <p className="recent-finishes-status">Loading recent finishes...</p>
+          ) : recentFinishesError ? (
+            <p className="recent-finishes-status" role="alert">{recentFinishesError}</p>
+          ) : recentFinishes.length === 0 ? (
+            <p className="recent-finishes-status">No finished books have been rated yet.</p>
+          ) : (
+            <div className="recent-finishes-list">
+              {recentFinishes.map((book) => (
+                <button
+                  className="recent-finish-card"
+                  type="button"
+                  key={book.id}
+                  onClick={() => openBookDetails(book)}
+                  aria-label={`View ${book.title}, rated ${book.rating} out of 5 anonymously`}
+                >
+                  <div className="recent-finish-cover" aria-hidden="true">
+                    {(book.coverUrl || book.isbn) ? (
+                      <img
+                        src={book.coverUrl || getCoverUrl(book.isbn, "M")}
+                        alt=""
+                        loading="lazy"
+                        onError={hideBrokenCover}
+                      />
+                    ) : (
+                      <span>{book.title}</span>
+                    )}
+                  </div>
+                  <div>
+                    <strong>{book.title}</strong>
+                    <small>{book.author}</small>
+                    <span className="recent-finish-rating" aria-hidden="true">
+                      ★ {book.rating.toFixed(1)}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
         <div className="isbn-search-feedback" aria-live="polite">
           {searchMessage ? <p className="isbn-search-message">{searchMessage}</p> : null}
           {bookResults.length > 0 ? (

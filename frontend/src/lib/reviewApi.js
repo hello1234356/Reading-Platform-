@@ -17,6 +17,43 @@ function mapReview(row) {
   };
 }
 
+export async function getRecentFinishedBooks(limit = 10) {
+  const supabase = requireSupabase();
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 10));
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(`
+      id,
+      book_id,
+      rating,
+      updated_at,
+      books (
+        id,
+        title,
+        author,
+        isbn,
+        cover_url
+      )
+    `)
+    .order("updated_at", { ascending: false })
+    .limit(safeLimit);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    bookId: row.book_id,
+    title: row.books?.title || "Untitled",
+    author: row.books?.author || "Unknown author",
+    isbn: row.books?.isbn || "",
+    coverUrl: row.books?.cover_url || "",
+    rating: Number(row.rating),
+  }));
+}
+
 export async function getUserReviews(userId) {
   if (!userId) {
     return [];

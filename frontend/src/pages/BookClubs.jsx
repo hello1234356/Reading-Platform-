@@ -186,6 +186,15 @@ function BookClubs() {
   const currentReaderName = getUserDisplayHandle(user, profile);
   const displayReaderName = (name) =>
     name === "Anonymous Reader" || name === "You" ? currentReaderName : name;
+  const isClubCreator = (club) => {
+    if (!user?.id || !club) return false;
+
+    if (club.creatorUserId) {
+      return club.creatorUserId === user.id;
+    }
+
+    return displayReaderName(club.creator) === currentReaderName;
+  };
   const normalizedClubSearch = clubSearchQuery.trim().toLowerCase();
   const filteredClubs = clubs.filter((club) => {
     const matchesGenre = genreFilter === "All" || club.genre === genreFilter;
@@ -357,6 +366,30 @@ function BookClubs() {
     }
   }
 
+  function deleteClub(deletedClubId) {
+    if (!requireLogin()) return;
+
+    const clubToDelete = clubs.find((club) => club.id === deletedClubId);
+
+    if (!isClubCreator(clubToDelete)) return;
+    if (!window.confirm(`Delete “${clubToDelete.title}”? This cannot be undone.`)) return;
+
+    const nextClubs = clubs.filter((club) => club.id !== deletedClubId);
+    const nextJoinedIds = joinedIds.filter((joinedId) => joinedId !== deletedClubId);
+    const nextPosts = { ...clubPosts };
+    delete nextPosts[deletedClubId];
+
+    setClubs(nextClubs);
+    setJoinedIds(nextJoinedIds);
+    setClubPosts(nextPosts);
+    setDetailClubId(null);
+    saveState({ joinedIds: nextJoinedIds, clubs: nextClubs, posts: nextPosts });
+
+    if (deletedClubId === clubId || deletedClubId === activeClub?.id) {
+      navigate("/clubs");
+    }
+  }
+
   function updateScheduleStep(index, field, value) {
     setNewClub((draft) => ({
       ...draft,
@@ -433,6 +466,7 @@ function BookClubs() {
       bookTitle: selectedBook.title,
       author: selectedBook.author,
       creator,
+      creatorUserId: user.id,
       membersWanted: Number(newClub.membersWanted) || 8,
       membersJoined: 1,
       duration: newClub.duration,
@@ -586,6 +620,15 @@ function BookClubs() {
               <button className="club-danger-action" type="button" onClick={() => quitClub(activeClub.id)}>
                 Quit Club
               </button>
+              {isClubCreator(activeClub) && (
+                <button
+                  className="club-danger-action"
+                  type="button"
+                  onClick={() => deleteClub(activeClub.id)}
+                >
+                  Delete Club
+                </button>
+              )}
             </div>
           </div>
 
@@ -718,6 +761,15 @@ function BookClubs() {
                         Quit Club
                       </button>
                     )}
+                    {isClubCreator(club) && (
+                      <button
+                        className="club-danger-action"
+                        type="button"
+                        onClick={() => deleteClub(club.id)}
+                      >
+                        Delete Club
+                      </button>
+                    )}
                   </div>
                 </div>
               </article>
@@ -823,6 +875,15 @@ function BookClubs() {
                 onClick={() => quitClub(detailClub.id)}
               >
                 Quit Club
+              </button>
+            )}
+            {isClubCreator(detailClub) && (
+              <button
+                className="club-danger-action"
+                type="button"
+                onClick={() => deleteClub(detailClub.id)}
+              >
+                Delete Club
               </button>
             )}
           </section>
