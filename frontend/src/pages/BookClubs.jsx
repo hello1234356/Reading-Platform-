@@ -4,17 +4,17 @@ import { useRequireLogin } from "../hooks/useRequireLogin";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import { getUserProfile } from "../lib/profileApi";
 import { getUserDisplayHandle } from "../lib/socialFeed";
-
-const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
-
-const clubGenres = ["All", "Fiction", "Essays", "Classics", "Campus", "Memoir"];
-
-const DEMO_CLUB_IDS = new Set([
-  "didion-after-school",
-  "rooney-room",
-  "baldwin-circle",
-  "open-city-walkers",
-]);
+import {
+  createBookClub,
+  createClubPost,
+  deleteBookClub,
+  getBookClubs,
+  getClubPosts,
+  getClubSchedule,
+  joinBookClub,
+  leaveBookClub,
+  replaceClubSchedule
+} from "../lib/bookClubApi";
 
 function getDefaultSchedule(duration = "4 weeks") {
   return [
@@ -65,112 +65,37 @@ async function fetchOpenLibraryBooks(searchTerm) {
     }));
 }
 
-function withCoverUrl(club) {
-  return {
-    ...club,
-    schedule: Array.isArray(club.schedule) && club.schedule.length > 0
-      ? club.schedule
-      : getDefaultSchedule(club.duration),
-    members: Array.isArray(club.members) ? club.members : [],
-    coverUrl: club.coverUrl || getCoverUrl(club.isbn),
-  };
-}
-
-function parseSchedule(scheduleText, duration) {
-  const lines = Array.isArray(scheduleText)
-    ? scheduleText
-        .filter((step) => step.theme?.trim() || step.chapters?.trim())
-        .map((step, index) => ({
-          week: `Week ${index + 1}`,
-          milestone: step.theme?.trim() || `Checkpoint ${index + 1}`,
-          pages: step.chapters?.trim() || "Reading to be announced",
-          note: "",
-        }))
-    : scheduleText
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
-
-  if (lines.length === 0) {
-    return getDefaultSchedule(duration);
-  }
-
-  if (Array.isArray(scheduleText)) {
-    return lines;
-  }
-
-  return lines.map((line, index) => ({
-    week: `Week ${index + 1}`,
-    milestone: line.split(":")[0] || `Checkpoint ${index + 1}`,
-    pages: line.includes(":") ? line.split(":").slice(1).join(":").trim() : "Manager-set reading",
-    note: "",
-  }));
-}
-
-function getInitialClubState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(CLUB_STORAGE_KEY));
-
-    if (!saved) {
-      return {
-        joinedIds: [],
-        clubs: [],
-        posts: {},
-      };
-    }
-
-    const clubState = {
-      joinedIds: Array.isArray(saved.joinedIds)
-        ? saved.joinedIds.filter((clubId) => !DEMO_CLUB_IDS.has(clubId))
-        : [],
-      clubs: Array.isArray(saved.clubs)
-        ? saved.clubs
-            .filter((club) => !DEMO_CLUB_IDS.has(club.id))
-            .map((club) => withCoverUrl({ genre: "Fiction", ...club }))
-        : [],
-      posts: saved.posts || {},
-    };
-
-    localStorage.setItem(CLUB_STORAGE_KEY, JSON.stringify(clubState));
-    return clubState;
-  } catch {
-    return {
-      joinedIds: [],
-      clubs: [],
-      posts: {},
-    };
-  }
-}
-
 function BookClubs() {
   const { requireLogin, user } = useRequireLogin();
   const navigate = useNavigate();
   const { clubId } = useParams();
-  const [initialState] = useState(getInitialClubState);
-  const [clubs, setClubs] = useState(initialState.clubs);
-  const [joinedIds, setJoinedIds] = useState(initialState.joinedIds);
-  const [clubPosts, setClubPosts] = useState(initialState.posts);
+ const [clubs, setClubs] = useState([]);
+  const [clubPosts, setClubPosts] = useState({});
+  const [clubSchedules, setClubSchedules] = useState({});
+  const [clubsLoading, setClubsLoading] = useState(true);
+  const [clubsError, setClubsError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);  
   const [detailClubId, setDetailClubId] = useState(null);
   const [detailBlurb, setDetailBlurb] = useState("");
   const [detailBlurbLoading, setDetailBlurbLoading] = useState(false);
   const [detailBlurbError, setDetailBlurbError] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [genreFilter, setGenreFilter] = useState("All");
   const [clubSearchQuery, setClubSearchQuery] = useState("");
   const [postDraft, setPostDraft] = useState("");
   const [newClub, setNewClub] = useState({
-    creator: "",
     clubName: "",
     bookTitle: "",
     membersWanted: "10",
     duration: "4 weeks",
+    tagsText: "",
     schedule: [
-      { theme: "Opening chapters", chapters: "Chapters 1-4" },
-      { theme: "First half", chapters: "Chapters 5-8" },
-      { theme: "Finish the book", chapters: "Chapters 9-end" },
-      { theme: "Final reflection", chapters: "Full book" },
+      {
+        theme: "",
+        chapters: "",
+        description: "",
+      },
     ],
-    genre: "Fiction",
     description: "",
   });
   const [bookSearchResults, setBookSearchResults] = useState([]);
@@ -178,43 +103,67 @@ function BookClubs() {
   const [bookSearchMessage, setBookSearchMessage] = useState("");
   const [selectedClubBook, setSelectedClubBook] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [isScheduleEditorOpen, setIsScheduleEditorOpen] =
+    useState(false);
 
-  const detailClub = clubs.find((club) => club.id === detailClubId);
-  const routeClub = clubs.find((club) => club.id === clubId);
-  const lockedClub = routeClub && !joinedIds.includes(routeClub.id) ? routeClub : null;
-  const activeClub = routeClub && joinedIds.includes(routeClub.id) ? routeClub : null;
+  const [scheduleDraft, setScheduleDraft] = useState([
+    {
+      title: "",
+      chapters: "",
+      description: "",
+    },
+  ]);
+  const detailClub = clubs.find(
+    (club) => String(club.id) === String(detailClubId),
+  );
+
+  const routeClub = clubs.find(
+    (club) => String(club.id) === String(clubId),
+  );
+
+  const lockedClub =
+    routeClub && !routeClub.isJoined ? routeClub : null;
+
+  const activeClub =
+    routeClub && routeClub.isJoined
+      ? {
+          ...routeClub,
+          schedule:
+            clubSchedules[routeClub.id] ||
+            getDefaultSchedule(routeClub.duration),
+        }
+      : null;
+
   const currentReaderName = getUserDisplayHandle(user, profile);
   const displayReaderName = (name) =>
     name === "Anonymous Reader" || name === "You" ? currentReaderName : name;
-  const isClubCreator = (club) => {
-    if (!user?.id || !club) return false;
+ const isClubCreator = (club) =>
+  Boolean(
+    user?.id &&
+      club &&
+      String(club.creatorId) === String(user.id),
+  );
 
-    if (club.creatorUserId) {
-      return club.creatorUserId === user.id;
-    }
+  const normalizedClubSearch =
+  clubSearchQuery.trim().toLowerCase();
 
-    return displayReaderName(club.creator) === currentReaderName;
-  };
-  const normalizedClubSearch = clubSearchQuery.trim().toLowerCase();
-  const filteredClubs = clubs.filter((club) => {
-    const matchesGenre = genreFilter === "All" || club.genre === genreFilter;
-    const matchesSearch =
-      !normalizedClubSearch ||
-      [
-        club.title,
-        club.bookTitle,
-        club.author,
-        club.creator,
-        club.genre,
-        club.description,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedClubSearch);
+const filteredClubs = clubs.filter((club) => {
+  if (!normalizedClubSearch) {
+    return true;
+  }
 
-    return matchesGenre && matchesSearch;
-  });
+  return [
+    club.title,
+    club.bookTitle,
+    club.author,
+    club.creatorName,
+    club.description,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .includes(normalizedClubSearch);
+});
   const previewBook =
     selectedClubBook ||
     bookSearchResults[0] || {
@@ -251,10 +200,40 @@ function BookClubs() {
       cancelled = true;
     };
   }, [user?.id]);
+  useEffect(() => {
+    let cancelled = false;
 
-  function saveState(nextState) {
-    localStorage.setItem(CLUB_STORAGE_KEY, JSON.stringify(nextState));
-  }
+    async function loadClubs() {
+      setClubsLoading(true);
+      setClubsError("");
+
+      try {
+        const nextClubs = await getBookClubs(user?.id || null);
+
+        if (!cancelled) {
+          setClubs(nextClubs);
+        }
+      } catch (error) {
+        console.error("Failed to load book clubs:", error);
+
+        if (!cancelled) {
+          setClubsError(
+            error.message || "Could not load book clubs.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setClubsLoading(false);
+        }
+      }
+    }
+
+    loadClubs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!isCreateOpen) return undefined;
@@ -298,6 +277,50 @@ function BookClubs() {
     return () => window.clearTimeout(timeout);
   }, [isCreateOpen, newClub.bookTitle, selectedClubBook]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadClubRoom() {
+      if (!routeClub?.isJoined) {
+        return;
+      }
+
+      try {
+        const [schedule, posts] = await Promise.all([
+          getClubSchedule(routeClub.id),
+          getClubPosts(routeClub.id),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setClubSchedules((current) => ({
+          ...current,
+          [routeClub.id]: schedule,
+        }));
+
+        setClubPosts((current) => ({
+          ...current,
+          [routeClub.id]: posts,
+        }));
+      } catch (error) {
+        console.error("Failed to load club room:", error);
+
+        if (!cancelled) {
+          setActionError(
+            error.message || "Could not load this club room.",
+          );
+        }
+      }
+    }
+
+    loadClubRoom();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [routeClub?.id, routeClub?.isJoined]);
   async function openClubDetails(club) {
     setDetailClubId(club.id);
     setDetailBlurb("");
@@ -322,71 +345,107 @@ function BookClubs() {
     }
   }
 
-  function joinClub(clubId) {
-    if (!requireLogin()) return;
-    const nextJoinedIds = joinedIds.includes(clubId) ? joinedIds : [...joinedIds, clubId];
-    const nextClubs = clubs.map((club) =>
-      club.id === clubId && !joinedIds.includes(clubId)
-        ? {
-            ...club,
-            membersJoined: Math.min(club.membersJoined + 1, club.membersWanted),
-            members: Array.from(new Set([...(club.members || []), currentReaderName])),
-          }
-        : club,
-    );
+  async function joinClub(selectedClubId) {
+    if (!requireLogin() || !user?.id) {
+      return;
+    }
 
-    setJoinedIds(nextJoinedIds);
-    setClubs(nextClubs);
-    setDetailClubId(null);
-    saveState({ joinedIds: nextJoinedIds, clubs: nextClubs, posts: clubPosts });
-  }
+    setActionLoading(true);
+    setActionError("");
 
-  function quitClub(clubId) {
-     if (!requireLogin()) return;
-    const nextJoinedIds = joinedIds.filter((joinedId) => joinedId !== clubId);
-    const nextClubs = clubs.map((club) =>
-      club.id === clubId && joinedIds.includes(clubId)
-        ? {
-            ...club,
-            membersJoined: Math.max(club.membersJoined - 1, 0),
-            members: (club.members || []).filter(
-              (member) => displayReaderName(member) !== currentReaderName,
-            ),
-          }
-        : club,
-    );
+    try {
+      await joinBookClub({
+        clubId: selectedClubId,
+        userId: user.id,
+      });
 
-    setJoinedIds(nextJoinedIds);
-    setClubs(nextClubs);
-    setDetailClubId(null);
-    saveState({ joinedIds: nextJoinedIds, clubs: nextClubs, posts: clubPosts });
-
-    if (clubId === activeClub?.id) {
-      navigate("/clubs");
+      const refreshedClubs = await getBookClubs(user.id);
+      setClubs(refreshedClubs);
+      setDetailClubId(null);
+    } catch (error) {
+      console.error("Failed to join club:", error);
+      setActionError(error.message || "Could not join the club.");
+    } finally {
+      setActionLoading(false);
     }
   }
 
-  function deleteClub(deletedClubId) {
-    if (!requireLogin()) return;
+  async function quitClub(selectedClubId) {
+    if (!requireLogin() || !user?.id) {
+      return;
+    }
 
-    const clubToDelete = clubs.find((club) => club.id === deletedClubId);
+    setActionLoading(true);
+    setActionError("");
 
-    if (!isClubCreator(clubToDelete)) return;
-    if (!window.confirm(`Delete “${clubToDelete.title}”? This cannot be undone.`)) return;
+    try {
+      await leaveBookClub({
+        clubId: selectedClubId,
+        userId: user.id,
+      });
 
-    const nextClubs = clubs.filter((club) => club.id !== deletedClubId);
-    const nextJoinedIds = joinedIds.filter((joinedId) => joinedId !== deletedClubId);
-    const nextPosts = { ...clubPosts };
-    delete nextPosts[deletedClubId];
+      const refreshedClubs = await getBookClubs(user.id);
+      setClubs(refreshedClubs);
+      setDetailClubId(null);
 
-    setClubs(nextClubs);
-    setJoinedIds(nextJoinedIds);
-    setClubPosts(nextPosts);
-    setDetailClubId(null);
-    saveState({ joinedIds: nextJoinedIds, clubs: nextClubs, posts: nextPosts });
+      if (String(selectedClubId) === String(clubId)) {
+        navigate("/clubs");
+      }
+    } catch (error) {
+      console.error("Failed to leave club:", error);
+      setActionError(error.message || "Could not leave the club.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
 
-    if (deletedClubId === clubId || deletedClubId === activeClub?.id) {
-      navigate("/clubs");
+  async function deleteClub(deletedClubId) {
+    if (!requireLogin() || !user?.id) {
+      return;
+    }
+
+    const clubToDelete = clubs.find(
+      (club) => String(club.id) === String(deletedClubId),
+    );
+
+    if (!isClubCreator(clubToDelete)) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Delete “${clubToDelete.title}”? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError("");
+
+    try {
+      await deleteBookClub({
+        clubId: deletedClubId,
+        userId: user.id,
+      });
+
+      setClubs((current) =>
+        current.filter(
+          (club) =>
+            String(club.id) !== String(deletedClubId),
+        ),
+      );
+
+      setDetailClubId(null);
+
+      if (String(deletedClubId) === String(clubId)) {
+        navigate("/clubs");
+      }
+    } catch (error) {
+      console.error("Failed to delete club:", error);
+      setActionError(error.message || "Could not delete the club.");
+    } finally {
+      setActionLoading(false);
     }
   }
 
@@ -402,7 +461,16 @@ function BookClubs() {
   function addScheduleStep() {
     setNewClub((draft) => ({
       ...draft,
-      schedule: [...(Array.isArray(draft.schedule) ? draft.schedule : []), { theme: "", chapters: "" }],
+      schedule: [
+        ...(Array.isArray(draft.schedule)
+          ? draft.schedule
+          : []),
+        {
+          theme: "",
+          chapters: "",
+          description: "",
+        },
+      ],
     }));
   }
 
@@ -415,100 +483,239 @@ function BookClubs() {
           : draft.schedule,
     }));
   }
+  function openScheduleEditor() {
+    if (!activeClub || !isClubCreator(activeClub)) {
+      return;
+    }
 
-  function publishClubPost(event) {
-    if (!requireLogin()) return;
+    const currentSchedule =
+      clubSchedules[activeClub.id] ||
+      activeClub.schedule ||
+      [];
+
+    setScheduleDraft(
+      currentSchedule.length > 0
+        ? currentSchedule.map((step) => ({
+            title:
+              step.title ||
+              step.milestone ||
+              "",
+            chapters:
+              step.chapters ||
+              step.pages ||
+              "",
+            description:
+              step.description ||
+              step.note ||
+              "",
+          }))
+        : [
+            {
+              title: "",
+              chapters: "",
+              description: "",
+            },
+          ],
+    );
+
+    setActionError("");
+    setIsScheduleEditorOpen(true);
+  }
+
+  function updateScheduleDraft(index, field, value) {
+    setScheduleDraft((current) =>
+      current.map((step, stepIndex) =>
+        stepIndex === index
+          ? {
+              ...step,
+              [field]: value,
+            }
+          : step,
+      ),
+    );
+  }
+
+  function addScheduleDraftWeek() {
+    setScheduleDraft((current) => [
+      ...current,
+      {
+        title: "",
+        chapters: "",
+        description: "",
+      },
+    ]);
+  }
+
+  function deleteScheduleDraftWeek(index) {
+    setScheduleDraft((current) =>
+      current.length > 1
+        ? current.filter(
+            (_, stepIndex) => stepIndex !== index,
+          )
+        : current,
+    );
+  }
+
+  async function saveScheduleChanges(event) {
     event.preventDefault();
+
+    if (
+      !activeClub ||
+      !user?.id ||
+      !isClubCreator(activeClub)
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    setActionError("");
+
+    try {
+      const updatedSchedule =
+        await replaceClubSchedule({
+          clubId: activeClub.id,
+          userId: user.id,
+          stages: scheduleDraft.map((step) => ({
+            title: step.title,
+            chapters: step.chapters,
+            description: step.description,
+          })),
+        });
+
+      setClubSchedules((current) => ({
+        ...current,
+        [activeClub.id]: updatedSchedule,
+      }));
+
+      setIsScheduleEditorOpen(false);
+    } catch (error) {
+      console.error(
+        "Failed to update club schedule:",
+        error,
+      );
+
+      setActionError(
+        error.message ||
+          "Could not update the schedule.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  }
+  async function publishClubPost(event) {
+    event.preventDefault();
+
+    if (!requireLogin() || !user?.id) {
+      return;
+    }
 
     if (!activeClub || !postDraft.trim()) {
       return;
     }
 
-    const nextPosts = {
-      ...clubPosts,
-      [activeClub.id]: [
-        {
-          id: `${activeClub.id}-message-${(clubPosts[activeClub.id]?.length || 0) + 1}`,
-          author: currentReaderName,
-          body: postDraft.trim(),
-          time: "just now",
-        },
-        ...(clubPosts[activeClub.id] || []),
-      ],
-    };
+    setActionLoading(true);
+    setActionError("");
 
-    setClubPosts(nextPosts);
-    setPostDraft("");
-    saveState({ joinedIds, clubs, posts: nextPosts });
+    try {
+      const createdPost = await createClubPost({
+        clubId: activeClub.id,
+        userId: user.id,
+        message: postDraft,
+      });
+
+      setClubPosts((current) => ({
+        ...current,
+        [activeClub.id]: [
+          ...(current[activeClub.id] || []),
+          createdPost,
+        ],
+      }));
+
+      setPostDraft("");
+    } catch (error) {
+      console.error("Failed to publish club message:", error);
+      setActionError(
+        error.message || "Could not publish your message.",
+      );
+    } finally {
+      setActionLoading(false);
+    }
   }
 
-  function createClub(event) {
+  async function createClub(event) {
     event.preventDefault();
-    if (!requireLogin()) return;
-    const selectedBook = selectedClubBook || bookSearchResults[0];
 
-    if (!selectedBook?.isbn) {
-      setBookSearchStatus("error");
-      setBookSearchMessage("Choose a book from the ISBN search results before creating a club.");
+    if (!requireLogin() || !user?.id) {
       return;
     }
 
-    const creator = newClub.creator.trim() || currentReaderName;
-    const clubName = newClub.clubName.trim() || `${selectedBook.title} Circle`;
-    const matchingTitleCount = clubs.filter((club) => club.bookTitle === selectedBook.title).length;
-    const id = `${selectedBook.title}-${clubName}-${creator}-${matchingTitleCount + 1}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-");
+    if (!selectedClubBook?.isbn) {
+      setBookSearchStatus("error");
+      setBookSearchMessage(
+        "Choose a book from the ISBN search results before creating a club.",
+      );
+      return;
+    }
 
-    const createdClub = {
-      id,
-      title: clubName,
-      bookTitle: selectedBook.title,
-      author: selectedBook.author,
-      creator,
-      creatorUserId: user.id,
-      membersWanted: Number(newClub.membersWanted) || 8,
-      membersJoined: 1,
-      duration: newClub.duration,
-      schedule: parseSchedule(newClub.schedule, newClub.duration),
-      genre: newClub.genre,
-      tone: "navy",
-      description:
-        newClub.description.trim().slice(0, 350) ||
-        "A new reading circle for people who want to read slowly, talk honestly, and keep each other turning pages.",
-      isbn: selectedBook.isbn,
-      coverUrl: selectedBook.coverUrl || getCoverUrl(selectedBook.isbn),
-      members: Array.from(new Set([creator, currentReaderName])),
-    };
+    setActionLoading(true);
+    setActionError("");
 
-    const nextClubs = [createdClub, ...clubs];
-    const nextJoinedIds = [createdClub.id, ...joinedIds];
+    try {
+      const tags = newClub.tagsText
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
 
-    setClubs(nextClubs);
-    setJoinedIds(nextJoinedIds);
-    setGenreFilter("All");
-    setDetailClubId(null);
-    setIsCreateOpen(false);
-    setNewClub({
-      creator: "",
-      clubName: "",
-      bookTitle: "",
-      membersWanted: "10",
-      duration: "4 weeks",
-      schedule: [
-        { theme: "Opening chapters", chapters: "Chapters 1-4" },
-        { theme: "First half", chapters: "Chapters 5-8" },
-        { theme: "Finish the book", chapters: "Chapters 9-end" },
-        { theme: "Final reflection", chapters: "Full book" },
-      ],
-      genre: "Fiction",
-      description: "",
-    });
-    setSelectedClubBook(null);
-    setBookSearchResults([]);
-    setBookSearchStatus("idle");
-    setBookSearchMessage("");
-    saveState({ joinedIds: nextJoinedIds, clubs: nextClubs, posts: clubPosts });
+      const createdClub = await createBookClub({
+        userId: user.id,
+        selectedBook: selectedClubBook,
+        title:
+          newClub.clubName.trim() ||
+          `${selectedClubBook.title} Circle`,
+        description:
+          newClub.description.trim() ||
+          "A reading circle for people who want to read together and discuss honestly.",
+        duration: newClub.duration,
+        membersWanted: Number(newClub.membersWanted),
+        tags,
+        coverUrl: null,
+        schedule: newClub.schedule.map((step) => ({
+          title: step.theme,
+          chapters: step.chapters,
+          description: step.description,
+        })),
+      });
+
+      setClubs((current) => [createdClub, ...current]);
+      setDetailClubId(null);
+      setIsCreateOpen(false);
+
+      setNewClub({
+        clubName: "",
+        bookTitle: "",
+        membersWanted: "10",
+        duration: "4 weeks",
+        tagsText: "",
+        schedule: [
+          {
+            theme: "",
+            chapters: "",
+            description: "",
+          },
+        ],
+        description: "",
+      });
+
+      setSelectedClubBook(null);
+      setBookSearchResults([]);
+      setBookSearchStatus("idle");
+      setBookSearchMessage("");
+    } catch (error) {
+      console.error("Failed to create club:", error);
+      setActionError(error.message || "Could not create the club.");
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   return (
@@ -526,25 +733,13 @@ function BookClubs() {
               <p className="eyebrow">Reading Circles</p>
               <h2>Join the Reading Fun</h2>
             </div>
-            <div className="genre-filter-list">
-              {clubGenres.map((genre) => (
-                <button
-                  className={genreFilter === genre ? "genre-filter active" : "genre-filter"}
-                  type="button"
-                  key={genre}
-                  onClick={() => setGenreFilter(genre)}
-                >
-                  {genre}
-                </button>
-              ))}
-            </div>
             <label className="club-search-control">
               <span className="sr-only">Search book clubs</span>
               <input
                 type="search"
                 value={clubSearchQuery}
                 onChange={(event) => setClubSearchQuery(event.target.value)}
-                placeholder="Search clubs by book, creator, or genre..."
+                placeholder="Search clubs by book, creator, or ..."
               />
             </label>
             <button
@@ -615,7 +810,7 @@ function BookClubs() {
               <p className="club-room-meta">
                 <strong>{activeClub.bookTitle}</strong>
                 <span>by {activeClub.author}</span>
-                <em>Host: {displayReaderName(activeClub.creator)}</em>
+                <em>Host: {activeClub.creatorName}</em>
               </p>
               <button className="club-danger-action" type="button" onClick={() => quitClub(activeClub.id)}>
                 Quit Club
@@ -633,18 +828,45 @@ function BookClubs() {
           </div>
 
           <div className="club-room-grid">
-            <section className="reading-calendar" aria-label="Reading calendar">
-              <p className="eyebrow">Manager Schedule</p>
+            <section
+              className="reading-calendar"
+              aria-label="Reading calendar"
+            >
+              <div className="reading-calendar-heading">
+                <p className="eyebrow">
+                  Manager Schedule
+                </p>
+
+                {isClubCreator(activeClub) && (
+                  <button
+                    className="ghost-button schedule-edit-button"
+                    type="button"
+                    onClick={openScheduleEditor}
+                  >
+                    Edit Schedule
+                  </button>
+                )}
+              </div>
               <div>
                 {activeClub.schedule.map((step, index) => (
-                  <article key={step.week}>
-                    <span>{index + 1}</span>
+                  <article key={step.id || `schedule-${index}`}>
+                    <span>{step.position || index + 1}</span>
+
                     <div>
-                      <strong>{step.week}: {step.milestone}</strong>
-                      <small>{step.pages}</small>
-                      {step.note && step.note !== "Set by the club manager." ? (
-                        <p>{step.note}</p>
-                      ) : null}
+                      <strong>
+                        Week {step.position || index + 1}:{" "}
+                        {step.title || step.milestone}
+                      </strong>
+
+                      <small>
+                        {step.chapters || step.pages}
+                      </small>
+
+                      {(step.description || step.note) && (
+                        <p>
+                          {step.description || step.note}
+                        </p>
+                      )}
                     </div>
                   </article>
                 ))}
@@ -657,26 +879,43 @@ function BookClubs() {
                 <strong>#{activeClub.bookTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-")}</strong>
               </div>
               <div className="club-post-list">
-                {(clubPosts[activeClub.id] || [
-                  {
-                    id: "starter",
-                    author: activeClub.creator,
-                    body: "Welcome in. Post your favorite line before our first meeting.",
-                    time: "pinned",
-                  },
-                ]).map((post) => (
-                  <article key={post.id}>
-                    <span className="message-avatar">{displayReaderName(post.author).slice(0, 1)}</span>
-                    <div>
-                      <strong>{displayReaderName(post.author)}</strong>
-                      {displayReaderName(post.author) === displayReaderName(activeClub.creator) && (
-                        <span className="club-host-label">Host</span>
-                      )}
-                      <small>{post.time}</small>
-                      <p>{post.body}</p>
-                    </div>
-                  </article>
-                ))}
+                {(clubPosts[activeClub.id] || []).length === 0 ? (
+                  <p>
+                    No messages yet. Start the discussion.
+                  </p>
+                ) : (
+                  (clubPosts[activeClub.id] || []).map((post) => (
+                    <article key={post.id}>
+                      <span className="message-avatar">
+                        {post.authorAvatarUrl ? (
+                          <img
+                            src={post.authorAvatarUrl}
+                            alt=""
+                          />
+                        ) : (
+                          post.authorName.slice(0, 1).toUpperCase()
+                        )}
+                      </span>
+
+                      <div>
+                        <strong>{post.authorName}</strong>
+
+                        {String(post.userId) ===
+                          String(activeClub.creatorId) && (
+                          <span className="club-host-label">
+                            Host
+                          </span>
+                        )}
+
+                        <small>
+                          {new Date(post.createdAt).toLocaleString()}
+                        </small>
+
+                        <p>{post.message}</p>
+                      </div>
+                    </article>
+                  ))
+                )}
               </div>
               <form className="club-message-form" onSubmit={publishClubPost}>
                 <textarea
@@ -685,19 +924,30 @@ function BookClubs() {
                   placeholder={`Message ${activeClub.title}...`}
                   rows="2"
                 />
-                <button className="primary-button" type="submit">
-                  Send
+                <button className="primary-button" type="submit" disabled ={actionLoading}>
+                  {actionLoading ? "Sending..." : "Send"}
                 </button>
               </form>
             </section>
 
             <aside className="club-members-panel" aria-label="Club members">
               <p className="eyebrow">Readers</p>
-              <strong>{activeClub.membersJoined}/{activeClub.membersWanted}</strong>
+              <strong>{activeClub.memberCount}/{activeClub.membersWanted}</strong>              
               <div>
                 {(activeClub.members || []).map((member) => (
-                  <span className="member-avatar" key={member} title={displayReaderName(member)}>
-                    {displayReaderName(member).slice(0, 1)}
+                  <span
+                    className="member-avatar"
+                    key={member.userId}
+                    title={member.name}
+                  >
+                    {member.avatarUrl ? (
+                      <img
+                        src={member.avatarUrl}
+                        alt=""
+                      />
+                    ) : (
+                      member.name.slice(0, 1).toUpperCase()
+                    )}
                   </span>
                 ))}
               </div>
@@ -705,8 +955,28 @@ function BookClubs() {
           </div>
         </section>
       ) : !lockedClub && (
-        <section className="club-grid" aria-label="Available book clubs">
-          {filteredClubs.map((club) => (
+  <>
+    {clubsLoading && (
+      <p className="club-empty-state">
+        Loading reading circles...
+      </p>
+    )}
+
+    {clubsError && (
+      <p className="club-empty-state">
+        {clubsError}
+      </p>
+    )}
+
+    {actionError && (
+      <p className="club-empty-state">
+        {actionError}
+      </p>
+    )}
+
+    {!clubsLoading && !clubsError && (
+      <section className="club-grid" aria-label="Available book clubs">
+{filteredClubs.map((club) => (
               <article className={`club-card ${club.tone}`} key={club.id}>
                 <div className="club-cover" aria-hidden="true">
                   {club.isbn && (
@@ -722,14 +992,23 @@ function BookClubs() {
                   <h2>{club.bookTitle}</h2>
                   <p className="club-card-name">{club.title}</p>
                   <small className="club-card-founder">
-                    Started by {displayReaderName(club.creator)}
+                    Started by {club.creatorName}
                   </small>
                   <p className="club-card-description">{club.description}</p>
+                  {club.tags.length > 0 && (
+                    <div className="club-tag-list" aria-label="Club tags">
+                      {club.tags.map((tag) => (
+                        <span className="club-tag" key={tag}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="club-capacity">
-                    <span style={{ width: `${(club.membersJoined / club.membersWanted) * 100}%` }} />
+                    <span style={{ width: `${(club.memberCount / club.membersWanted) * 100}%` }} />
                   </div>
                   <strong>
-                    {club.membersJoined}/{club.membersWanted} readers
+                    {club.memberCount}/{club.membersWanted} readers
                   </strong>
                   <div className="club-card-actions">
                     <button
@@ -743,16 +1022,16 @@ function BookClubs() {
                       className="primary-button"
                       type="button"
                       onClick={() => joinClub(club.id)}
-                      disabled={joinedIds.includes(club.id)}
+                      disabled={club.isJoined || actionLoading}
                     >
-                      {joinedIds.includes(club.id) ? "Joined" : "Join"}
+                      {club.isJoined ? "Joined" : "Join"}
                     </button>
-                    {joinedIds.includes(club.id) && (
+                    {club.isJoined && (
                       <Link className="primary-button" to={`/clubs/${club.id}`}>
                         Open Room
                       </Link>
                     )}
-                    {joinedIds.includes(club.id) && (
+                    {club.isJoined && (
                       <button
                         className="club-danger-action"
                         type="button"
@@ -774,15 +1053,18 @@ function BookClubs() {
                 </div>
               </article>
           ))}
-          {filteredClubs.length === 0 && (
-            <p className="club-empty-state">
-              {clubs.length === 0
-                ? "No reading circles have been created yet. Start the first one when you are ready."
-                : "No circles match that search yet. Try another title, creator, or genre."}
-            </p>
-          )}
-        </section>
-      )}
+
+        {filteredClubs.length === 0 && (
+          <p className="club-empty-state">
+            {clubs.length === 0
+              ? "No reading circles have been created yet. Start the first one when you are ready."
+              : "No circles match that search yet. Try another title, creator, or description."}
+          </p>
+        )}
+      </section>
+    )}
+  </>
+)}
 
       {detailClub && (
         <div
@@ -835,12 +1117,16 @@ function BookClubs() {
             )}
             <dl>
               <div>
-                <dt>Genre</dt>
-                <dd>{detailClub.genre}</dd>
+                <dt>Tags</dt>
+                <dd>
+                  {detailClub.tags.length > 0
+                    ? detailClub.tags.join(", ")
+                    : "No tags"}
+                </dd>
               </div>
               <div>
                 <dt>Started by</dt>
-                <dd>{displayReaderName(detailClub.creator)}</dd>
+                <dd>{detailClub.creatorName}</dd>
               </div>
               <div>
                 <dt>Looking for</dt>
@@ -859,16 +1145,16 @@ function BookClubs() {
               className="primary-button full"
               type="button"
               onClick={() => joinClub(detailClub.id)}
-              disabled={joinedIds.includes(detailClub.id)}
+              disabled={detailClub.isJoined || actionLoading}
             >
-              {joinedIds.includes(detailClub.id) ? "Joined - Linked to Profile" : "Join This Club"}
+              {detailClub.isJoined ? "Joined - Linked to Profile" : "Join This Club"}
             </button>
-            {joinedIds.includes(detailClub.id) && (
+            {detailClub.isJoined && (
               <Link className="primary-button full" to={`/clubs/${detailClub.id}`}>
                 Open Club Room
               </Link>
             )}
-            {joinedIds.includes(detailClub.id) && (
+            {detailClub.isJoined && (
               <button
                 className="club-danger-action"
                 type="button"
@@ -889,7 +1175,138 @@ function BookClubs() {
           </section>
         </div>
       )}
+    {isScheduleEditorOpen && activeClub && (
+      <div
+        className="club-modal-backdrop"
+        role="presentation"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) {
+            setIsScheduleEditorOpen(false);
+          }
+        }}
+      >
+        <section
+          className="club-modal schedule-editor-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="schedule-editor-title"
+        >
+          <button
+            className="modal-close"
+            type="button"
+            onClick={() =>
+              setIsScheduleEditorOpen(false)
+            }
+            aria-label="Close schedule editor"
+          >
+            x
+          </button>
 
+          <p className="eyebrow">
+            Club Management
+          </p>
+
+          <h2 id="schedule-editor-title">
+            Edit Reading Schedule
+          </h2>
+
+          <p>
+            Update the reading plan as your club
+            progresses. Members will see the changes
+            immediately.
+          </p>
+
+          <form onSubmit={saveScheduleChanges}>
+            <div className="schedule-builder-list">
+              {scheduleDraft.map((step, index) => (
+                <div
+                  className="schedule-builder-row"
+                  key={`edit-schedule-${index}`}
+                >
+                  <span>Week {index + 1}</span>
+
+                  <input
+                    type="text"
+                    value={step.title}
+                    onChange={(event) =>
+                      updateScheduleDraft(
+                        index,
+                        "title",
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Theme or milestone"
+                  />
+
+                  <input
+                    type="text"
+                    value={step.chapters}
+                    onChange={(event) =>
+                      updateScheduleDraft(
+                        index,
+                        "chapters",
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Chapters or pages"
+                  />
+
+                  <textarea
+                    value={step.description}
+                    onChange={(event) =>
+                      updateScheduleDraft(
+                        index,
+                        "description",
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Discussion prompt or instructions"
+                    rows="3"
+                  />
+
+                  <button
+                    className="schedule-remove-button"
+                    type="button"
+                    onClick={() =>
+                      deleteScheduleDraftWeek(index)
+                    }
+                    disabled={
+                      scheduleDraft.length <= 1
+                    }
+                  >
+                    Delete Week
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="schedule-add-button"
+              type="button"
+              onClick={addScheduleDraftWeek}
+            >
+              Add Week
+            </button>
+
+            {actionError && (
+              <p className="book-search-status error">
+                {actionError}
+              </p>
+            )}
+
+            <button
+              className="primary-button full"
+              type="submit"
+              disabled={actionLoading}
+            >
+              {actionLoading
+                ? "Saving..."
+                : "Save Schedule"}
+            </button>
+          </form>
+        </section>
+      </div>
+    )}
       {isCreateOpen && (
         <div
           className="club-modal-backdrop"
@@ -918,17 +1335,6 @@ function BookClubs() {
             <h2 id="create-club-title">Create a Book Club</h2>
             <div className="create-club-layout">
               <form onSubmit={createClub}>
-                <label>
-                  <span>Your name</span>
-                  <input
-                    type="text"
-                    value={newClub.creator}
-                    onChange={(event) =>
-                      setNewClub((draft) => ({ ...draft, creator: event.target.value }))
-                    }
-                    placeholder={currentReaderName}
-                  />
-                </label>
                 <label>
                   <span>Book club name</span>
                   <input
@@ -996,21 +1402,24 @@ function BookClubs() {
                   </div>
                 )}
                 <label>
-                  <span>Genre</span>
-                  <select
-                    value={newClub.genre}
+                  <span>Tags</span>
+
+                  <input
+                    type="text"
+                    value={newClub.tagsText}
                     onChange={(event) =>
-                      setNewClub((draft) => ({ ...draft, genre: event.target.value }))
+                      setNewClub((draft) => ({
+                        ...draft,
+                        tagsText: event.target.value,
+                      }))
                     }
-                  >
-                    {clubGenres
-                      .filter((genre) => genre !== "All")
-                      .map((genre) => (
-                        <option value={genre} key={genre}>
-                          {genre}
-                        </option>
-                      ))}
-                  </select>
+                    placeholder="slow reading, fantasy, discussion-heavy"
+                  />
+
+                  <small>
+                    Separate tags with commas. Tags are labels only and
+                    do not filter clubs.
+                  </small>
                 </label>
                 <label>
                   <span>Members wanted</span>
@@ -1057,6 +1466,14 @@ function BookClubs() {
                           }
                           placeholder="Chapters"
                         />
+                        <textarea
+                          value={step.description}
+                          onChange={(event) =>
+                            updateScheduleStep(index, "description", event.target.value)
+                          }
+                          placeholder="Discussion prompt or instructions"
+                          rows="2"
+                        />
                         <button
                           className="schedule-remove-button"
                           type="button"
@@ -1087,8 +1504,12 @@ function BookClubs() {
                   />
                   <small className="character-count">{newClub.description.length}/350 characters</small>
                 </label>
-                <button className="primary-button full" type="submit">
-                  Create club
+                <button
+                  className="primary-button full"
+                  type="submit"
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? "Creating..." : "Create club"}
                 </button>
               </form>
               <aside className="create-club-preview" aria-label="Selected book preview">

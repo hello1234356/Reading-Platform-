@@ -12,8 +12,7 @@ import {
 } from "../lib/libraryApi";
 import { getUserReviews, saveReview } from "../lib/reviewApi";
 import { addPublicReviewToFeed } from "../lib/socialFeed";
-
-const CLUB_STORAGE_KEY = "litshelf-book-clubs-v1";
+import { getBookClubs } from "../lib/bookClubApi";
 
 const profileShelves = [
   { label: "Read", slug: "read", tone: "butter", note: "finished and reviewed" },
@@ -23,20 +22,6 @@ const profileShelves = [
 
 function getCoverUrl(isbn) {
   return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
-}
-
-function getJoinedClubs() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(CLUB_STORAGE_KEY));
-
-    if (!saved || !Array.isArray(saved.clubs) || !Array.isArray(saved.joinedIds)) {
-      return [];
-    }
-
-    return saved.clubs.filter((club) => saved.joinedIds.includes(club.id));
-  } catch {
-    return [];
-  }
 }
 
 
@@ -111,6 +96,10 @@ function Profile() {
   });
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewSaveError, setReviewSaveError] = useState("");
+  const [joinedClubs, setJoinedClubs] = useState([]);
+  const [clubsLoading, setClubsLoading] = useState(true);
+  const [clubsError, setClubsError] = useState("");
+  
 
   const loadFavoriteBooks = useCallback(async (profileData) => {
     const ids = [
@@ -191,6 +180,48 @@ function Profile() {
     loadLibrary();
   }, [user?.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadJoinedClubs() {
+      if (!user?.id) {
+        setJoinedClubs([]);
+        setClubsLoading(false);
+        return;
+      }
+
+      setClubsLoading(true);
+      setClubsError("");
+
+      try {
+        const clubs = await getBookClubs(user.id);
+
+        if (!cancelled) {
+          setJoinedClubs(
+            clubs.filter((club) => club.isJoined),
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load profile clubs:", error);
+
+        if (!cancelled) {
+          setClubsError(
+            error.message || "Could not load your book clubs.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setClubsLoading(false);
+        }
+      }
+    }
+
+    loadJoinedClubs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
   useEffect(() => {
     async function loadReviews() {
       if (!user?.id) {
@@ -591,7 +622,6 @@ function Profile() {
       </section>
     );
   }
-  const joinedClubs = getJoinedClubs();
   const emailName = user?.email?.split("@")[0] || "reader";
 
   const fallbackDisplayName =
@@ -963,22 +993,57 @@ function Profile() {
           </Link>
         </div>
 
-        {joinedClubs.length > 0 ? (
-          <div className="profile-club-list">
-            {joinedClubs.map((club) => (
-              <Link className="profile-club-link" to={`/clubs/${club.id}`} key={club.id}>
-                <span>{club.bookTitle?.slice(0, 1) || "L"}</span>
-                <div>
-                  <strong>{club.title}</strong>
-                  <small>{club.bookTitle} by {club.author}</small>
-                </div>
-                <em>{club.membersJoined}/{club.membersWanted}</em>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p className="profile-empty">Your shelf is waiting for its first reading circle.</p>
-        )}
+        {clubsLoading ? (
+  <p className="profile-empty">
+    Loading your book clubs...
+  </p>
+) : clubsError ? (
+  <p className="profile-save-error">
+    {clubsError}
+  </p>
+) : joinedClubs.length > 0 ? (
+  <div className="profile-club-list">
+    {joinedClubs.map((club) => (
+      <Link
+        className="profile-club-link"
+        to={`/clubs/${club.id}`}
+        key={club.id}
+      >
+        <span className="profile-club-cover">
+          {club.coverUrl || club.isbn ? (
+            <img
+              src={club.coverUrl || getCoverUrl(club.isbn)}
+              alt=""
+              loading="lazy"
+            />
+          ) : (
+            club.bookTitle?.slice(0, 1) || "L"
+          )}
+        </span>
+
+        <div>
+          <strong>{club.title}</strong>
+
+          <small>
+            {club.bookTitle} by {club.author}
+          </small>
+
+          <small>
+            Hosted by {club.creatorName}
+          </small>
+        </div>
+
+        <em>
+          {club.memberCount}/{club.membersWanted}
+        </em>
+      </Link>
+    ))}
+  </div>
+) : (
+  <p className="profile-empty">
+    Your shelf is waiting for its first reading circle.
+  </p>
+)}
       </section>
       {isEditProfileOpen ? (
         <div

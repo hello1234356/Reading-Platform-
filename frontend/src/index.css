@@ -3199,6 +3199,67 @@ h2 {
   min-height: 44px;
   padding: 0 12px;
 }
+.club-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "heading create"
+    "search search";
+  align-items: end;
+  gap: 1rem 1.5rem;
+}
+
+.club-toolbar > div:first-child {
+  grid-area: heading;
+}
+
+.club-search-control {
+  grid-area: search;
+  width: 100%;
+  max-width: 42rem;
+}
+
+.club-search-control input {
+  width: 100%;
+}
+
+.club-toolbar > .primary-button {
+  grid-area: create;
+  width: auto;
+  min-width: 10rem;
+  justify-self: end;
+}
+@media (max-width: 700px) {
+  .club-toolbar {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "heading"
+      "search"
+      "create";
+    align-items: stretch;
+  }
+
+  .club-search-control {
+    max-width: none;
+  }
+
+  .club-toolbar > .primary-button {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+.club-empty-state {
+  max-width: 46rem;
+  margin: 3rem auto;
+  padding: 2rem;
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1.6;
+  font-weight: 500;
+  border: 1px solid rgba(95, 72, 60, 0.14);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.45);
+}
 
 .schedule-builder {
   display: grid;
@@ -6301,4 +6362,42 @@ h2 {
   .isbn-result-actions {
     padding-left: 0;
   }
+}
+
+.reading-calendar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.reading-calendar-heading .eyebrow {
+  margin: 0;
+}
+
+.schedule-edit-button {
+  padding: 0.55rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+.schedule-editor-modal {
+  width: min(92vw, 720px);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.profile-club-cover {
+  width: 3rem;
+  height: 4.25rem;
+  overflow: hidden;
+  border-radius: 0.45rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.profile-club-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
