@@ -69,7 +69,6 @@ function Profile() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState({
     full_name: "",
-    username: "",
     bio: "",
     yearly_goal: 40,
   });
@@ -252,7 +251,6 @@ function Profile() {
   function openEditProfile() {
     setProfileDraft({
       full_name: profile?.full_name || "",
-      username: profile?.username || "",
       bio: profile?.bio || "",
       yearly_goal: profile?.yearly_goal ?? 40,
     });
@@ -270,27 +268,10 @@ function Profile() {
     }
 
     const cleanedFullName = profileDraft.full_name.trim();
-    const cleanedUsername = profileDraft.username
-      .trim()
-      .replace(/^@/, "")
-      .toLowerCase();
-
     const yearlyGoal = Number(profileDraft.yearly_goal);
 
     if (!cleanedFullName) {
       setProfileSaveError("Please enter your name.");
-      return;
-    }
-
-    if (!cleanedUsername) {
-      setProfileSaveError("Please enter a username.");
-      return;
-    }
-
-    if (!/^[a-z0-9._-]+$/.test(cleanedUsername)) {
-      setProfileSaveError(
-        "Username can only contain letters, numbers, periods, underscores, and hyphens.",
-      );
       return;
     }
 
@@ -309,7 +290,6 @@ function Profile() {
 
       const updates = {
         full_name: cleanedFullName,
-        username: cleanedUsername,
         bio: profileDraft.bio.trim() || null,
         yearly_goal: yearlyGoal,
         updated_at: new Date().toISOString(),
@@ -333,13 +313,7 @@ function Profile() {
     } catch (error) {
       console.error("Failed to save profile:", error);
 
-      if (error.code === "23505") {
-        setProfileSaveError(
-          "That username is already being used. Please choose another one.",
-        );
-      } else {
-        setProfileSaveError(error.message || "Could not save your profile.");
-      }
+      setProfileSaveError(error.message || "Could not save your profile.");
     } finally {
       setProfileSaving(false);
     }
@@ -480,6 +454,10 @@ function Profile() {
   async function deleteLibraryBook(book) {
     if (!book?.shelfEntryId) {
       setMoveBookError("This book is missing its library entry ID.");
+      return;
+    }
+
+    if (!window.confirm(`Remove “${book.title}” from your library?`)) {
       return;
     }
 
@@ -633,9 +611,7 @@ function Profile() {
 
   const displayName = profile?.full_name?.trim() || fallbackDisplayName;
 
-  const username = profile?.username?.trim()
-    ? `@${profile.username.replace(/^@/, "")}`
-    : `@${emailName.toLowerCase()}`;
+  const schoolEmail = user?.email || `${emailName.toLowerCase()}@tsinglan.cn`;
 
   const yearlyGoal = profile?.yearly_goal ?? 40;
 
@@ -727,15 +703,28 @@ function Profile() {
                   <option value="remove">Remove from Library</option>
                 </select>
               </label>
-              {activeShelf.slug === "read" ? (
+              <div className="profile-book-actions">
+                {activeShelf.slug === "read" ? (
+                  <button
+                    className="profile-review-book-button"
+                    type="button"
+                    onClick={() => openReviewModal(book)}
+                    disabled={movingBookId === book.shelfEntryId}
+                  >
+                    Add Review
+                  </button>
+                ) : null}
                 <button
-                  className="profile-review-book-button"
+                  className="profile-remove-book-button"
                   type="button"
-                  onClick={() => openReviewModal(book)}
+                  onClick={() => deleteLibraryBook(book)}
+                  disabled={movingBookId === book.shelfEntryId}
                 >
-                  Add Review
+                  {movingBookId === book.shelfEntryId
+                    ? "Removing..."
+                    : "Remove from Library"}
                 </button>
-              ) : null}
+              </div>
             </article>
           ))}
         </div>
@@ -780,7 +769,7 @@ function Profile() {
             <div>
               <p className="eyebrow">Personal Profile</p>
               <h1>{displayName}</h1>
-              <span>{username}</span>
+              <span>{schoolEmail}</span>
 
               {profile?.bio ? (
                 <p className="profile-bio">{profile.bio}</p>
@@ -1093,24 +1082,17 @@ function Profile() {
               </label>
 
               <label>
-                <span>Username</span>
+                <span>School email</span>
 
-                <div className="profile-username-input">
-                  <span aria-hidden="true">@</span>
+                <div className="profile-school-email-input">
                   <input
-                    type="text"
-                    value={profileDraft.username}
-                    onChange={(event) =>
-                      setProfileDraft((currentDraft) => ({
-                        ...currentDraft,
-                        username: event.target.value,
-                      }))
-                    }
-                    placeholder="carrie.wang"
-                    maxLength="40"
-                    disabled={profileSaving}
+                    type="email"
+                    value={schoolEmail}
+                    readOnly
+                    aria-readonly="true"
                   />
                 </div>
+                <small>Your school email is linked to your account and cannot be changed here.</small>
               </label>
 
               <label>
