@@ -15,6 +15,8 @@ import {
   leaveBookClub,
   replaceClubSchedule
 } from "../lib/bookClubApi";
+import UserAvatar from "../components/UserAvatar";
+
 
 function getDefaultSchedule(duration = "4 weeks") {
   return [
@@ -886,16 +888,12 @@ const filteredClubs = clubs.filter((club) => {
                 ) : (
                   (clubPosts[activeClub.id] || []).map((post) => (
                     <article key={post.id}>
-                      <span className="message-avatar">
-                        {post.authorAvatarUrl ? (
-                          <img
-                            src={post.authorAvatarUrl}
-                            alt=""
-                          />
-                        ) : (
-                          post.authorName.slice(0, 1).toUpperCase()
-                        )}
-                      </span>
+                      <UserAvatar
+                        avatarUrl={post.authorAvatarUrl}
+                        name={post.authorName}
+                        size="small"
+                        className="message-avatar"
+                      />
 
                       <div>
                         <strong>{post.authorName}</strong>
@@ -935,20 +933,13 @@ const filteredClubs = clubs.filter((club) => {
               <strong>{activeClub.memberCount}/{activeClub.membersWanted}</strong>              
               <div>
                 {(activeClub.members || []).map((member) => (
-                  <span
-                    className="member-avatar"
+                  <UserAvatar
                     key={member.userId}
-                    title={member.name}
-                  >
-                    {member.avatarUrl ? (
-                      <img
-                        src={member.avatarUrl}
-                        alt=""
-                      />
-                    ) : (
-                      member.name.slice(0, 1).toUpperCase()
-                    )}
-                  </span>
+                    avatarUrl={member.avatarUrl}
+                    name={member.name}
+                    size="small"
+                    className="member-avatar"
+                  />
                 ))}
               </div>
             </aside>

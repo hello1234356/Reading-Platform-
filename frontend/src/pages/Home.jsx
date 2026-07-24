@@ -20,6 +20,7 @@ import { saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import StarRating from "../components/StarRating";
+import UserAvatar from "../components/UserAvatar";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -1035,15 +1036,11 @@ function Home() {
               <article className="feed-card sea" key={post.id}>
                 <header className="feed-card-header">
                   <div className="avatar-stack">
-                    <div className="avatar" aria-hidden="true">
-                      {post.student
-                        .split(" ")
-                        .filter(Boolean)
-                        .map((part) => part[0])
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </div>
+                    <UserAvatar
+                      avatarUrl={post.avatarUrl}
+                      name={post.student}
+                      size="medium"
+                    />
 
                     <span className="activity-dot" aria-hidden="true" />
                   </div>

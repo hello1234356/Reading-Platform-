@@ -14,6 +14,7 @@ import { getUserReviews, saveReview } from "../lib/reviewApi";
 import { getBookClubs } from "../lib/bookClubApi";
 import { createPost } from "../lib/postApi";
 import StarRating from "../components/StarRating";
+import { uploadUserAvatar } from "../lib/profileApi";
 
 const profileShelves = [
   { label: "Read", slug: "read", tone: "butter", note: "finished and reviewed" },
@@ -53,6 +54,10 @@ function Profile() {
   });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarUploadError, setAvatarUploadError] = useState("");
   const [favoriteSearch, setFavoriteSearch] = useState("");
   const [isFavoritePickerOpen, setIsFavoritePickerOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
@@ -175,6 +180,15 @@ function Profile() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+  return () => {
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+  };
+}, [avatarPreview]);
+
   useEffect(() => {
     async function loadReviews() {
       if (!user?.id) {
@@ -202,6 +216,80 @@ function Profile() {
     loadReviews();
   }, [user?.id]);
 
+  function selectAvatarFile(event) {
+    const file = event.target.files?.[0];
+
+    setAvatarUploadError("");
+
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setAvatarUploadError("Please choose a JPG, PNG, or WebP image.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarUploadError("Your profile photo must be smaller than 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    }
+
+    async function saveAvatar() {
+    if (!user?.id) {
+      setAvatarUploadError("You must be logged in to upload a profile photo.");
+      return;
+    }
+
+    if (!avatarFile) {
+      setAvatarUploadError("Please choose an image first.");
+      return;
+    }
+
+    setAvatarUploading(true);
+    setAvatarUploadError("");
+
+    try {
+      const updatedProfile = await uploadUserAvatar(
+        user.id,
+        avatarFile,
+      );
+
+      setProfile(updatedProfile);
+      setAvatarFile(null);
+
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+
+      setAvatarPreview("");
+    } catch (error) {
+      console.error("Failed to upload avatar:", error);
+
+      setAvatarUploadError(
+        error.message || "Could not upload your profile photo.",
+      );
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
+
   function openEditProfile() {
     setProfileDraft({
       full_name: profile?.full_name || "",
@@ -209,6 +297,13 @@ function Profile() {
       yearly_goal: profile?.yearly_goal ?? 40,
     });
 
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+
+    setAvatarFile(null);
+    setAvatarPreview("");
+    setAvatarUploadError("");
     setProfileSaveError("");
     setIsEditProfileOpen(true);
   }
@@ -820,8 +915,18 @@ function Profile() {
       <header className="profile-hero">
         <div className="profile-banner">
           <div className="profile-identity">
-            <div className="profile-photo" aria-hidden="true">
-              {displayName.slice(0, 1)}
+            <div className="profile-photo profile-photo-main">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={`${displayName}'s profile`}
+                  loading="eager"
+                />
+              ) : (
+                <span className="profile-photo-initial" aria-hidden="true">
+                  {displayName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
             </div>
             <div>
               <p className="eyebrow">Personal Profile</p>
@@ -1099,7 +1204,11 @@ function Profile() {
           className="composer-modal-backdrop"
           role="presentation"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !profileSaving) {
+            if (
+              event.target === event.currentTarget &&
+              !profileSaving &&
+              !avatarUploading
+            ) {
               setIsEditProfileOpen(false);
             }
           }}
@@ -1114,8 +1223,12 @@ function Profile() {
               className="modal-close"
               type="button"
               aria-label="Close profile editor"
-              disabled={profileSaving}
-              onClick={() => setIsEditProfileOpen(false)}
+              disabled={profileSaving || avatarUploading}
+              onClick={() => {
+                if (!avatarUploading) {
+                  setIsEditProfileOpen(false);
+                }
+              }}
             >
               ×
             </button>
@@ -1124,6 +1237,64 @@ function Profile() {
             <h2 id="profile-edit-title">Edit your profile</h2>
 
             <form onSubmit={saveProfile}>
+              <div className="profile-avatar-editor">
+                <span className="profile-avatar-editor-label">
+                  Profile photo
+                </span>
+
+                <div className="profile-avatar-editor-row">
+                  <div className="profile-photo profile-photo-preview">
+                    {avatarPreview || profile?.avatar_url ? (
+                      <img
+                        src={avatarPreview || profile.avatar_url}
+                        alt="Profile preview"
+                      />
+                    ) : (
+                      <span className="profile-photo-initial" aria-hidden="true">
+                        {(profileDraft.full_name || displayName)
+                          .slice(0, 1)
+                          .toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="profile-avatar-controls">
+                    <label className="profile-avatar-file-button">
+                      <span>
+                        {avatarFile ? "Choose another photo" : "Choose photo"}
+                      </span>
+
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={selectAvatarFile}
+                        disabled={avatarUploading || profileSaving}
+                      />
+                    </label>
+
+                    {avatarFile ? (
+                      <button
+                        className="ghost-button"
+                        type="button"
+                        onClick={saveAvatar}
+                        disabled={avatarUploading || profileSaving}
+                      >
+                        {avatarUploading
+                          ? "Uploading..."
+                          : "Upload photo"}
+                      </button>
+                    ) : null}
+
+                    <small>JPG, PNG, or WebP. Maximum 5 MB.</small>
+                  </div>
+                </div>
+
+                {avatarUploadError ? (
+                  <p className="profile-save-error" role="alert">
+                    {avatarUploadError}
+                  </p>
+                ) : null}
+              </div>
               <label>
                 <span>Full name</span>
                 <input
