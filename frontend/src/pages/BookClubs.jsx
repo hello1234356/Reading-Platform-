@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import { getUserProfile } from "../lib/profileApi";
-import { getUserDisplayHandle } from "../lib/socialFeed";
+import { getUserDisplayHandle } from "../lib/userDisplay";
 import {
   createBookClub,
   createClubPost,

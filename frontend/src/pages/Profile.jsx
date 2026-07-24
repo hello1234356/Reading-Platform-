@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { requireSupabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import BookDetailModal from "../components/BookDetailModal";
@@ -11,8 +11,9 @@ import {
   removeLibraryBook,
 } from "../lib/libraryApi";
 import { getUserReviews, saveReview } from "../lib/reviewApi";
-import { addPublicReviewToFeed } from "../lib/socialFeed";
 import { getBookClubs } from "../lib/bookClubApi";
+import { createPost } from "../lib/postApi";
+import StarRating from "../components/StarRating";
 
 const profileShelves = [
   { label: "Read", slug: "read", tone: "butter", note: "finished and reviewed" },
@@ -22,28 +23,6 @@ const profileShelves = [
 
 function getCoverUrl(isbn) {
   return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
-}
-
-
-
-function renderStars(rating) {
-  const numericRating = Number(rating);
-
-  return "★★★★★".split("").map((star, index) => {
-    const starNumber = index + 1;
-    const className =
-      numericRating >= starNumber
-        ? "filled"
-        : numericRating >= starNumber - 0.5
-          ? "half"
-          : "";
-
-    return (
-    <span className={className} key={`${star}-${index}`}>
-      ★
-    </span>
-    );
-  });
 }
 
 function TrophyIcon() {
@@ -74,7 +53,6 @@ function Profile() {
   });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState("");
-  const [selectedFavorites, setSelectedFavorites] = useState([]);
   const [favoriteSearch, setFavoriteSearch] = useState("");
   const [isFavoritePickerOpen, setIsFavoritePickerOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
@@ -98,27 +76,6 @@ function Profile() {
   const [joinedClubs, setJoinedClubs] = useState([]);
   const [clubsLoading, setClubsLoading] = useState(true);
   const [clubsError, setClubsError] = useState("");
-  
-
-  const loadFavoriteBooks = useCallback(async (profileData) => {
-    const ids = [
-      profileData.favorite_book_1,
-      profileData.favorite_book_2,
-      profileData.favorite_book_3,
-      profileData.favorite_book_4,
-    ].filter(Boolean);
-
-    if (ids.length === 0) {
-      setSelectedFavorites([]);
-      return;
-    }
-
-    const books = await Promise.all(
-      ids.map((isbn) => getOpenLibraryBookDetails({ isbn })),
-    );
-
-    setSelectedFavorites(books);
-  }, []);
   
   useEffect(() => {
     async function loadProfile() {
@@ -147,9 +104,6 @@ function Profile() {
         }
 
         setProfile(data);
-        if (data) {
-          loadFavoriteBooks(data);
-        }
       } catch (error) {
         console.error("Failed to load profile:", error);
         setProfileError(error.message || "Could not load your profile.");
@@ -159,7 +113,7 @@ function Profile() {
     }
 
     loadProfile();
-  }, [loadFavoriteBooks, user?.id]);
+  }, [user?.id]);
   
   useEffect(() => {
     async function loadLibrary() {
@@ -318,6 +272,33 @@ function Profile() {
       setProfileSaving(false);
     }
   }
+  const selectedFavorites = useMemo(() => {
+    const favoriteIsbns = [
+      profile?.favorite_book_1,
+      profile?.favorite_book_2,
+      profile?.favorite_book_3,
+      profile?.favorite_book_4,
+    ].filter(Boolean);
+
+    return favoriteIsbns.map((isbn) => {
+      const libraryBook = libraryBooks.find(
+        (book) => String(book.isbn) === String(isbn),
+      );
+
+      return libraryBook || {
+        isbn,
+        title: "Favorite book",
+        author: "Unknown author",
+        coverUrl: getCoverUrl(isbn),
+      };
+    });
+  }, [
+    profile?.favorite_book_1,
+    profile?.favorite_book_2,
+    profile?.favorite_book_3,
+    profile?.favorite_book_4,
+    libraryBooks,
+  ]);
   const filteredFavoriteOptions = useMemo(() => {
     const normalizedSearch = favoriteSearch.trim().toLowerCase();
 
@@ -335,7 +316,14 @@ function Profile() {
       return !alreadySelected && (!normalizedSearch || matchesSearch);
     });
   }, [favoriteSearch, selectedFavorites, libraryBooks]);
-
+  const reviewsByBookId = useMemo(() => {
+      return new Map(
+        reviews.map((review) => [
+          String(review.bookId),
+          review,
+        ]),
+      );
+    }, [reviews]);
   async function addFavoriteBook(book) {
     if (!user?.id || !profile) return;
 
@@ -363,9 +351,25 @@ function Profile() {
 
     const { data, error } = await supabase
       .from("profiles")
-      .update(updates)
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", user.id)
-      .select()
+      .select(`
+        id,
+        username,
+        full_name,
+        avatar_url,
+        bio,
+        yearly_goal,
+        favorite_book_1,
+        favorite_book_2,
+        favorite_book_3,
+        favorite_book_4,
+        created_at,
+        updated_at
+      `)
       .single();
 
     if (error) {
@@ -374,8 +378,6 @@ function Profile() {
     }
 
     setProfile(data);
-    loadFavoriteBooks(data);
-
     setFavoriteSearch("");
     setIsFavoritePickerOpen(false);
   }
@@ -400,9 +402,25 @@ function Profile() {
 
     const { data, error } = await supabase
       .from("profiles")
-      .update(updates)
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", user.id)
-      .select()
+      .select(`
+        id,
+        username,
+        full_name,
+        avatar_url,
+        bio,
+        yearly_goal,
+        favorite_book_1,
+        favorite_book_2,
+        favorite_book_3,
+        favorite_book_4,
+        created_at,
+        updated_at
+      `)
       .single();
 
     if (error) {
@@ -411,7 +429,6 @@ function Profile() {
     }
 
     setProfile(data);
-    loadFavoriteBooks(data);
   }
   async function moveBookToShelf(book, nextShelfSlug) {
     if (!book?.shelfEntryId) {
@@ -516,7 +533,39 @@ function Profile() {
 
   function openReviewModal(book) {
     setReviewBook(book);
-    setReviewDraft({ rating: book.rating || 5, review: "", visibility: "public" });
+
+    const existingReview = book.review;
+
+    setReviewDraft({
+      rating: existingReview?.rating ?? 5,
+      review: existingReview?.note ?? "",
+      visibility: "public",
+    });
+
+    setReviewSaveError("");
+  }
+
+  function openExistingReview(review) {
+    const matchingBook = libraryBooks.find(
+      (book) => String(book.bookId) === String(review.bookId),
+    );
+
+    setReviewBook({
+      ...(matchingBook || {}),
+      bookId: review.bookId,
+      title: review.book,
+      author: review.author,
+      isbn: review.isbn,
+      coverUrl: review.coverUrl,
+      review,
+    });
+
+    setReviewDraft({
+      rating: review.rating ?? 5,
+      review: review.note ?? review.text ?? "",
+      visibility: "public",
+    });
+
     setReviewSaveError("");
   }
 
@@ -538,17 +587,18 @@ function Profile() {
         rating: reviewDraft.rating,
         reviewText: reviewDraft.review,
       });
-
       if (reviewDraft.visibility === "public") {
-        addPublicReviewToFeed({
-          book: reviewBook,
+        await createPost({
+          userId: user.id,
+          bookId: reviewBook.bookId,
+          postType: "review",
+          progress: 100,
           rating: reviewDraft.rating,
-          reviewText: reviewDraft.review,
-          user,
-          profile,
+          note:
+            reviewDraft.review.trim() ||
+            `Rated ${reviewDraft.rating.toFixed(1)} ⭐`,
         });
       }
-
       setReviews((currentReviews) => [
         savedReview,
         ...currentReviews.filter((review) => review.bookId !== savedReview.bookId),
@@ -615,9 +665,16 @@ function Profile() {
 
   const yearlyGoal = profile?.yearly_goal ?? 40;
 
+  
+
   const databaseShelves = {
-    read: libraryBooks.filter((book) => book.shelf === "read"),
-    "currently-reading": libraryBooks.filter(
+    read: libraryBooks
+      .filter((book) => book.shelf === "read")
+      .map((book) => ({
+        ...book,
+        review: reviewsByBookId.get(String(book.bookId)) || null,
+      })),    
+      "currently-reading": libraryBooks.filter(
       (book) => book.shelf === "currently-reading",
     ),
     "to-be-read": libraryBooks.filter(
@@ -711,7 +768,7 @@ function Profile() {
                     onClick={() => openReviewModal(book)}
                     disabled={movingBookId === book.shelfEntryId}
                   >
-                    Add Review
+                    {book.review ? "View / Edit Review" : "Add Review"}
                   </button>
                 ) : null}
                 <button
@@ -815,7 +872,7 @@ function Profile() {
                         <img
                           src={book.coverUrl || getCoverUrl(book.isbn)}
                           alt={`Cover of ${book.title}`}
-                          loading="lazy"
+                          loading="eager"
                         />
                       ) : (
                         <div className="profile-reading-list-placeholder">
@@ -913,9 +970,12 @@ function Profile() {
             <p className="profile-save-error">{reviewsError}</p>
           ) : visibleReviews.length > 0 ? (
             visibleReviews.map((review) => (
-              <article
-                className="profile-review"
+              <button
+                className="profile-review profile-review-button"
+                type="button"
                 key={review.id || review.bookId}
+                onClick={() => openExistingReview(review)}
+                aria-label={`View or edit your review of ${review.book}`}
               >
                 <div className="profile-review-media">
                   <img
@@ -928,7 +988,7 @@ function Profile() {
                     className="profile-review-stars"
                     aria-label={`${review.rating} out of 5 stars`}
                   >
-                    {renderStars(review.rating)}
+                    <StarRating rating={review.rating} />
                   </div>
                 </div>
 
@@ -936,9 +996,9 @@ function Profile() {
                   <p>{review.author}</p>
                   <h3>{review.book}</h3>
                   <strong>{review.rating}/5</strong>
-                  <small>{review.text}</small>
+                  <small>{review.note}</small>
                 </section>
-              </article>
+              </button>
             ))
           ) : (
             <p className="profile-empty">

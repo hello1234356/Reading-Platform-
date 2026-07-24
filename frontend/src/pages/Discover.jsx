@@ -8,9 +8,9 @@ import { addBookToLibrary } from "../lib/libraryApi";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import { getUserProfile } from "../lib/profileApi";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
-import { addPublicReviewToFeed } from "../lib/socialFeed";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
+import { createPost } from "../lib/postApi";
 
 function getCoverUrl(isbn, size = "L") {
   return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-${size}.jpg?default=false` : "";
@@ -281,15 +281,17 @@ async function submitReview(event) {
 	      reviewText: reviewDraft.review,
 	    });
 
-      if (reviewDraft.visibility === "public") {
-        addPublicReviewToFeed({
-          book: reviewBook,
-          rating: reviewDraft.rating,
-          reviewText: reviewDraft.review,
-          user,
-          profile,
-        });
-      }
+    if (reviewDraft.visibility === "public") {
+      await createPost({
+        userId: user.id,
+        bookId: reviewBook.bookId,
+        postType: "review",
+        rating: reviewDraft.rating,
+        note:
+          reviewDraft.review.trim() ||
+          `Rated ${reviewDraft.rating.toFixed(1)} ⭐`,
+      });
+    }
 	
 	    setReviewBook(null);
 	    setReviewDraft({ rating: 5, review: "", visibility: "public" });

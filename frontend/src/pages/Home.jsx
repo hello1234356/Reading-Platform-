@@ -19,6 +19,7 @@ import {
 import { saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
+import StarRating from "../components/StarRating";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -1098,9 +1099,14 @@ function Home() {
 
                   <div className="book-details">
                     <p>{post.genre}</p>
-                    <strong>{post.book}</strong>
-                    <small>{post.author}</small>
+                    <div className="feed-book-title-row">
+                      <strong>{post.book}</strong>
 
+                      {post.postType === "review" && (
+                        <StarRating rating={post.rating} />
+                      )}
+                    </div>                    
+                    <small>{post.author}</small>
                     <small>
                       {post.progress}% through the book
                     </small>

@@ -6425,3 +6425,49 @@ h2 {
   height: 100%;
   object-fit: cover;
 }
+
+.profile-review-button {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+}
+
+.profile-review-button:hover {
+  transform: translateY(-2px);
+}
+
+.profile-review-button:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 4px;
+}
+
+.star-rating {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.display-star {
+  pointer-events: none;
+}
+
+.star-rating .filled,
+.star-rating .half {
+  color: var(--terracotta);          /* same brown/orange as before */
+}
+
+.feed-book-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.feed-book-title-row .star-rating {
+  flex-shrink: 0;
+}

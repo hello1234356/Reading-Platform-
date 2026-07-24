@@ -240,6 +240,12 @@ export async function createPost({
   ) {
     throw new Error("Rating must be between 0 and 5.");
   }
+  console.log({
+    postType,
+    progress,
+    rating,
+    note,
+  });
 
   const supabase = requireSupabase();
 
