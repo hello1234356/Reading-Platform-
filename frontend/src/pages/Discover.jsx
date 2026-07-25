@@ -6,7 +6,6 @@ import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
-import { getUserProfile } from "../lib/profileApi";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
@@ -74,7 +73,6 @@ function Discover() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const searchHeroRef = useRef(null);
-  const [profile, setProfile] = useState(null);
   const [query, setQuery] = useState(searchParams.get("search") || "");
   const [bookResults, setBookResults] = useState([]);
   const [searchStatus, setSearchStatus] = useState("idle");
@@ -172,22 +170,6 @@ function Discover() {
     };
   }, []);
 
-  useEffect(() => {
-    async function loadProfile() {
-      if (!user?.id) {
-        setProfile(null);
-        return;
-      }
-
-      try {
-        setProfile(await getUserProfile(user.id));
-      } catch (error) {
-        console.error("Failed to load discovery profile:", error);
-      }
-    }
-
-    loadProfile();
-  }, [user?.id]);
 
   useEffect(() => {
     const searchTerm = searchParams.get("search") || "";

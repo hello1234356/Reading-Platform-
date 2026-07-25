@@ -1,4 +1,4 @@
-import { usePublicProfile } from "../context/PublicProfileContext";
+import { usePublicProfile } from "../context/usePublicProfile";
 
 export default function ProfileLink({
   userId,

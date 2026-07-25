@@ -131,7 +131,7 @@ function Profile() {
     }
 
     loadProfile();
-  }, [user?.id]);
+  }, [user?.email, user?.id]);
   
   useEffect(() => {
     async function loadLibrary() {
@@ -1507,4 +1507,3 @@ function Profile() {
 }
 
 export default Profile;
-

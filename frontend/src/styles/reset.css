@@ -1,0 +1,88 @@
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 10% 4%, rgba(244, 220, 123, 0.18), transparent 24%),
+    radial-gradient(circle at 92% 0%, rgba(170, 182, 150, 0.16), transparent 22%),
+    linear-gradient(180deg, #fffaf1 0%, #fbf4e8 46%, #fffaf1 100%),
+    repeating-linear-gradient(
+      176deg,
+      rgba(138, 106, 88, 0.026) 0,
+      rgba(138, 106, 88, 0.026) 1px,
+      transparent 1px,
+      transparent 34px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(44, 44, 44, 0.018) 0,
+      rgba(44, 44, 44, 0.018) 1px,
+      transparent 1px,
+      transparent 7px
+    ),
+    var(--ivory);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.3;
+  background-image:
+    radial-gradient(rgba(138, 106, 88, 0.045) 0.7px, transparent 0.7px),
+    radial-gradient(rgba(170, 182, 150, 0.06) 0.6px, transparent 0.6px);
+  background-position:
+    0 0,
+    7px 9px;
+  background-size:
+    18px 18px,
+    22px 22px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  font-family: var(--button);
+  font-weight: 600;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2 {
+  font-family: var(--heading);
+  font-weight: 900;
+  letter-spacing: 0;
+  color: var(--charcoal);
+}
+
+#root {
+  min-height: 100vh;
+}

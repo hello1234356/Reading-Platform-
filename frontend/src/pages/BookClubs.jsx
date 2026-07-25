@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
-import { getUserProfile } from "../lib/profileApi";
-import { getUserDisplayHandle } from "../lib/userDisplay";
 import {
   createBookClub,
   createClubPost,
@@ -106,7 +104,6 @@ function BookClubs() {
   const [bookSearchStatus, setBookSearchStatus] = useState("idle");
   const [bookSearchMessage, setBookSearchMessage] = useState("");
   const [selectedClubBook, setSelectedClubBook] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [isScheduleEditorOpen, setIsScheduleEditorOpen] =
     useState(false);
 
@@ -138,9 +135,6 @@ function BookClubs() {
         }
       : null;
 
-  const currentReaderName = getUserDisplayHandle(user, profile);
-  const displayReaderName = (name) =>
-    name === "Anonymous Reader" || name === "You" ? currentReaderName : name;
  const isClubCreator = (club) =>
   Boolean(
     user?.id &&
@@ -176,34 +170,6 @@ const filteredClubs = clubs.filter((club) => {
       isbn: "Pending ISBN",
     };
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadProfile() {
-      if (!user?.id) {
-        setProfile(null);
-        return;
-      }
-
-      try {
-        const nextProfile = await getUserProfile(user.id);
-        if (!cancelled) {
-          setProfile(nextProfile);
-        }
-      } catch (error) {
-        console.error("Failed to load book club profile:", error);
-        if (!cancelled) {
-          setProfile(null);
-        }
-      }
-    }
-
-    loadProfile();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
   useEffect(() => {
     let cancelled = false;
 

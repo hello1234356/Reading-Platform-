@@ -1,0 +1,30 @@
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-main {
+  min-width: 0;
+}
+
+.error-panel {
+  min-height: 100vh;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  padding: 40px;
+  background: var(--ivory);
+}
+
+.error-panel h1 {
+  max-width: 620px;
+  color: var(--warm-ink);
+  font-size: 48px;
+  line-height: 1;
+}
+
+.error-panel p:last-child {
+  max-width: 560px;
+  color: var(--soft-gray);
+  line-height: 1.7;
+}
+

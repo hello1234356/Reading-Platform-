@@ -11,7 +11,6 @@ export default function PublicProfileModal({
 
   useEffect(() => {
     if (!userId) {
-      setProfile(null);
       return;
     }
 

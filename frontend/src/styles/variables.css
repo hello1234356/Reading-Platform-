@@ -1,0 +1,46 @@
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Nunito:wght@400;600;700;800;900&family=Outfit:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+
+:root {
+  --ivory: #fbf4e8;
+  --paper: #fffaf1;
+  --stone: #eadfce;
+  --linen: #f2e7d7;
+  --charcoal: #302b27;
+  --soft-gray: #746a62;
+  --warm-ink: #5f4a3d;
+  --olive: #b6bb99;
+  --forest: #6e8066;
+  --terracotta: #d97d61;
+  --blush: #efb7a5;
+  --ochre: #d9b75d;
+  --sage: #aab696;
+  --mustard: #e7c967;
+  --dusty-teal: #b9c3a6;
+  --peach: #efaa89;
+  --mocha: #8a6a58;
+  --deep-mocha: #4a382f;
+  --walnut: #7e624f;
+  --warm-mist: #efe4d2;
+  --butter: #f4dc7b;
+  --coral: #e98f78;
+  --lavender: #c9bddf;
+  --border: rgba(138, 106, 88, 0.16);
+  --shadow: 0 18px 42px rgba(89, 67, 49, 0.13);
+  --pillow-shadow: 0 16px 36px rgba(89, 67, 49, 0.12), 0 2px 0 rgba(255, 250, 241, 0.75) inset;
+  --heading: Outfit, "Plus Jakarta Sans", "Helvetica Neue", Arial, sans-serif;
+  --quote: "Instrument Serif", Georgia, serif;
+  --sans: Nunito, "Plus Jakarta Sans", "Helvetica Neue", Arial, sans-serif;
+  --button: Outfit, Nunito, Arial, sans-serif;
+
+  font-family: var(--sans);
+  color: var(--charcoal);
+  background: var(--ivory);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
