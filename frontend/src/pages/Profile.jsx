@@ -14,7 +14,11 @@ import { getUserReviews, saveReview } from "../lib/reviewApi";
 import { getBookClubs } from "../lib/bookClubApi";
 import { createPost } from "../lib/postApi";
 import StarRating from "../components/StarRating";
-import { uploadUserAvatar } from "../lib/profileApi";
+import {
+  uploadUserAvatar,
+  syncUserGrade,
+} from "../lib/profileApi";
+import { getGradeFromSchoolEmail } from "../lib/grade";
 
 const profileShelves = [
   { label: "Read", slug: "read", tone: "butter", note: "finished and reviewed" },
@@ -99,7 +103,7 @@ function Profile() {
         const { data, error } = await supabase
           .from("profiles")
           .select(
-            "id, username, full_name, avatar_url, bio, yearly_goal, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
+            "id, username, full_name, avatar_url, bio, yearly_goal, grade, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
           )
           .eq("id", user.id)
           .maybeSingle();
@@ -108,7 +112,16 @@ function Profile() {
           throw error;
         }
 
-        setProfile(data);
+        if (data?.grade == null) {
+          const updatedProfile = await syncUserGrade(
+            user.id,
+            user.email,
+          );
+
+          setProfile(updatedProfile);
+        } else {
+          setProfile(data);
+        }
       } catch (error) {
         console.error("Failed to load profile:", error);
         setProfileError(error.message || "Could not load your profile.");
@@ -341,6 +354,7 @@ function Profile() {
         full_name: cleanedFullName,
         bio: profileDraft.bio.trim() || null,
         yearly_goal: yearlyGoal,
+        grade: getGradeFromSchoolEmail(user.email),
         updated_at: new Date().toISOString(),
       };
 
@@ -349,7 +363,7 @@ function Profile() {
         .update(updates)
         .eq("id", user.id)
         .select(
-          "id, username, full_name, avatar_url, bio, yearly_goal, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
+          "id, username, full_name, avatar_url, bio, yearly_goal, grade, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
         )
         .single();
 
@@ -458,6 +472,7 @@ function Profile() {
         avatar_url,
         bio,
         yearly_goal,
+        grade,
         favorite_book_1,
         favorite_book_2,
         favorite_book_3,
@@ -509,6 +524,7 @@ function Profile() {
         avatar_url,
         bio,
         yearly_goal,
+        grade,
         favorite_book_1,
         favorite_book_2,
         favorite_book_3,
@@ -1312,20 +1328,37 @@ function Profile() {
                 />
               </label>
 
+             <div className="profile-readonly-row">
               <label>
                 <span>School email</span>
 
-                <div className="profile-school-email-input">
-                  <input
-                    type="email"
-                    value={schoolEmail}
-                    readOnly
-                    aria-readonly="true"
-                  />
-                </div>
-                <small>Your school email is linked to your account and cannot be changed here.</small>
+                <input
+                  className="profile-readonly-input"
+                  type="email"
+                  value={user?.email || ""}
+                  readOnly
+                />
+
+                <small>Linked to your account.</small>
               </label>
 
+              <label>
+                <span>Grade</span>
+
+                <input
+                  className="profile-readonly-input"
+                  type="text"
+                  value={
+                    profile?.grade
+                      ? `Grade ${profile.grade}`
+                      : "Not available"
+                  }
+                  readOnly
+                />
+
+                <small>Determined automatically.</small>
+              </label>
+            </div>
               <label>
                 <span>Bio</span>
                 <textarea

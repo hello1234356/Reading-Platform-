@@ -1,4 +1,5 @@
 import { requireSupabase } from "./supabase";
+import { getGradeFromSchoolEmail } from "./grade";
 
 const AVATAR_BUCKET = "avatars";
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
@@ -16,7 +17,7 @@ export async function getUserProfile(userId) {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, username, full_name, avatar_url, bio, yearly_goal, created_at, updated_at, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4",
+      "id, username, full_name, avatar_url, bio, yearly_goal, grade, created_at, updated_at, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4",
     )
     .eq("id", userId)
     .maybeSingle();
@@ -98,4 +99,27 @@ export async function uploadUserAvatar(userId, file) {
   }
 
   return updatedProfile;
+}
+export async function syncUserGrade(userId, email) {
+  if (!userId || !email) return null;
+
+  const grade = getGradeFromSchoolEmail(email);
+
+  const supabase = requireSupabase();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      grade,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .select(
+      "id, username, full_name, avatar_url, bio, yearly_goal, grade, created_at, updated_at, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4"
+    )
+    .single();
+
+  if (error) throw error;
+
+  return data;
 }

@@ -6320,11 +6320,6 @@ h2 {
   box-shadow: 0 0 0 4px rgba(217, 125, 97, 0.12);
 }
 
-.profile-edit-modal input:disabled,
-.profile-edit-modal textarea:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
 
 .profile-edit-modal label small {
   justify-self: end;
@@ -6659,4 +6654,44 @@ h2 {
   width: 72px;
   height: 72px;
   font-size: 1.7rem;
+}
+.profile-readonly-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(130px, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.profile-readonly-row label {
+  min-width: 0;
+}
+
+.profile-readonly-row .profile-readonly-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+
+  margin-top: 0.45rem;
+  padding: 0.75rem 0.9rem;
+
+  border: 1px solid rgba(93, 71, 59, 0.2);
+  border-radius: 14px;
+
+  background-color: #f7f3ef;
+  color: var(--text-primary);
+
+  font: inherit;
+  cursor: default;
+  appearance: none;
+}
+
+.profile-readonly-row .profile-readonly-input:focus {
+  outline: none;
+  border-color: rgba(93, 71, 59, 0.2);
+}
+
+.profile-readonly-row small {
+  display: block;
+  margin-top: 0.4rem;
+  text-align: left;
 }

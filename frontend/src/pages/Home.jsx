@@ -21,6 +21,7 @@ import BookDetailModal from "../components/BookDetailModal";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import StarRating from "../components/StarRating";
 import UserAvatar from "../components/UserAvatar";
+import { getGradeLeaderboard } from "../lib/leaderboardApi";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -191,6 +192,9 @@ function Home() {
   const [deletingPostId, setDeletingPostId] = useState(null);
   const [deletingCommentId, setDeletingCommentId] = useState(null);
   const [deletePostError, setDeletePostError] = useState("");
+  const [gradeLeaderboard, setGradeLeaderboard] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(true);
+  const [leaderboardError, setLeaderboardError] = useState("");
 
   const [trackedBooks, setTrackedBooks] = useState(initialHomeState.trackedBooks);
   const [finishingBook, setFinishingBook] = useState(null);
@@ -221,7 +225,40 @@ function Home() {
   const selectedComposerBook = libraryBooks.find(
     (book) => String(book.bookId) === String(composeDraft.bookId),
   );
+  useEffect(() => {
+    let cancelled = false;
 
+    async function loadGradeLeaderboard() {
+      setLeaderboardLoading(true);
+      setLeaderboardError("");
+
+      try {
+        const leaderboard = await getGradeLeaderboard();
+
+        if (!cancelled) {
+          setGradeLeaderboard(leaderboard);
+        }
+      } catch (error) {
+        console.error("Failed to load grade leaderboard:", error);
+
+        if (!cancelled) {
+          setLeaderboardError(
+            error.message || "Could not load the grade leaderboard.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLeaderboardLoading(false);
+        }
+      }
+    }
+
+    loadGradeLeaderboard();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   useEffect(() => {
     let cancelled = false;
 
@@ -865,6 +902,9 @@ function Home() {
       setPublishingNote(false);
     }
   }
+  const firstPlace = gradeLeaderboard[0];
+  const secondPlace = gradeLeaderboard[1];
+  const thirdPlace = gradeLeaderboard[2];
 
   return (
     <div className="home-page">
@@ -893,28 +933,60 @@ function Home() {
         </div>
       </section>
 
-      <section className="grade-leaderboard-strip" aria-label="Reading grade leaderboard">
+      <section
+        className="grade-leaderboard-strip"
+        aria-label="Reading grade leaderboard"
+      >
         <div className="leaderboard-strip-heading">
           <p className="eyebrow">Grade leaderboard</p>
-          <strong>Books read this month</strong>
+          <strong>Total books read</strong>
         </div>
-        <div className="leaderboard-podium" aria-label="Leaderboard places awaiting data">
-          <div className="podium-step second">
-            <span>2</span>
-            <strong>Grade</strong>
-            <small>Awaiting Totals</small>
+
+        {leaderboardLoading ? (
+          <p className="leaderboard-status">Loading grade totals...</p>
+        ) : leaderboardError ? (
+          <p className="profile-save-error" role="alert">
+            {leaderboardError}
+          </p>
+        ) : (
+          <div
+            className="leaderboard-podium"
+            aria-label="Top three grades by books read"
+          >
+            <div className="podium-step second">
+              <span aria-label="Second place">2</span>
+              <strong>
+                Grade {secondPlace?.grade ?? "—"}
+              </strong>
+              <small>
+                {secondPlace?.booksRead ?? 0}{" "}
+                {(secondPlace?.booksRead ?? 0) === 1 ? "book" : "books"} read
+              </small>
+            </div>
+
+            <div className="podium-step first">
+              <span aria-label="First place">1</span>
+              <strong>
+                Grade {firstPlace?.grade ?? "—"}
+              </strong>
+              <small>
+                {firstPlace?.booksRead ?? 0}{" "}
+                {(firstPlace?.booksRead ?? 0) === 1 ? "book" : "books"} read
+              </small>
+            </div>
+
+            <div className="podium-step third">
+              <span aria-label="Third place">3</span>
+              <strong>
+                Grade {thirdPlace?.grade ?? "—"}
+              </strong>
+              <small>
+                {thirdPlace?.booksRead ?? 0}{" "}
+                {(thirdPlace?.booksRead ?? 0) === 1 ? "book" : "books"} read
+              </small>
+            </div>
           </div>
-          <div className="podium-step first">
-            <span>1</span>
-            <strong>Grade</strong>
-            <small>Awaiting Totals</small>
-          </div>
-          <div className="podium-step third">
-            <span>3</span>
-            <strong>Grade</strong>
-            <small>Awaiting Totals</small>
-          </div>
-        </div>
+        )}
       </section>
 
 	      <div className="home-grid">
