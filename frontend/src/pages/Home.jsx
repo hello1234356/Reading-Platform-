@@ -22,6 +22,7 @@ import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import StarRating from "../components/StarRating";
 import UserAvatar from "../components/UserAvatar";
 import { getGradeLeaderboard } from "../lib/leaderboardApi";
+import ProfileLink from "../components/ProfileLink";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -219,7 +220,6 @@ function Home() {
   const [libraryBooks, setLibraryBooks] = useState([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState("");
-
   const [publishingNote, setPublishingNote] = useState(false);
   const [publishNoteError, setPublishNoteError] = useState("");
   const selectedComposerBook = libraryBooks.find(
@@ -1108,18 +1108,26 @@ function Home() {
               <article className="feed-card sea" key={post.id}>
                 <header className="feed-card-header">
                   <div className="avatar-stack">
-                    <UserAvatar
-                      avatarUrl={post.avatarUrl}
-                      name={post.student}
-                      size="medium"
-                    />
-
+                    <ProfileLink
+                      userId={post.userId}
+                      variant="avatar"
+                      ariaLabel={`View ${post.student}'s profile`}
+                    >
+                      <UserAvatar
+                        avatarUrl={post.avatarUrl}
+                        name={post.student}
+                        size="medium"
+                      />
+                    </ProfileLink>
                     <span className="activity-dot" aria-hidden="true" />
                   </div>
 
                   <div>
                     <p className="feed-title">
-                      <strong>{post.student}</strong>{" "}
+                      <ProfileLink userId={post.userId}>
+                        <strong>{post.student}</strong>
+                      </ProfileLink>
+                      {" "}
                       {post.action}
                       {post.hasBook ? (
                         <>
@@ -1257,10 +1265,12 @@ function Home() {
                 <div className="comment-list">
                   {post.comments.slice(-2).map((comment) => (
                     <div className="comment-item" key={comment.id}>
-                      <p>
-                        <strong>{comment.commenterName}</strong>{" "}
-                        {comment.text}
-                      </p>
+                     <p>
+                      <ProfileLink userId={comment.userId}>
+                        <strong>{comment.commenterName}</strong>
+                      </ProfileLink>{" "}
+                      {comment.text}
+                    </p>
                       {comment.userId === user?.id && (
                         <button
                           type="button"

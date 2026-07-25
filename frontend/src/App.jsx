@@ -9,6 +9,7 @@ import Discover from "./pages/Discover";
 import BookClubs from "./pages/BookClubs";
 import RecommendationPost from "./pages/RecommendationPost";
 import { useAuth } from "./hooks/useAuth";
+import { PublicProfileProvider } from "./context/PublicProfileContext";
 
 function DiscoverRoute() {
   const location = useLocation();
@@ -68,50 +69,66 @@ function App() {
   return (
     <AppErrorBoundary>
       <HashRouter>
-        <div className="app-shell">
-          <Navbar />
-          <main className="app-main">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile/shelves/:shelfSlug"
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="/discover" element={<DiscoverRoute />} />
-              <Route path="/discover/lists/:listSlug" element={<RecommendationPost />} />
-              <Route
-                path="/clubs"
-                element={
-                  <ProtectedRoute>
-                    <BookClubs />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/clubs/:clubId"
-                element={
-                  <ProtectedRoute>
-                    <BookClubs />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="*" element={<Home />} />
-            </Routes>
-          </main>
-        </div>
+        <PublicProfileProvider>
+          <div className="app-shell">
+            <Navbar />
+
+            <main className="app-main">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/profile/shelves/:shelfSlug"
+                  element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/discover"
+                  element={<DiscoverRoute />}
+                />
+
+                <Route
+                  path="/discover/lists/:listSlug"
+                  element={<RecommendationPost />}
+                />
+
+                <Route
+                  path="/clubs"
+                  element={
+                    <ProtectedRoute>
+                      <BookClubs />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/clubs/:clubId"
+                  element={
+                    <ProtectedRoute>
+                      <BookClubs />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route path="*" element={<Home />} />
+              </Routes>
+            </main>
+          </div>
+        </PublicProfileProvider>
       </HashRouter>
     </AppErrorBoundary>
   );

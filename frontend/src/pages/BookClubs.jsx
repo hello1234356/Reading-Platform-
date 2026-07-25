@@ -16,6 +16,8 @@ import {
   replaceClubSchedule
 } from "../lib/bookClubApi";
 import UserAvatar from "../components/UserAvatar";
+import ProfileLink from "../components/ProfileLink";
+
 
 
 function getDefaultSchedule(duration = "4 weeks") {
@@ -812,7 +814,13 @@ const filteredClubs = clubs.filter((club) => {
               <p className="club-room-meta">
                 <strong>{activeClub.bookTitle}</strong>
                 <span>by {activeClub.author}</span>
-                <em>Host: {activeClub.creatorName}</em>
+
+                <em>
+                  Host:{" "}
+                  <ProfileLink userId={activeClub.creatorId}>
+                    @{activeClub.creatorName.replace(/^@/, "")}
+                  </ProfileLink>
+                </em>
               </p>
               <button className="club-danger-action" type="button" onClick={() => quitClub(activeClub.id)}>
                 Quit Club
@@ -888,15 +896,25 @@ const filteredClubs = clubs.filter((club) => {
                 ) : (
                   (clubPosts[activeClub.id] || []).map((post) => (
                     <article key={post.id}>
-                      <UserAvatar
-                        avatarUrl={post.authorAvatarUrl}
-                        name={post.authorName}
-                        size="small"
-                        className="message-avatar"
-                      />
+                      <ProfileLink
+                        userId={post.userId}
+                        variant="avatar"
+                        ariaLabel={`View ${post.authorName}'s profile`}
+                      >
+                        <UserAvatar
+                          avatarUrl={post.authorAvatarUrl}
+                          name={post.authorName}
+                          size="small"
+                          className="message-avatar"
+                        />
+                      </ProfileLink>
 
                       <div>
-                        <strong>{post.authorName}</strong>
+                        <ProfileLink userId={post.userId}>
+                          <strong>
+                            @{post.authorName.replace(/^@/, "")}
+                          </strong>
+                        </ProfileLink>
 
                         {String(post.userId) ===
                           String(activeClub.creatorId) && (
@@ -933,15 +951,22 @@ const filteredClubs = clubs.filter((club) => {
               <strong>{activeClub.memberCount}/{activeClub.membersWanted}</strong>              
               <div>
                 {(activeClub.members || []).map((member) => (
-                  <UserAvatar
+                  <ProfileLink
                     key={member.userId}
-                    avatarUrl={member.avatarUrl}
-                    name={member.name}
-                    size="small"
-                    className="member-avatar"
-                  />
+                    userId={member.userId}
+                    variant="avatar"
+                    ariaLabel={`View ${member.name}'s profile`}
+                  >
+                    <UserAvatar
+                      avatarUrl={member.avatarUrl}
+                      name={member.name}
+                      size="small"
+                      className="member-avatar"
+                    />
+                  </ProfileLink>
                 ))}
               </div>
+
             </aside>
           </div>
         </section>
@@ -983,8 +1008,12 @@ const filteredClubs = clubs.filter((club) => {
                   <h2>{club.bookTitle}</h2>
                   <p className="club-card-name">{club.title}</p>
                   <small className="club-card-founder">
-                    Started by {club.creatorName}
+                    Started by{" "}
+                    <ProfileLink userId={club.creatorId}>
+                      @{club.creatorName.replace(/^@/, "")}
+                    </ProfileLink>
                   </small>
+
                   <p className="club-card-description">{club.description}</p>
                   {club.tags.length > 0 && (
                     <div className="club-tag-list" aria-label="Club tags">
@@ -1117,8 +1146,13 @@ const filteredClubs = clubs.filter((club) => {
               </div>
               <div>
                 <dt>Started by</dt>
-                <dd>{detailClub.creatorName}</dd>
+                <dd>
+                  <ProfileLink userId={detailClub.creatorId}>
+                    @{detailClub.creatorName.replace(/^@/, "")}
+                  </ProfileLink>
+                </dd>
               </div>
+
               <div>
                 <dt>Looking for</dt>
                 <dd>{detailClub.membersWanted} readers</dd>

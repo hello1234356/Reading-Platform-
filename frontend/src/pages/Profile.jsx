@@ -947,8 +947,14 @@ function Profile() {
             <div>
               <p className="eyebrow">Personal Profile</p>
               <h1>{displayName}</h1>
-              <span>{schoolEmail}</span>
+              <div className="profile-meta-row">
+                <span>{schoolEmail}</span>
 
+                {profile?.grade ? (
+                  <span>G{profile.grade}</span>
+                ) : null}
+              </div>
+              
               {profile?.bio ? (
                 <p className="profile-bio">{profile.bio}</p>
               ) : null}
@@ -1501,3 +1507,4 @@ function Profile() {
 }
 
 export default Profile;
+
