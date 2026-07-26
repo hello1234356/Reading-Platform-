@@ -44,30 +44,18 @@ as $$
   ) || '-' || left(replace(user_id::text, '-', ''), 6);
 $$;
 
--- Convert only rows that still have the known legacy shape. Official names
--- are derived by joining profiles.id to auth.users.id; profiles has no email.
--- username is the email local-part and full_name is the chosen public name.
--- Rows whose full_name already matches the derived official name are skipped
--- so reruns do not overwrite profiles that may already use the new semantics.
+-- Preserve every existing public username exactly. Rebuild only full_name
+-- from the matching auth.users email. Rows already holding the derived
+-- official name are skipped, making this update safe to rerun.
 update public.profiles as profile
 set
-  username = btrim(profile.full_name),
   full_name = public.school_email_to_full_name(auth_user.email),
   updated_at = now()
 from auth.users as auth_user
 where auth_user.id = profile.id
   and public.school_email_to_full_name(auth_user.email) is not null
-  and lower(regexp_replace(btrim(profile.username), '^@', '')) =
-      lower(split_part(auth_user.email, '@', 1))
-  and btrim(profile.full_name) <> public.school_email_to_full_name(auth_user.email)
-  and char_length(btrim(profile.full_name)) between 1 and 40
-  and not exists (
-    select 1
-    from public.profiles as other_profile
-    where other_profile.id <> profile.id
-      and lower(btrim(other_profile.username)) =
-          lower(btrim(profile.full_name))
-  );
+  and profile.full_name is distinct from
+      public.school_email_to_full_name(auth_user.email);
 
 -- Patch the function already used by the live on_auth_user_created trigger.
 -- The existing grade calculation is intentionally unchanged. Only the two
