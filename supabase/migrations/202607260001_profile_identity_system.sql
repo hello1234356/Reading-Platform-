@@ -1,7 +1,7 @@
 -- Identity semantics:
 --   profiles.username  = editable public display name
 --   profiles.full_name = restricted official school name
---   profiles.email     = private login identity
+--   auth.users.email    = private login identity
 
 create or replace function public.school_email_to_full_name(school_email text)
 returns text
@@ -44,7 +44,8 @@ as $$
   ) || '-' || left(replace(user_id::text, '-', ''), 6);
 $$;
 
--- Convert only rows that still have the known legacy shape:
+-- Convert only rows that still have the known legacy shape. Official names
+-- are derived by joining profiles.id to auth.users.id; profiles has no email.
 -- username is the email local-part and full_name is the chosen public name.
 -- Rows whose full_name already matches the derived official name are skipped
 -- so reruns do not overwrite profiles that may already use the new semantics.
@@ -68,33 +69,69 @@ where auth_user.id = profile.id
           lower(btrim(profile.full_name))
   );
 
-create or replace function public.create_profile_for_new_user()
+-- Patch the function already used by the live on_auth_user_created trigger.
+-- The existing grade calculation is intentionally unchanged. Only the two
+-- identity values in the profile INSERT use the new semantics.
+create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = ''
-as $$
+set search_path to ''
+as $function$
+declare
+  graduation_suffix text;
+  graduation_year integer;
+  calculated_grade integer;
 begin
-  insert into public.profiles (id, username, full_name, email)
+  graduation_suffix :=
+    substring(new.email from '_(\d{2})@');
+
+  if graduation_suffix is not null then
+    graduation_year := 2000 + graduation_suffix::integer;
+
+    calculated_grade :=
+      case
+        when extract(month from current_date) < 7 then
+          12 - (
+            graduation_year
+            - extract(year from current_date)::integer
+          )
+        else
+          13 - (
+            graduation_year
+            - extract(year from current_date)::integer
+          )
+      end;
+
+    if calculated_grade < 9 or calculated_grade > 12 then
+      calculated_grade := null;
+    end if;
+  else
+    calculated_grade := null;
+  end if;
+
+  insert into public.profiles (
+    id,
+    username,
+    full_name,
+    grade
+  )
   values (
     new.id,
     public.initial_public_username(new.email, new.id),
-    coalesce(public.school_email_to_full_name(new.email), 'Reader'),
-    new.email
+    coalesce(
+      public.school_email_to_full_name(new.email),
+      'Reader'
+    ),
+    calculated_grade
   );
 
   return new;
 end;
-$$;
-
-drop trigger if exists create_profile_after_signup on auth.users;
-
-create trigger create_profile_after_signup
-after insert on auth.users
-for each row execute function public.create_profile_for_new_user();
+$function$;
 
 -- Authenticated clients may edit public profile fields, but may not change
--- the official school name or login email. Dashboard/service operations have
+-- the official school name. Dashboard/service operations have
 -- auth.uid() = null and can still perform controlled administrative updates.
 create or replace function public.protect_profile_school_identity()
 returns trigger
@@ -102,11 +139,10 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  if auth.uid() is not null and (
-    new.full_name is distinct from old.full_name
-    or new.email is distinct from old.email
-  ) then
-    raise exception 'Official school name and email cannot be changed by profile updates';
+  if auth.uid() is not null
+    and new.full_name is distinct from old.full_name
+  then
+    raise exception 'Official school name cannot be changed by profile updates';
   end if;
 
   return new;
@@ -119,30 +155,3 @@ on public.profiles;
 create trigger protect_profile_school_identity_before_update
 before update on public.profiles
 for each row execute function public.protect_profile_school_identity();
-
--- RLS controls which rows can be read, but table-level SELECT would still
--- allow a permitted client to request profiles.email. Replace that broad
--- privilege with column-level SELECT on every profile field except email.
-revoke select on table public.profiles from anon, authenticated;
-
-do $$
-declare
-  public_profile_columns text;
-begin
-  select string_agg(format('%I', column_name), ', ' order by ordinal_position)
-  into public_profile_columns
-  from information_schema.columns
-  where table_schema = 'public'
-    and table_name = 'profiles'
-    and column_name <> 'email';
-
-  if public_profile_columns is null then
-    raise exception 'public.profiles has no public columns to grant';
-  end if;
-
-  execute format(
-    'grant select (%s) on table public.profiles to anon, authenticated',
-    public_profile_columns
-  );
-end;
-$$;
