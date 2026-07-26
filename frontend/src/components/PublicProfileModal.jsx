@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getPublicProfile } from "../lib/publicProfileApi";
+import { getPublicDisplayName } from "../lib/identity";
 
 export default function PublicProfileModal({
   userId,
@@ -65,26 +66,8 @@ export default function PublicProfileModal({
     };
   }, [userId, onClose]);
 
-  const displayName = useMemo(() => {
-    if (profile?.full_name?.trim()) {
-      return profile.full_name.trim();
-    }
-
-    if (profile?.username?.trim()) {
-      return profile.username
-        .split("@")[0]
-        .split(/[._-]/)
-        .filter(Boolean)
-        .map(
-          (part) =>
-            part.slice(0, 1).toUpperCase() +
-            part.slice(1),
-        )
-        .join(" ");
-    }
-
-    return "LitShelf Reader";
-  }, [profile]);
+  const displayName = getPublicDisplayName(profile);
+  const officialName = profile?.full_name?.trim() || "Reader";
 
   if (!userId) {
     return null;
@@ -148,13 +131,10 @@ export default function PublicProfileModal({
                 </h2>
 
                 <div className="public-profile-meta">
-                  {profile.username ? (
-                    <span>@{profile.username}</span>
-                  ) : null}
-
-                  {profile.grade ? (
-                    <span>G{profile.grade}</span>
-                  ) : null}
+                  <span>
+                    {officialName}
+                    {profile.grade ? ` · G${profile.grade}` : ""}
+                  </span>
                 </div>
               </div>
             </header>

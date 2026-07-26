@@ -1,4 +1,5 @@
 import { requireSupabase } from "./supabase";
+import { getPublicDisplayName } from "./identity";
 
 function cleanTags(tags) {
   if (!Array.isArray(tags)) {
@@ -14,20 +15,11 @@ function cleanTags(tags) {
   ].slice(0, 10);
 }
 
-function getProfileName(profile) {
-  return (
-    profile?.full_name?.trim() ||
-    profile?.username?.trim() ||
-    "Tsinglan Reader"
-  );
-}
-
 function mapMember(row) {
   return {
     userId: row.user_id,
     joinedAt: row.joined_at,
-    name: getProfileName(row.profiles),
-    username: row.profiles?.username || "",
+    name: getPublicDisplayName(row.profiles),
     avatarUrl: row.profiles?.avatar_url || "",
   };
 }
@@ -67,9 +59,7 @@ function mapClub(row, currentUserId = null) {
       row.books?.cover_url ||
       "",
 
-    creatorName: getProfileName(row.creator_profile),
-    creatorUsername:
-      row.creator_profile?.username || "",
+    creatorName: getPublicDisplayName(row.creator_profile),
     creatorAvatarUrl:
       row.creator_profile?.avatar_url || "",
 
@@ -104,8 +94,7 @@ function mapClubPost(row) {
     clubId: row.club_id,
     userId: row.user_id,
     message: row.message || "",
-    authorName: getProfileName(row.profiles),
-    authorUsername: row.profiles?.username || "",
+    authorName: getPublicDisplayName(row.profiles),
     authorAvatarUrl: row.profiles?.avatar_url || "",
     createdAt: row.created_at,
   };

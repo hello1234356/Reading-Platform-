@@ -5,7 +5,7 @@ export const recommendationLists = [
     kicker: "Pop Shelf",
     imageUrl:
       "https://i.pinimg.com/736x/6d/d8/dc/6dd8dc9ecbc90a0df70f1fdafb7dfc21.jpg",
-    author: "Yiru Yang",
+    username: "Yiru Yang",
     blurb:
       "Six era-coded recommendations, from debut coming-of-age ache to Reputation's guarded devotion.",
     count: 6,

@@ -92,7 +92,7 @@ function RecommendationPost() {
           <div>
             <p>{post.kicker}</p>
             <h1>{post.title}</h1>
-            {post.author ? <small>By {post.author}</small> : null}
+            {post.username ? <small>By {post.username}</small> : null}
             <span>{post.count} books</span>
           </div>
         </header>

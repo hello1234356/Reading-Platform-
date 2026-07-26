@@ -97,7 +97,9 @@ function Discover() {
   const [selectedQuiz, setSelectedQuiz] = useState(readingQuizzes[0]);
   const featuredPick = editorPicks[0];
   const supportingPicks = editorPicks.slice(1);
-  const authoredRecommendationPosts = recommendationLists.filter((list) => list.author);
+  const authoredRecommendationPosts = recommendationLists.filter(
+    (list) => list.username,
+  );
 
   async function runBookSearch(searchTerm) {
     const normalizedSearchTerm = searchTerm.trim();
@@ -527,7 +529,7 @@ async function openBookDetails(book) {
                         <p>{list.kicker}</p>
                         <h3>{list.title}</h3>
                         <small>{list.blurb}</small>
-                        <em>By {list.author}</em>
+                        <em>By {list.username}</em>
                       </div>
                     </Link>
                   ))}

@@ -1,4 +1,5 @@
 import { requireSupabase } from "./supabase";
+import { getPublicDisplayName } from "./identity";
 
 function getPostAction(postType, hasBook) {
   switch (postType) {
@@ -53,16 +54,11 @@ function formatRelativeTime(createdAt) {
 }
 
 function mapComment(row) {
-  const commenterName =
-    row.profiles?.full_name ||
-    row.profiles?.username ||
-    "Reader";
-
   return {
     id: row.id,
     userId: row.user_id,
     text: row.comment,
-    commenterName,
+    commenterName: getPublicDisplayName(row.profiles),
     createdAt: row.created_at,
   };
 }
@@ -70,11 +66,6 @@ function mapComment(row) {
 function mapPost(row, currentUserId = null) {
   const profile = row.profiles;
   const book = row.books;
-
-  const student =
-    profile?.full_name ||
-    profile?.username ||
-    "Tsinglan Reader";
 
   const likes = Array.isArray(row.post_likes)
     ? row.post_likes
@@ -94,8 +85,7 @@ function mapPost(row, currentUserId = null) {
     userId: row.user_id,
     bookId: row.book_id,
 
-    student,
-    username: profile?.username || "",
+    student: getPublicDisplayName(profile),
     avatarUrl: profile?.avatar_url || "",
 
     action: getPostAction(row.post_type, Boolean(book)),
@@ -240,13 +230,6 @@ export async function createPost({
   ) {
     throw new Error("Rating must be between 0 and 5.");
   }
-  console.log({
-    postType,
-    progress,
-    rating,
-    note,
-  });
-
   const supabase = requireSupabase();
 
   const { data, error } = await supabase

@@ -19,6 +19,10 @@ import {
   syncUserGrade,
 } from "../lib/profileApi";
 import { getGradeFromSchoolEmail } from "../lib/grade";
+import {
+  getPublicDisplayName,
+  schoolEmailToOfficialName,
+} from "../lib/identity";
 
 const profileShelves = [
   { label: "Read", slug: "read", tone: "butter", note: "finished and reviewed" },
@@ -52,7 +56,7 @@ function Profile() {
   const [profileError, setProfileError] = useState("");
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileDraft, setProfileDraft] = useState({
-    full_name: "",
+    username: "",
     bio: "",
     yearly_goal: 40,
   });
@@ -305,7 +309,7 @@ function Profile() {
 
   function openEditProfile() {
     setProfileDraft({
-      full_name: profile?.full_name || "",
+      username: profile?.username || "",
       bio: profile?.bio || "",
       yearly_goal: profile?.yearly_goal ?? 40,
     });
@@ -329,11 +333,16 @@ function Profile() {
       return;
     }
 
-    const cleanedFullName = profileDraft.full_name.trim();
+    const cleanedUsername = profileDraft.username.trim();
     const yearlyGoal = Number(profileDraft.yearly_goal);
 
-    if (!cleanedFullName) {
-      setProfileSaveError("Please enter your name.");
+    if (!cleanedUsername) {
+      setProfileSaveError("Please enter a username.");
+      return;
+    }
+
+    if (cleanedUsername.length > 40) {
+      setProfileSaveError("Username must be 40 characters or fewer.");
       return;
     }
 
@@ -351,7 +360,7 @@ function Profile() {
       const supabase = requireSupabase();
 
       const updates = {
-        full_name: cleanedFullName,
+        username: cleanedUsername,
         bio: profileDraft.bio.trim() || null,
         yearly_goal: yearlyGoal,
         grade: getGradeFromSchoolEmail(user.email),
@@ -376,7 +385,11 @@ function Profile() {
     } catch (error) {
       console.error("Failed to save profile:", error);
 
-      setProfileSaveError(error.message || "Could not save your profile.");
+      setProfileSaveError(
+        error.code === "23505"
+          ? "That username is already in use. Please choose another one."
+          : error.message || "Could not save your profile.",
+      );
     } finally {
       setProfileSaving(false);
     }
@@ -761,18 +774,10 @@ function Profile() {
       </section>
     );
   }
-  const emailName = user?.email?.split("@")[0] || "reader";
-
-  const fallbackDisplayName =
-    emailName
-      .split(/[._-]/)
-      .filter(Boolean)
-      .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
-      .join(" ") || "Tsinglan Reader";
-
-  const displayName = profile?.full_name?.trim() || fallbackDisplayName;
-
-  const schoolEmail = user?.email || `${emailName.toLowerCase()}@tsinglan.cn`;
+  const displayName = getPublicDisplayName(profile);
+  const officialName =
+    profile?.full_name?.trim() ||
+    schoolEmailToOfficialName(user?.email);
 
   const yearlyGoal = profile?.yearly_goal ?? 40;
 
@@ -948,11 +953,10 @@ function Profile() {
               <p className="eyebrow">Personal Profile</p>
               <h1>{displayName}</h1>
               <div className="profile-meta-row">
-                <span>{schoolEmail}</span>
-
-                {profile?.grade ? (
-                  <span>G{profile.grade}</span>
-                ) : null}
+                <span>
+                  {officialName}
+                  {profile?.grade ? ` · G${profile.grade}` : ""}
+                </span>
               </div>
               
               {profile?.bio ? (
@@ -1273,7 +1277,7 @@ function Profile() {
                       />
                     ) : (
                       <span className="profile-photo-initial" aria-hidden="true">
-                        {(profileDraft.full_name || displayName)
+                        {(profileDraft.username || displayName)
                           .slice(0, 1)
                           .toUpperCase()}
                       </span>
@@ -1318,34 +1322,35 @@ function Profile() {
                 ) : null}
               </div>
               <label>
-                <span>Full name</span>
+                <span>Username</span>
                 <input
                   type="text"
-                  value={profileDraft.full_name}
+                  value={profileDraft.username}
                   onChange={(event) =>
                     setProfileDraft((currentDraft) => ({
                       ...currentDraft,
-                      full_name: event.target.value,
+                      username: event.target.value,
                     }))
                   }
-                  placeholder="Full Name"
-                  maxLength="80"
+                  placeholder="Your public display name"
+                  maxLength="40"
                   disabled={profileSaving}
                 />
+                <small>This is the name other readers will see.</small>
               </label>
 
              <div className="profile-readonly-row">
               <label>
-                <span>School email</span>
+                <span>Full name</span>
 
                 <input
                   className="profile-readonly-input"
-                  type="email"
-                  value={user?.email || ""}
+                  type="text"
+                  value={officialName}
                   readOnly
                 />
 
-                <small>Linked to your account.</small>
+                <small>Generated from your school account and cannot be edited.</small>
               </label>
 
               <label>

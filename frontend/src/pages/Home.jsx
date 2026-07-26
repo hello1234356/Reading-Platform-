@@ -1138,9 +1138,6 @@ function Home() {
                     </p>
 
                     <p className="feed-meta">
-                      {post.username
-                        ? `@${post.username.replace(/^@/, "")} | `
-                        : ""}
                       {post.time}
                     </p>
                   </div>

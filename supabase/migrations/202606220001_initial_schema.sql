@@ -17,7 +17,8 @@ create table public.books (
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  name text not null,
+  username text not null unique check (char_length(trim(username)) between 1 and 40),
+  full_name text not null,
   email text not null unique,
   profile_picture text,
   bio text not null default '',
@@ -28,7 +29,8 @@ create table public.profiles (
   favorite_genres text[] not null default '{}',
   reading_goal integer not null default 0 check (reading_goal >= 0),
   current_streak integer not null default 0 check (current_streak >= 0),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table public.user_books (
@@ -141,11 +143,57 @@ $$;
 create trigger user_books_set_updated_at before update on public.user_books
 for each row execute function public.set_updated_at();
 
+create or replace function public.school_email_to_full_name(school_email text)
+returns text
+language sql
+immutable
+strict
+set search_path = ''
+as $$
+  with parsed as (
+    select regexp_replace(
+      split_part(lower(btrim(school_email)), '@', 1),
+      '_[0-9]{2}$',
+      ''
+    ) as local_part
+  )
+  select case
+    when local_part ~ '^[a-z]+(\.[a-z]+)*$'
+      then initcap(replace(local_part, '.', ' '))
+    else null
+  end
+  from parsed;
+$$;
+
+create or replace function public.initial_public_username(
+  school_email text,
+  user_id uuid
+)
+returns text
+language sql
+immutable
+strict
+set search_path = ''
+as $$
+  select left(
+    coalesce(
+      split_part(public.school_email_to_full_name(school_email), ' ', 1),
+      'Reader'
+    ),
+    30
+  ) || '-' || left(replace(user_id::text, '-', ''), 6);
+$$;
+
 create or replace function public.create_profile_for_new_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  insert into public.profiles (id, name, email)
-  values (new.id, coalesce(nullif(new.raw_user_meta_data ->> 'name', ''), split_part(new.email, '@', 1)), new.email);
+  insert into public.profiles (id, username, full_name, email)
+  values (
+    new.id,
+    public.initial_public_username(new.email, new.id),
+    coalesce(public.school_email_to_full_name(new.email), 'Reader'),
+    new.email
+  );
   return new;
 end;
 $$;

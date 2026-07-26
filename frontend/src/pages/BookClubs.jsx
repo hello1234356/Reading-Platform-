@@ -784,7 +784,7 @@ const filteredClubs = clubs.filter((club) => {
                 <em>
                   Host:{" "}
                   <ProfileLink userId={activeClub.creatorId}>
-                    @{activeClub.creatorName.replace(/^@/, "")}
+                    {activeClub.creatorName}
                   </ProfileLink>
                 </em>
               </p>
@@ -878,7 +878,7 @@ const filteredClubs = clubs.filter((club) => {
                       <div>
                         <ProfileLink userId={post.userId}>
                           <strong>
-                            @{post.authorName.replace(/^@/, "")}
+                            {post.authorName}
                           </strong>
                         </ProfileLink>
 
@@ -976,7 +976,7 @@ const filteredClubs = clubs.filter((club) => {
                   <small className="club-card-founder">
                     Started by{" "}
                     <ProfileLink userId={club.creatorId}>
-                      @{club.creatorName.replace(/^@/, "")}
+                      {club.creatorName}
                     </ProfileLink>
                   </small>
 
@@ -1114,7 +1114,7 @@ const filteredClubs = clubs.filter((club) => {
                 <dt>Started by</dt>
                 <dd>
                   <ProfileLink userId={detailClub.creatorId}>
-                    @{detailClub.creatorName.replace(/^@/, "")}
+                    {detailClub.creatorName}
                   </ProfileLink>
                 </dd>
               </div>
