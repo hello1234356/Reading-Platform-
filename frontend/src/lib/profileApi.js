@@ -17,7 +17,7 @@ export async function getUserProfile(userId) {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, username, full_name, avatar_url, bio, yearly_goal, grade, created_at, updated_at, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4",
+      "id, username, full_name, avatar_url, bio, yearly_goal, grade, account_type, created_at, updated_at, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4",
     )
     .eq("id", userId)
     .maybeSingle();
@@ -90,7 +90,7 @@ export async function uploadUserAvatar(userId, file) {
     })
     .eq("id", userId)
     .select(
-      "id, username, full_name, avatar_url, bio, yearly_goal, created_at, updated_at, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4",
+      "id, username, full_name, avatar_url, bio, yearly_goal, grade, account_type, created_at, updated_at, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4",
     )
     .single();
 
@@ -115,7 +115,7 @@ export async function syncUserGrade(userId, email) {
     })
     .eq("id", userId)
     .select(
-      "id, username, full_name, avatar_url, bio, yearly_goal, grade, created_at, updated_at, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4"
+      "id, username, full_name, avatar_url, bio, yearly_goal, grade, account_type, created_at, updated_at, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4"
     )
     .single();
 

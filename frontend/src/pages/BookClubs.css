@@ -437,6 +437,18 @@
   font-weight: 700;
 }
 
+.club-card .club-activity-status {
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 250, 253, 0.72);
+  color: var(--mocha);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(105, 74, 122, 0.1);
+}
+
 .club-card h2 {
   max-width: 95%;
   color: var(--warm-ink);
@@ -971,6 +983,17 @@
   line-height: 1.5;
 }
 
+.club-chat-notice {
+  width: fit-content;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(244, 220, 123, 0.28);
+  color: var(--mocha);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .message-avatar,
 .member-avatar,
 .profile-photo {
@@ -1024,4 +1047,3 @@
   width: 38px;
   height: 38px;
 }
-

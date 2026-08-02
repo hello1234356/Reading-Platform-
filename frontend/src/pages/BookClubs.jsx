@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import {
+  archiveInactiveBookClubs,
   createBookClub,
   createClubPost,
   deleteBookClub,
@@ -11,8 +12,14 @@ import {
   getClubSchedule,
   joinBookClub,
   leaveBookClub,
+  recordClubActivity,
+  reportClubMessageModeration,
   replaceClubSchedule
 } from "../lib/bookClubApi";
+import {
+  moderateText,
+  recordModerationStrike,
+} from "../lib/moderation";
 import UserAvatar from "../components/UserAvatar";
 import ProfileLink from "../components/ProfileLink";
 
@@ -33,6 +40,49 @@ function getCoverUrl(isbn, size = "L") {
 
 function hideBrokenCover(event) {
   event.currentTarget.hidden = true;
+}
+
+function getClubActivityLabel(lastActivityAt) {
+  if (!lastActivityAt) {
+    return "No activity yet";
+  }
+
+  const activityDate = new Date(lastActivityAt);
+  const daysSinceActivity = Math.floor(
+    (Date.now() - activityDate.getTime()) / 86400000,
+  );
+
+  if (Number.isNaN(daysSinceActivity) || daysSinceActivity < 0) {
+    return "Recently active";
+  }
+
+  if (daysSinceActivity === 0) {
+    return "Active today";
+  }
+
+  if (daysSinceActivity === 1) {
+    return "Active yesterday";
+  }
+
+  return `Active ${daysSinceActivity} days ago`;
+}
+
+function shouldRecordClubRoomVisit({ clubId, userId }) {
+  if (!clubId || !userId) {
+    return false;
+  }
+
+  const key = `litshelf-club-room-visit-${clubId}-${userId}`;
+  const now = Date.now();
+  const fifteenMinutes = 15 * 60 * 1000;
+  const lastRecordedAt = Number(sessionStorage.getItem(key) || 0);
+
+  if (now - lastRecordedAt < fifteenMinutes) {
+    return false;
+  }
+
+  sessionStorage.setItem(key, String(now));
+  return true;
 }
 
 function simplifySearchTerm(searchTerm) {
@@ -77,6 +127,7 @@ function BookClubs() {
   const [clubsLoading, setClubsLoading] = useState(true);
   const [clubsError, setClubsError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [chatNotice, setChatNotice] = useState("");
   const [actionLoading, setActionLoading] = useState(false);  
   const [detailClubId, setDetailClubId] = useState(null);
   const [detailBlurb, setDetailBlurb] = useState("");
@@ -178,6 +229,12 @@ const filteredClubs = clubs.filter((club) => {
       setClubsError("");
 
       try {
+        try {
+          await archiveInactiveBookClubs(7);
+        } catch (archiveError) {
+          console.error("Failed to archive inactive clubs:", archiveError);
+        }
+
         const nextClubs = await getBookClubs(user?.id || null);
 
         if (!cancelled) {
@@ -204,6 +261,24 @@ const filteredClubs = clubs.filter((club) => {
       cancelled = true;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!routeClub?.isJoined || !user?.id) {
+      return;
+    }
+
+    if (!shouldRecordClubRoomVisit({ clubId: routeClub.id, userId: user.id })) {
+      return;
+    }
+
+    recordClubActivity({
+      clubId: routeClub.id,
+      userId: user.id,
+      eventType: "visited_room",
+    }).catch((error) => {
+      console.error("Failed to record club room visit:", error);
+    });
+  }, [routeClub?.id, routeClub?.isJoined, user?.id]);
 
   useEffect(() => {
     if (!isCreateOpen) return undefined;
@@ -557,6 +632,12 @@ const filteredClubs = clubs.filter((club) => {
         [activeClub.id]: updatedSchedule,
       }));
 
+      await recordClubActivity({
+        clubId: activeClub.id,
+        userId: user.id,
+        eventType: "updated_schedule",
+      });
+
       setIsScheduleEditorOpen(false);
     } catch (error) {
       console.error(
@@ -585,12 +666,15 @@ const filteredClubs = clubs.filter((club) => {
 
     setActionLoading(true);
     setActionError("");
+    setChatNotice("");
 
     try {
+      const moderation = moderateText(postDraft);
+
       const createdPost = await createClubPost({
         clubId: activeClub.id,
         userId: user.id,
-        message: postDraft,
+        message: moderation.filteredText,
       });
 
       setClubPosts((current) => ({
@@ -600,6 +684,34 @@ const filteredClubs = clubs.filter((club) => {
           createdPost,
         ],
       }));
+
+      if (moderation.hasFilteredLanguage) {
+        const strike = recordModerationStrike({
+          userId: user.id,
+          clubId: activeClub.id,
+        });
+
+        setChatNotice(
+          "Some language was filtered to keep the discussion room respectful.",
+        );
+
+        if (moderation.shouldReport || strike.shouldReportRepeat) {
+          try {
+            await reportClubMessageModeration({
+              clubId: activeClub.id,
+              postId: createdPost.id,
+              userId: user.id,
+              originalMessage: moderation.originalText,
+              filteredMessage: moderation.filteredText,
+              matchedTerms: moderation.matchedTerms,
+              severity: strike.shouldReportRepeat ? "repeat" : moderation.severity,
+              strikeCount: strike.strikeCount,
+            });
+          } catch (reportError) {
+            console.error("Failed to report moderated club message:", reportError);
+          }
+        }
+      }
 
       setPostDraft("");
     } catch (error) {
@@ -893,12 +1005,17 @@ const filteredClubs = clubs.filter((club) => {
                           {new Date(post.createdAt).toLocaleString()}
                         </small>
 
-                        <p>{post.message}</p>
+                        <p>{moderateText(post.message).filteredText}</p>
                       </div>
                     </article>
                   ))
                 )}
               </div>
+              {chatNotice ? (
+                <p className="club-chat-notice" role="status">
+                  {chatNotice}
+                </p>
+              ) : null}
               <form className="club-message-form" onSubmit={publishClubPost}>
                 <textarea
                   value={postDraft}
@@ -981,6 +1098,9 @@ const filteredClubs = clubs.filter((club) => {
                   </small>
 
                   <p className="club-card-description">{club.description}</p>
+                  <p className="club-activity-status">
+                    {getClubActivityLabel(club.lastActivityAt)}
+                  </p>
                   {club.tags.length > 0 && (
                     <div className="club-tag-list" aria-label="Club tags">
                       {club.tags.map((tag) => (

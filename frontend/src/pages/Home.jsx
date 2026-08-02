@@ -19,10 +19,14 @@ import {
 import { saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
-import StarRating from "../components/StarRating";
+import StarRating, { RatingPicker } from "../components/StarRating";
 import UserAvatar from "../components/UserAvatar";
-import { getGradeLeaderboard } from "../lib/leaderboardApi";
+import {
+  getGradeLeaderboard,
+  getTeacherLeaderboard,
+} from "../lib/leaderboardApi";
 import ProfileLink from "../components/ProfileLink";
+import { getPublicDisplayName } from "../lib/identity";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -194,6 +198,7 @@ function Home() {
   const [deletingCommentId, setDeletingCommentId] = useState(null);
   const [deletePostError, setDeletePostError] = useState("");
   const [gradeLeaderboard, setGradeLeaderboard] = useState([]);
+  const [teacherLeaderboard, setTeacherLeaderboard] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const [leaderboardError, setLeaderboardError] = useState("");
 
@@ -232,22 +237,43 @@ function Home() {
       setLeaderboardLoading(true);
       setLeaderboardError("");
 
+      const errors = [];
+
       try {
-        const leaderboard = await getGradeLeaderboard();
+        const gradeRankings = await getGradeLeaderboard();
 
         if (!cancelled) {
-          setGradeLeaderboard(leaderboard);
+          setGradeLeaderboard(gradeRankings);
         }
       } catch (error) {
         console.error("Failed to load grade leaderboard:", error);
+        errors.push(error);
 
         if (!cancelled) {
-          setLeaderboardError(
-            error.message || "Could not load the grade leaderboard.",
-          );
+          setGradeLeaderboard([]);
+        }
+      }
+
+      try {
+        const teacherRankings = await getTeacherLeaderboard();
+
+        if (!cancelled) {
+          setTeacherLeaderboard(teacherRankings);
+        }
+      } catch (error) {
+        console.error("Failed to load teacher leaderboard:", error);
+        errors.push(error);
+
+        if (!cancelled) {
+          setTeacherLeaderboard([]);
         }
       } finally {
         if (!cancelled) {
+          setLeaderboardError(
+            errors.length === 2
+              ? errors[0]?.message || "Could not load the reading leaderboards."
+              : "",
+          );
           setLeaderboardLoading(false);
         }
       }
@@ -776,36 +802,12 @@ function Home() {
 
   function renderRatingPicker() {
     return (
-      <div className="star-rating-picker" role="group" aria-label="Choose rating">
-        {[1, 2, 3, 4, 5].map((star) => {
-          const fill =
-            Number(finishReview.rating) >= star
-              ? "100%"
-              : Number(finishReview.rating) >= star - 0.5
-                ? "50%"
-                : "0%";
-
-          return (
-            <span className="rating-star-control" key={star}>
-              <span className="rating-star-base">★</span>
-              <span className="rating-star-fill" style={{ width: fill }}>★</span>
-              <button
-                type="button"
-                aria-label={`${star - 0.5} stars`}
-                onClick={() =>
-                  setFinishReview((draft) => ({ ...draft, rating: star - 0.5 }))
-                }
-              />
-              <button
-                type="button"
-                aria-label={`${star} stars`}
-                onClick={() => setFinishReview((draft) => ({ ...draft, rating: star }))}
-              />
-            </span>
-          );
-        })}
-        <strong>{Number(finishReview.rating).toFixed(1)}</strong>
-      </div>
+      <RatingPicker
+        value={finishReview.rating}
+        onChange={(rating) =>
+          setFinishReview((draft) => ({ ...draft, rating }))
+        }
+      />
     );
   }
   async function addModalBookToShelf() {
@@ -986,6 +988,57 @@ function Home() {
               </small>
             </div>
           </div>
+        )}
+      </section>
+
+      <section
+        className="teacher-leaderboard-strip"
+        aria-label="Teacher reading leaderboard"
+      >
+        <div className="leaderboard-strip-heading">
+          <p className="eyebrow">Teacher leaderboard</p>
+          <strong>Faculty readers</strong>
+        </div>
+
+        {leaderboardLoading ? (
+          <p className="leaderboard-status">Loading teacher totals...</p>
+        ) : leaderboardError ? (
+          <p className="profile-save-error" role="alert">
+            {leaderboardError}
+          </p>
+        ) : teacherLeaderboard.length > 0 ? (
+          <ol className="teacher-leaderboard-list">
+            {teacherLeaderboard.map((teacher, index) => {
+              const teacherName = getPublicDisplayName({
+                username: teacher.username,
+                full_name: teacher.fullName,
+              });
+
+              return (
+                <li key={teacher.userId || teacherName}>
+                  <span>{index + 1}</span>
+                  <UserAvatar
+                    avatarUrl={teacher.avatarUrl}
+                    name={teacherName}
+                    size="small"
+                  />
+                  <div>
+                    <ProfileLink userId={teacher.userId}>
+                      {teacherName}
+                    </ProfileLink>
+                    <small>
+                      {teacher.booksRead}{" "}
+                      {teacher.booksRead === 1 ? "book" : "books"} read
+                    </small>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <p className="leaderboard-empty">
+            No teacher reading totals yet.
+          </p>
         )}
       </section>
 
@@ -1204,7 +1257,7 @@ function Home() {
                     className="rating"
                     aria-label={
                       post.rating > 0
-                        ? `${post.rating} out of 5`
+                        ? `${post.rating} out of 5 open books`
                         : "No rating"
                     }
                   >

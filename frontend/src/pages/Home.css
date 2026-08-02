@@ -392,6 +392,78 @@
     32px 0 0 var(--forest);
 }
 
+.teacher-leaderboard-strip {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(210px, 0.32fr) minmax(0, 1fr);
+  gap: clamp(18px, 4vw, 46px);
+  align-items: center;
+  margin-top: 8px;
+  padding: 6px 4px 18px;
+  border-bottom: 1px solid rgba(138, 106, 88, 0.12);
+}
+
+.teacher-leaderboard-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teacher-leaderboard-list li {
+  display: grid;
+  grid-template-columns: 28px 34px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 18px 22px 20px 16px;
+  background: rgba(255, 250, 241, 0.7);
+  box-shadow: 0 10px 22px rgba(89, 67, 49, 0.07);
+}
+
+.teacher-leaderboard-list li > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--warm-mist);
+  color: var(--mocha);
+  font-family: var(--heading);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.teacher-leaderboard-list div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.teacher-leaderboard-list button {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--warm-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.teacher-leaderboard-list small {
+  color: var(--soft-gray);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .campus-favorites {
   position: relative;
   margin-top: 24px;
@@ -1509,4 +1581,3 @@
     var(--paper);
   transform: rotate(-0.25deg);
 }
-

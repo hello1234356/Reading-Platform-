@@ -45,6 +45,12 @@ function mapClub(row, currentUserId = null) {
     description: row.description || "",
     duration: row.duration || "",
     membersWanted: Number(row.members_wanted ?? 0),
+    lastActivityAt:
+      row.last_activity_at ||
+      row.updated_at ||
+      row.created_at,
+    archivedAt: row.archived_at || null,
+    archivedReason: row.archived_reason || "",
 
     tags: Array.isArray(row.tags) ? row.tags : [],
     customCoverUrl: row.cover_url || "",
@@ -110,6 +116,9 @@ const CLUB_SELECT = `
   members_wanted,
   tags,
   cover_url,
+  last_activity_at,
+  archived_at,
+  archived_reason,
   created_at,
   updated_at,
 
@@ -175,6 +184,7 @@ export async function getBookClubs(
   const { data, error } = await supabase
     .from("book_clubs")
     .select(CLUB_SELECT)
+    .is("archived_at", null)
     .order("created_at", {
       ascending: false,
     });
@@ -202,6 +212,7 @@ export async function getBookClubById({
     .from("book_clubs")
     .select(CLUB_SELECT)
     .eq("id", clubId)
+    .is("archived_at", null)
     .maybeSingle();
 
   if (error) {
@@ -413,6 +424,48 @@ export async function joinBookClub({
   if (error) {
     throw error;
   }
+}
+
+export async function recordClubActivity({
+  clubId,
+  userId,
+  eventType,
+}) {
+  if (!clubId || !userId || !eventType) {
+    return;
+  }
+
+  const supabase = requireSupabase();
+
+  const { error } = await supabase.rpc(
+    "record_club_activity",
+    {
+      target_club_id: clubId,
+      target_user_id: userId,
+      target_event_type: eventType,
+    },
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function archiveInactiveBookClubs(inactiveDays = 7) {
+  const supabase = requireSupabase();
+
+  const { data, error } = await supabase.rpc(
+    "archive_inactive_book_clubs",
+    {
+      inactive_days: inactiveDays,
+    },
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return Number(data) || 0;
 }
 
 export async function leaveBookClub({
@@ -738,6 +791,40 @@ export async function createClubPost({
   }
 
   return mapClubPost(data);
+}
+
+export async function reportClubMessageModeration({
+  clubId,
+  postId,
+  userId,
+  originalMessage,
+  filteredMessage,
+  matchedTerms,
+  severity,
+  strikeCount,
+}) {
+  if (!clubId || !postId || !userId) {
+    return;
+  }
+
+  const supabase = requireSupabase();
+
+  const { error } = await supabase
+    .from("club_message_moderation_reports")
+    .insert({
+      club_id: clubId,
+      post_id: postId,
+      user_id: userId,
+      original_message: originalMessage,
+      filtered_message: filteredMessage,
+      matched_terms: matchedTerms,
+      severity,
+      strike_count: strikeCount,
+    });
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function deleteClubPost({

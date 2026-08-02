@@ -18,6 +18,7 @@ export async function getPublicProfile(userId) {
       full_name,
       username,
       grade,
+      account_type,
       bio,
       avatar_url,
       favorite_book_1,

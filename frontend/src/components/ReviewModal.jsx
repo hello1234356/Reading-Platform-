@@ -1,35 +1,4 @@
-function RatingPicker({ value, onChange }) {
-  return (
-    <div className="star-rating-picker" role="group" aria-label="Choose rating">
-      {[1, 2, 3, 4, 5].map((star) => {
-        const fill =
-          Number(value) >= star
-            ? "100%"
-            : Number(value) >= star - 0.5
-              ? "50%"
-              : "0%";
-
-        return (
-          <span className="rating-star-control" key={star}>
-            <span className="rating-star-base">★</span>
-            <span className="rating-star-fill" style={{ width: fill }}>★</span>
-            <button
-              type="button"
-              aria-label={`${star - 0.5} stars`}
-              onClick={() => onChange(star - 0.5)}
-            />
-            <button
-              type="button"
-              aria-label={`${star} stars`}
-              onClick={() => onChange(star)}
-            />
-          </span>
-        );
-      })}
-      <strong>{Number(value).toFixed(1)}</strong>
-    </div>
-  );
-}
+import { RatingPicker } from "./StarRating";
 
 function ReviewModal({
   book,

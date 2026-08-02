@@ -150,13 +150,27 @@
   background: rgba(255, 250, 241, 0.86);
 }
 
-.rating-star-control {
+.star-rating {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.rating-star-control,
+.rating-picker-control {
   position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
   width: 28px;
   height: 28px;
   color: rgba(138, 106, 88, 0.22);
   font-size: 27px;
   line-height: 1;
+}
+
+.rating-picker-control,
+.rating-book-control {
+  display: block;
 }
 
 .rating-star-base,
@@ -172,7 +186,37 @@
   white-space: nowrap;
 }
 
-.rating-star-control button {
+.rating-book-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  color: currentColor;
+  overflow: visible;
+}
+
+.rating-star-fill .rating-book-svg {
+  width: var(--rating-size, 28px);
+  max-width: none;
+}
+
+.rating-book-svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rating-book-svg path:first-child {
+  fill: currentColor;
+  fill-opacity: 0.14;
+}
+
+.rating-star-fill .rating-book-svg path:first-child {
+  fill-opacity: 0.28;
+}
+
+.rating-picker-control button {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -182,11 +226,11 @@
   background: transparent;
 }
 
-.rating-star-control button:first-of-type {
+.rating-picker-control button:first-of-type {
   left: 0;
 }
 
-.rating-star-control button:last-of-type {
+.rating-picker-control button:last-of-type {
   right: 0;
 }
 
@@ -254,4 +298,3 @@
   font-size: 14px;
   line-height: 1.6;
 }
-

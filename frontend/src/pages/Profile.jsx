@@ -107,7 +107,7 @@ function Profile() {
         const { data, error } = await supabase
           .from("profiles")
           .select(
-            "id, username, full_name, avatar_url, bio, yearly_goal, grade, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
+            "id, username, full_name, avatar_url, bio, yearly_goal, grade, account_type, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
           )
           .eq("id", user.id)
           .maybeSingle();
@@ -372,7 +372,7 @@ function Profile() {
         .update(updates)
         .eq("id", user.id)
         .select(
-          "id, username, full_name, avatar_url, bio, yearly_goal, grade, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
+          "id, username, full_name, avatar_url, bio, yearly_goal, grade, account_type, favorite_book_1, favorite_book_2, favorite_book_3, favorite_book_4, created_at, updated_at",
         )
         .single();
 
@@ -720,7 +720,7 @@ function Profile() {
           rating: reviewDraft.rating,
           note:
             reviewDraft.review.trim() ||
-            `Rated ${reviewDraft.rating.toFixed(1)} ⭐`,
+            `Rated ${reviewDraft.rating.toFixed(1)} open books`,
         });
       }
       setReviews((currentReviews) => [
@@ -1117,7 +1117,7 @@ function Profile() {
 
                   <div
                     className="profile-review-stars"
-                    aria-label={`${review.rating} out of 5 stars`}
+                    aria-label={`${review.rating} out of 5 open books`}
                   >
                     <StarRating rating={review.rating} />
                   </div>

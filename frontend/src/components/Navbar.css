@@ -3,7 +3,7 @@
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: minmax(220px, 0.82fr) minmax(420px, 1.08fr) minmax(210px, 0.72fr) auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(680px, auto) minmax(240px, 1fr);
   align-items: center;
   gap: 24px;
   min-height: 96px;
@@ -19,7 +19,9 @@
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-height: 54px;
+  justify-self: start;
   padding: 4px 0;
   text-decoration: none;
 }
@@ -43,9 +45,20 @@
   box-shadow: inset 0 -8px 0 rgba(244, 220, 123, 0.28), var(--pillow-shadow);
 }
 
+.school-logo {
+  width: auto;
+  height: 42px;
+  display: block;
+  flex: 0 0 auto;
+  justify-self: end;
+  object-fit: contain;
+}
+
 .brand-copy {
   display: grid;
   gap: 2px;
+  align-content: center;
+  min-height: 42px;
   min-width: 0;
 }
 
@@ -80,14 +93,20 @@
   justify-content: center;
   gap: 14px;
   min-width: 0;
+}
+
+.nav-center {
+  display: grid;
+  grid-template-columns: auto minmax(210px, 320px) auto;
+  align-items: center;
   justify-self: center;
+  gap: 18px;
 }
 
 .nav-search {
   position: relative;
   width: min(320px, 100%);
   min-width: 0;
-  justify-self: end;
 }
 
 .nav-search input {
@@ -179,6 +198,10 @@
   transform: rotate(-1deg);
 }
 
+.nav-link.active::after {
+  background: rgba(244, 220, 123, 0.5);
+}
+
 .nav-link:hover::after,
 .nav-link.active::after {
   background: rgba(244, 220, 123, 0.58);
@@ -193,3 +216,10 @@
   box-shadow: var(--pillow-shadow);
 }
 
+.nav-center {
+  grid-column: 2;
+}
+
+.school-logo {
+  grid-column: 3;
+}

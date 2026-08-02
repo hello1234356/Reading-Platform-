@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1536" viewBox="0 0 1080 1536">
+  <defs>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#236081" flood-opacity="0.18"/>
+    </filter>
+    <style>
+      .cn { font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      .title { font-weight: 900; letter-spacing: 1px; }
+      .body { font-size: 29px; fill: #22445e; font-weight: 800; }
+      .small { font-size: 23px; fill: #42657c; font-weight: 750; }
+      .en { font-size: 32px; fill: #fffaf0; font-weight: 900; letter-spacing: 1px; }
+      .banner { paint-order: stroke; stroke: #2d6889; stroke-width: 5px; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="1080" height="1536" fill="#79bce3"/>
+  <path d="M62 126 C214 48 458 35 682 44 C856 51 1004 88 1036 176 C1054 226 1004 270 916 286 C1032 350 1025 464 918 510 C1014 586 990 690 882 724 C970 800 940 902 810 900 C846 1004 740 1062 636 1014 C570 1098 422 1074 390 982 C266 1022 151 962 178 866 C66 856 7 763 76 694 C-9 622 20 502 130 478 C48 398 66 302 178 276 C82 246 -18 168 62 126Z" fill="#fffaf0" opacity="0.96" filter="url(#softShadow)"/>
+  <path d="M108 145 C242 82 440 68 631 73 C808 78 938 108 994 166" fill="none" stroke="#fffaf0" stroke-width="12" stroke-linecap="round"/>
+  <path d="M128 170 C254 114 434 102 620 106 C780 110 902 136 955 182" fill="none" stroke="#2d6889" stroke-width="78" stroke-linecap="round"/>
+  <text class="cn en banner" x="540" y="166" text-anchor="middle">What We Offer / What You Can Bring</text>
+
+  <g transform="translate(160 244)">
+    <path d="M0 90 C52 4 202 -18 286 42 C384 -4 548 10 614 91 C690 184 618 296 488 284 C390 354 224 335 180 254 C64 260 -36 188 0 90Z" fill="#fff6df"/>
+    <text class="cn title" x="310" y="118" text-anchor="middle" font-size="110" fill="#f5bf3f">合作</text>
+    <text class="cn title" x="310" y="230" text-anchor="middle" font-size="124" fill="#e95b47">方式</text>
+  </g>
+
+  <g transform="translate(92 566)">
+    <g>
+      <rect x="0" y="0" width="432" height="440" rx="58" fill="#ffeaa6"/>
+      <path d="M56 52 C138 26 286 24 366 54" fill="none" stroke="#fffaf0" stroke-width="10" stroke-linecap="round" opacity="0.7"/>
+      <text class="cn title" x="50" y="78" font-size="45" fill="#e95b47">我们将提供</text>
+      <g transform="translate(50 130)">
+        <circle cx="18" cy="12" r="12" fill="#e95b47"/>
+        <text class="cn body" x="48" y="22">统一摊位</text>
+        <text class="cn small" x="48" y="60">长桌 + 基本装饰用品，</text>
+        <text class="cn small" x="48" y="96">打造舒适展览空间</text>
+      </g>
+      <g transform="translate(50 252)">
+        <circle cx="18" cy="12" r="12" fill="#2d6889"/>
+        <text class="cn body" x="48" y="22">志愿者协助</text>
+        <text class="cn small" x="48" y="60">若不能全程到场，</text>
+        <text class="cn small" x="48" y="96">可协助摊位运营</text>
+      </g>
+      <g transform="translate(50 360)">
+        <circle cx="18" cy="12" r="12" fill="#62a86b"/>
+        <text class="cn body" x="48" y="22">文学护照打卡互动</text>
+      </g>
+    </g>
+
+    <g transform="translate(464 0)">
+      <rect x="0" y="0" width="432" height="440" rx="58" fill="#ffd5c8"/>
+      <path d="M60 366 C150 404 282 402 368 365" fill="none" stroke="#fffaf0" stroke-width="10" stroke-linecap="round" opacity="0.75"/>
+      <text class="cn title" x="50" y="78" font-size="45" fill="#2d6889">我们期待</text>
+      <g transform="translate(50 130)">
+        <circle cx="18" cy="12" r="12" fill="#f5bf3f"/>
+        <text class="cn body" x="48" y="22">书店特色海报</text>
+        <text class="cn small" x="48" y="60">用于社交媒体宣传</text>
+        <text class="cn small" x="48" y="96">及现场展示</text>
+      </g>
+      <g transform="translate(50 252)">
+        <circle cx="18" cy="12" r="12" fill="#e95b47"/>
+        <text class="cn body" x="48" y="22">精选主题图书</text>
+        <text class="cn small" x="48" y="60">可供现场读者购买/翻阅，</text>
+        <text class="cn small" x="48" y="96">合法即可！</text>
+      </g>
+      <g transform="translate(50 360)">
+        <circle cx="18" cy="12" r="12" fill="#62a86b"/>
+        <text class="cn body" x="48" y="22">文学主题互动方案</text>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(142 1068)">
+    <path d="M98 184 h608 v166 h-608 z" fill="#7d4e31"/>
+    <path d="M60 116 h686 l-44 88 h-598 z" fill="#fff1c9"/>
+    <path d="M86 116 h90 v88 h-124 z M202 116 h90 v88 h-116 z M318 116 h90 v88 h-116 z M434 116 h90 v88 h-116 z M550 116 h90 v88 h-116 z M666 116 h80 l-44 88 h-62 z" fill="#e95b47"/>
+    <rect x="164" y="220" width="54" height="102" rx="8" fill="#9bcf8e"/>
+    <rect x="232" y="196" width="45" height="126" rx="8" fill="#f5bf3f"/>
+    <rect x="292" y="214" width="50" height="108" rx="8" fill="#79bce3"/>
+    <rect x="358" y="186" width="42" height="136" rx="8" fill="#f4a48b"/>
+    <rect x="420" y="206" width="54" height="116" rx="8" fill="#fffaf0"/>
+    <rect x="502" y="190" width="52" height="132" rx="8" fill="#79bce3"/>
+    <text class="cn title" x="402" y="84" text-anchor="middle" font-size="58" fill="#fffaf0">BOOKS</text>
+    <rect x="264" y="26" width="276" height="82" rx="18" fill="#2d6889"/>
+    <text class="cn title" x="402" y="82" text-anchor="middle" font-size="48" fill="#fffaf0">合作书摊</text>
+
+    <g transform="translate(726 92)">
+      <rect x="0" y="0" width="164" height="250" rx="22" fill="#f5bf3f"/>
+      <rect x="20" y="26" width="124" height="186" rx="12" fill="#2d6889"/>
+      <path d="M44 70 C68 52 92 52 114 70 C132 54 154 56 172 72" fill="none" stroke="#fffaf0" stroke-width="8" stroke-linecap="round" transform="translate(-22 0)"/>
+    </g>
+  </g>
+
+  <g transform="translate(132 1430)">
+    <path d="M0 0 h816" stroke="#fffaf0" stroke-width="8" stroke-linecap="round"/>
+    <text class="cn small" x="408" y="48" text-anchor="middle" fill="#22445e">欢迎直接与主办方沟通具体合作形式～</text>
+  </g>
+
+  <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.9">
+    <path d="M78 344 c-24 22 -20 56 10 72 c28 -20 26 -56 -10 -72Z"/>
+    <path d="M944 346 l22 42 l47 6 l-35 32 l8 48 l-42 -22 l-42 22 l8 -48 l-34 -32 l46 -6Z"/>
+    <path d="M84 1180 c36 32 86 28 112 -12"/>
+    <path d="M930 1192 c42 14 84 -4 104 -44"/>
+  </g>
+  <g fill="#e95b47">
+    <circle cx="920" cy="232" r="12"/>
+    <circle cx="966" cy="260" r="9"/>
+    <circle cx="94" cy="1012" r="10"/>
+  </g>
+</svg>

@@ -9,6 +9,7 @@ import { getOpenLibraryBookDetails } from "../lib/openLibrary";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
+import StarRating from "../components/StarRating";
 import { createPost } from "../lib/postApi";
 
 function getCoverUrl(isbn, size = "L") {
@@ -273,7 +274,7 @@ async function submitReview(event) {
         rating: reviewDraft.rating,
         note:
           reviewDraft.review.trim() ||
-          `Rated ${reviewDraft.rating.toFixed(1)} ⭐`,
+          `Rated ${reviewDraft.rating.toFixed(1)} open books`,
       });
     }
 	
@@ -308,6 +309,7 @@ async function openBookDetails(book) {
         <div className="discover-page-title">
           <p className="eyebrow">Find your next shelf obsession</p>
           <h1>Discover</h1>
+          <p className="school-motto">Try, and all is possible.</p>
         </div>
         <form className="discovery-search-bar" onSubmit={searchBooks}>
           <label className="sr-only" htmlFor="book-search">Book title, author, or ISBN</label>
@@ -362,8 +364,12 @@ async function openBookDetails(book) {
                   <div>
                     <strong>{book.title}</strong>
                     <small>{book.author}</small>
-                    <span className="recent-finish-rating" aria-hidden="true">
-                      ★ {book.rating.toFixed(1)}
+                    <span
+                      className="recent-finish-rating"
+                      aria-label={`${book.rating.toFixed(1)} out of 5 open books`}
+                    >
+                      <StarRating rating={book.rating} size={14} />
+                      {book.rating.toFixed(1)}
                     </span>
                   </div>
                 </button>
@@ -506,7 +512,7 @@ async function openBookDetails(book) {
               </div>
             </div>
 	          </section>
-	
+
             {authoredRecommendationPosts.length > 0 ? (
               <section className="themed-lists-section" aria-label="Student recommendation posts">
                 <div className="section-heading">

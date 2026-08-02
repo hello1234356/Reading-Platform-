@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1536" viewBox="0 0 1080 1536">
+  <defs>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#236081" flood-opacity="0.18"/>
+    </filter>
+    <style>
+      .cn { font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+      .title { font-weight: 900; letter-spacing: 1px; }
+      .body { font-size: 30px; line-height: 1.45; fill: #22445e; font-weight: 700; }
+      .small { font-size: 25px; fill: #22445e; font-weight: 800; }
+      .tiny { font-size: 21px; fill: #42657c; font-weight: 700; }
+      .banner { paint-order: stroke; stroke: #2d6889; stroke-width: 5px; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <rect width="1080" height="1536" fill="#79bce3"/>
+  <path d="M42 122 C180 48 420 36 650 38 C840 40 998 72 1044 154 C1064 190 1028 235 944 256 C1037 316 1038 410 950 456 C1030 522 1033 620 933 670 C1018 744 1004 846 902 884 C968 946 935 1046 826 1054 C874 1134 800 1214 672 1192 C640 1280 493 1278 451 1198 C324 1240 207 1186 230 1096 C110 1095 42 1018 96 940 C-10 898 -16 782 80 728 C-18 666 -18 542 92 502 C-4 438 14 326 130 298 C54 256 -28 170 42 122Z" fill="#fffaf0" opacity="0.95" filter="url(#softShadow)"/>
+  <path d="M104 148 C238 82 428 70 620 74 C796 78 930 103 991 153" fill="none" stroke="#fffaf0" stroke-width="12" stroke-linecap="round"/>
+  <path d="M126 170 C250 112 432 101 616 104 C778 107 901 131 958 176" fill="none" stroke="#2d6889" stroke-width="78" stroke-linecap="round"/>
+  <text class="cn title banner" x="540" y="162" text-anchor="middle" font-size="48" fill="#fffaf0" transform="rotate(1 540 162)">Gen-Z 青年阅读节</text>
+
+  <g transform="translate(120 245)">
+    <path d="M25 50 C117 -18 268 -12 342 34 C434 -8 566 6 622 88 C700 190 624 310 488 300 C394 368 242 356 188 286 C77 294 -23 223 7 126 C12 95 22 70 25 50Z" fill="#fff6df"/>
+    <text class="cn title" x="325" y="128" text-anchor="middle" font-size="110" fill="#f5bf3f">活动</text>
+    <text class="cn title" x="325" y="238" text-anchor="middle" font-size="126" fill="#e95b47">介绍</text>
+  </g>
+
+  <g transform="translate(116 560)">
+    <text class="cn body" x="0" y="0">
+      <tspan x="0" dy="0">Gen Z 阅读节由清澜山学校高中生自主发起、策划与组织，</tspan>
+      <tspan x="0" dy="48">是一场属于青年读者与写作者的文学文化活动。</tspan>
+      <tspan x="0" dy="60">我们希望推广阅读与写作文化，为年轻读者、学生作者、</tspan>
+      <tspan x="0" dy="48">学生出版物及校园媒体搭建交流、展示与合作的平台。</tspan>
+    </text>
+  </g>
+
+  <g transform="translate(118 805)">
+    <g>
+      <rect x="0" y="0" width="392" height="155" rx="42" fill="#f7d86f"/>
+      <path d="M40 36 C100 15 276 12 344 33" fill="none" stroke="#fffaf0" stroke-width="9" stroke-linecap="round" opacity="0.75"/>
+      <text class="cn title" x="38" y="62" font-size="33" fill="#df4f42">多元活动</text>
+      <text class="cn tiny" x="38" y="105">文学市集 / 学生作者论坛</text>
+      <text class="cn tiny" x="38" y="136">新书发布 / 互动文学空间</text>
+    </g>
+    <g transform="translate(430 0)">
+      <rect x="0" y="0" width="392" height="155" rx="42" fill="#b9d8ef"/>
+      <path d="M42 116 C120 140 266 140 344 112" fill="none" stroke="#fffaf0" stroke-width="9" stroke-linecap="round" opacity="0.8"/>
+      <text class="cn title" x="38" y="62" font-size="33" fill="#2d6889">青年文学市集</text>
+      <text class="cn tiny" x="38" y="105">邀请大湾区独立/连锁书店</text>
+      <text class="cn tiny" x="38" y="136">共同打造线下阅读空间</text>
+    </g>
+    <g transform="translate(0 190)">
+      <rect x="0" y="0" width="392" height="155" rx="42" fill="#f4a48b"/>
+      <text class="cn title" x="38" y="62" font-size="33" fill="#ffffff">面对面交流</text>
+      <text class="cn tiny" x="38" y="105">展售优质书籍，分享精选读物</text>
+      <text class="cn tiny" x="38" y="136">策划文学主题互动</text>
+    </g>
+    <g transform="translate(430 190)">
+      <rect x="0" y="0" width="392" height="155" rx="42" fill="#fff0b8"/>
+      <text class="cn title" x="38" y="62" font-size="33" fill="#df4f42">重新连接阅读</text>
+      <text class="cn tiny" x="38" y="105">让更多年轻人在文字中</text>
+      <text class="cn tiny" x="38" y="136">发现共鸣与乐趣</text>
+    </g>
+  </g>
+
+  <g transform="translate(103 1235)">
+    <path d="M0 0 H874 Q918 0 918 44 V142 Q918 186 874 186 H0 Q-44 186 -44 142 V44 Q-44 0 0 0Z" fill="#fff8df"/>
+    <text class="cn small" x="44" y="64">若贵店对此次活动感兴趣，</text>
+    <text class="cn title" x="44" y="112" font-size="39" fill="#e95b47">期待进一步了解合作详情。</text>
+    <g transform="translate(705 28)">
+      <path d="M22 18 h120 a16 16 0 0 1 16 16 v92 h-152 v-92 a16 16 0 0 1 16-16Z" fill="#f8cc55"/>
+      <rect x="42" y="44" width="110" height="74" rx="10" fill="#2d6889"/>
+      <path d="M54 68 C76 52 94 52 110 68 C128 52 146 52 166 68" fill="none" stroke="#fffaf0" stroke-width="7" stroke-linecap="round"/>
+      <path d="M50 128 h120" stroke="#e95b47" stroke-width="13" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" opacity="0.9">
+    <path d="M82 374 c-23 20 -22 52 4 70 c30 -18 30 -52 -4 -70Z"/>
+    <path d="M940 355 l22 44 l48 6 l-34 34 l8 48 l-44 -23 l-43 23 l8 -48 l-35 -34 l49 -6Z"/>
+    <path d="M86 1166 c30 34 80 31 105 -8"/>
+    <path d="M908 1160 c44 10 81 -6 104 -45"/>
+  </g>
+  <g fill="#f5bf3f" stroke="#ffffff" stroke-width="8" stroke-linejoin="round">
+    <path d="M70 246 l24 36 l42 12 l-35 25 l-1 43 l-34 -26 l-42 12 l15 -41 l-24 -36 l43 2Z"/>
+  </g>
+  <g fill="#e95b47">
+    <circle cx="936" cy="218" r="12"/>
+    <circle cx="970" cy="244" r="9"/>
+    <circle cx="94" cy="1010" r="10"/>
+  </g>
+</svg>
