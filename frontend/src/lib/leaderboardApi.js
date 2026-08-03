@@ -24,7 +24,6 @@ export async function getGradeLeaderboard() {
     .map((grade) => rankingsByGrade.get(grade) || { grade, booksRead: 0 })
     .sort((a, b) => b.booksRead - a.booksRead || a.grade - b.grade);
 }
-
 export async function getTeacherLeaderboard() {
   const supabase = requireSupabase();
 
@@ -36,11 +35,5 @@ export async function getTeacherLeaderboard() {
     throw error;
   }
 
-  return (data || []).map((row) => ({
-    userId: row.user_id,
-    username: row.username || "",
-    fullName: row.full_name || "",
-    avatarUrl: row.avatar_url || "",
-    booksRead: Number(row.books_read) || 0,
-  }));
+  return Number(data?.[0]?.books_read) || 0;
 }

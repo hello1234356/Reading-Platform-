@@ -26,8 +26,6 @@ import {
   getTeacherLeaderboard,
 } from "../lib/leaderboardApi";
 import ProfileLink from "../components/ProfileLink";
-import { getPublicDisplayName } from "../lib/identity";
-
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
 const defaultTrackedBook = {
@@ -198,7 +196,7 @@ function Home() {
   const [deletingCommentId, setDeletingCommentId] = useState(null);
   const [deletePostError, setDeletePostError] = useState("");
   const [gradeLeaderboard, setGradeLeaderboard] = useState([]);
-  const [teacherLeaderboard, setTeacherLeaderboard] = useState([]);
+  const [teacherBooksRead, setTeacherBooksRead] = useState(0);  
   const [leaderboardLoading, setLeaderboardLoading] = useState(true);
   const [leaderboardError, setLeaderboardError] = useState("");
 
@@ -255,17 +253,17 @@ function Home() {
       }
 
       try {
-        const teacherRankings = await getTeacherLeaderboard();
+        const teacherTotal = await getTeacherLeaderboard();
 
         if (!cancelled) {
-          setTeacherLeaderboard(teacherRankings);
+          setTeacherBooksRead(teacherTotal);
         }
       } catch (error) {
         console.error("Failed to load teacher leaderboard:", error);
         errors.push(error);
 
         if (!cancelled) {
-          setTeacherLeaderboard([]);
+          setTeacherBooksRead(0);
         }
       } finally {
         if (!cancelled) {
@@ -904,9 +902,26 @@ function Home() {
       setPublishingNote(false);
     }
   }
-  const firstPlace = gradeLeaderboard[0];
-  const secondPlace = gradeLeaderboard[1];
-  const thirdPlace = gradeLeaderboard[2];
+  const combinedLeaderboard = [
+    ...gradeLeaderboard.map((ranking) => ({
+      label: `Grade ${ranking.grade}`,
+      booksRead: ranking.booksRead,
+      tieOrder: ranking.grade,
+    })),
+    {
+      label: "Teachers",
+      booksRead: teacherBooksRead,
+      tieOrder: 13,
+    },
+  ].sort(
+    (a, b) =>
+      b.booksRead - a.booksRead ||
+      a.tieOrder - b.tieOrder,
+);
+
+const firstPlace = combinedLeaderboard[0];
+const secondPlace = combinedLeaderboard[1];
+const thirdPlace = combinedLeaderboard[2];    
 
   return (
     <div className="home-page">
@@ -937,10 +952,10 @@ function Home() {
 
       <section
         className="grade-leaderboard-strip"
-        aria-label="Reading grade leaderboard"
+        aria-label="School Reading leaderboard"
       >
         <div className="leaderboard-strip-heading">
-          <p className="eyebrow">Grade leaderboard</p>
+          <p className="eyebrow">School leaderboard</p>
           <strong>Total books read</strong>
         </div>
 
@@ -953,12 +968,12 @@ function Home() {
         ) : (
           <div
             className="leaderboard-podium"
-            aria-label="Top three grades by books read"
+            aria-label="Top three school groups by books read"
           >
             <div className="podium-step second">
               <span aria-label="Second place">2</span>
               <strong>
-                Grade {secondPlace?.grade ?? "—"}
+                {secondPlace?.label ?? "—"}
               </strong>
               <small>
                 {secondPlace?.booksRead ?? 0}{" "}
@@ -969,7 +984,7 @@ function Home() {
             <div className="podium-step first">
               <span aria-label="First place">1</span>
               <strong>
-                Grade {firstPlace?.grade ?? "—"}
+                {firstPlace?.label ?? "—"}
               </strong>
               <small>
                 {firstPlace?.booksRead ?? 0}{" "}
@@ -980,8 +995,8 @@ function Home() {
             <div className="podium-step third">
               <span aria-label="Third place">3</span>
               <strong>
-                Grade {thirdPlace?.grade ?? "—"}
-              </strong>
+                {thirdPlace?.label ?? "—"}
+              </strong> 
               <small>
                 {thirdPlace?.booksRead ?? 0}{" "}
                 {(thirdPlace?.booksRead ?? 0) === 1 ? "book" : "books"} read
@@ -990,58 +1005,6 @@ function Home() {
           </div>
         )}
       </section>
-
-      <section
-        className="teacher-leaderboard-strip"
-        aria-label="Teacher reading leaderboard"
-      >
-        <div className="leaderboard-strip-heading">
-          <p className="eyebrow">Teacher leaderboard</p>
-          <strong>Faculty readers</strong>
-        </div>
-
-        {leaderboardLoading ? (
-          <p className="leaderboard-status">Loading teacher totals...</p>
-        ) : leaderboardError ? (
-          <p className="profile-save-error" role="alert">
-            {leaderboardError}
-          </p>
-        ) : teacherLeaderboard.length > 0 ? (
-          <ol className="teacher-leaderboard-list">
-            {teacherLeaderboard.map((teacher, index) => {
-              const teacherName = getPublicDisplayName({
-                username: teacher.username,
-                full_name: teacher.fullName,
-              });
-
-              return (
-                <li key={teacher.userId || teacherName}>
-                  <span>{index + 1}</span>
-                  <UserAvatar
-                    avatarUrl={teacher.avatarUrl}
-                    name={teacherName}
-                    size="small"
-                  />
-                  <div>
-                    <ProfileLink userId={teacher.userId}>
-                      {teacherName}
-                    </ProfileLink>
-                    <small>
-                      {teacher.booksRead}{" "}
-                      {teacher.booksRead === 1 ? "book" : "books"} read
-                    </small>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        ) : (
-          <p className="leaderboard-empty">
-            No teacher reading totals yet.
-          </p>
-        )}
-      </section>
-
 	      <div className="home-grid">
 	        <aside className="shelf-rail" aria-label="Your reading shelves">
 	          {isLoggedIn ? (
