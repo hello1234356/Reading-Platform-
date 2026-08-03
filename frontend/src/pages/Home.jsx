@@ -28,6 +28,7 @@ import {
 import ProfileLink from "../components/ProfileLink";
 import ModerationWarningCard from "../components/ModerationWarningCard";
 import ModerationStatusBar from "../components/ModerationStatusBar";
+import ModerationBlockedCard from "../components/ModerationBlockedCard";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -235,6 +236,8 @@ function Home() {
   const [moderationConfirming, setModerationConfirming] =
     useState(false);
   const [moderationWarning, setModerationWarning] =
+    useState(null);
+  const [moderationBlocked, setModerationBlocked] =
     useState(null);
   const [publishNoteError, setPublishNoteError] = useState("");
   const selectedComposerBook = libraryBooks.find(
@@ -500,6 +503,7 @@ function Home() {
     if (!comment) return;
 
     setModerationWarning(null);
+    setModerationBlocked(null);
     setDeletePostError("");
     setCommentModeratingPostId(postId);
 
@@ -543,10 +547,23 @@ function Home() {
       }
 
       if (error.code === "MODERATION_BLOCK") {
-        setDeletePostError(
-          error.message ||
-            "This comment cannot be published.",
-        );
+        setModerationBlocked({
+          type: "feed-comment",
+          postId,
+          level: "block",
+          message: error.message,
+        });
+
+        return;
+      }
+
+      if (error.code === "MODERATION_REPORT") {
+        setModerationBlocked({
+          type: "feed-comment",
+          postId,
+          level: "report",
+          message: error.message,
+        });
 
         return;
       }
@@ -561,30 +578,25 @@ function Home() {
   }
   async function confirmWarnedFeedComment() {
     if (
-      moderationWarning?.type !==
-        "feed-comment" ||
+      moderationWarning?.type !== "feed-comment" ||
       !moderationWarning.postId ||
       !user?.id
     ) {
       return;
     }
 
-    const {
-      postId,
-      text,
-    } = moderationWarning;
+    const { postId, text } = moderationWarning;
 
     setModerationConfirming(true);
     setDeletePostError("");
 
     try {
-      const createdComment =
-        await addPostComment({
-          postId,
-          userId: user.id,
-          comment: text,
-          allowModerationWarning: true,
-        });
+      const createdComment = await addPostComment({
+        postId,
+        userId: user.id,
+        comment: text,
+        allowModerationWarning: true,
+      });
 
       setPosts((currentPosts) =>
         currentPosts.map((currentPost) =>
@@ -607,6 +619,28 @@ function Home() {
         "Failed to publish warned comment:",
         error,
       );
+
+      if (error.code === "MODERATION_BLOCK") {
+        setModerationWarning(null);
+        setModerationBlocked({
+          type: "feed-comment",
+          postId,
+          level: "block",
+          message: error.message,
+        });
+        return;
+      }
+
+      if (error.code === "MODERATION_REPORT") {
+        setModerationWarning(null);
+        setModerationBlocked({
+          type: "feed-comment",
+          postId,
+          level: "report",
+          message: error.message,
+        });
+        return;
+      }
 
       setDeletePostError(
         error.message ||
@@ -669,6 +703,7 @@ function Home() {
 
   function closeComposer() {
     setModerationWarning(null);
+    setModerationBlocked(null);
     setIsComposerOpen(false);
   }
 
@@ -991,6 +1026,7 @@ function Home() {
     setPublishingNote(true);
     setPublishNoteError("");
     setModerationWarning(null);
+    setModerationBlocked(null);
 
     try {
       const createdPost = await createPost({
@@ -1034,10 +1070,21 @@ function Home() {
       }
 
       if (error.code === "MODERATION_BLOCK") {
-        setPublishNoteError(
-          error.message ||
-            "This post cannot be published.",
-        );
+        setModerationBlocked({
+          type: "feed-post",
+          level: "block",
+          message: error.message,
+        });
+
+        return;
+      }
+
+      if (error.code === "MODERATION_REPORT") {
+        setModerationBlocked({
+          type: "feed-post",
+          level: "report",
+          message: error.message,
+        });
 
         return;
       }
@@ -1097,6 +1144,35 @@ function Home() {
       setModerationWarning(null);
       setIsComposerOpen(false);
     } catch (error) {
+      console.error(
+        "Failed to publish warned reading note:",
+        error,
+      );
+
+      if (error.code === "MODERATION_BLOCK") {
+        setModerationWarning(null);
+        setModerationBlocked({
+          type: "feed-post",
+          level: "block",
+          message: error.message,
+        });
+        return;
+      }
+
+      if (error.code === "MODERATION_REPORT") {
+        setModerationWarning(null);
+        setModerationBlocked({
+          type: "feed-post",
+          level: "report",
+          message: error.message,
+        });
+        return;
+      }
+
+      setPublishNoteError(
+        error.message ||
+          "Could not publish your note.",
+      );
       console.error(
         "Failed to publish warned reading note:",
         error,
@@ -1525,6 +1601,17 @@ const thirdPlace = combinedLeaderboard[2];
                       }
                     />
                   )}
+                  {moderationBlocked?.type ===
+                    "feed-comment" &&
+                    moderationBlocked.postId === post.id && (
+                      <ModerationBlockedCard
+                        level={moderationBlocked.level}
+                        message={moderationBlocked.message}
+                        onEdit={() =>
+                          setModerationBlocked(null)
+                        }
+                      />
+                    )}
                 <div className="comment-form">
                   <input
                     type="text"
@@ -1546,9 +1633,21 @@ const thirdPlace = combinedLeaderboard[2];
                       ) {
                         setModerationWarning(null);
                       }
+                      if (
+                        moderationBlocked?.type ===
+                          "feed-comment" &&
+                        moderationBlocked.postId === post.id
+                      ) {
+                        setModerationBlocked(null);
+                      }
                     }}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter") {
+                      if (
+                        event.key === "Enter" &&
+                        commentModeratingPostId === null &&
+                        !moderationConfirming
+                      ) {
+                        event.preventDefault();
                         addComment(post.id);
                       }
                     }}
@@ -1657,6 +1756,12 @@ const thirdPlace = combinedLeaderboard[2];
                     ) {
                       setModerationWarning(null);
                     }
+                    if (
+                      moderationBlocked?.type ===
+                      "feed-post"
+                    ) {
+                      setModerationBlocked(null);
+                    }
                   }}
                   placeholder="What line, thought, or review do you want to share?"
                   rows="6"
@@ -1682,6 +1787,16 @@ const thirdPlace = combinedLeaderboard[2];
                     }
                   />
                 )}
+                {moderationBlocked?.type ===
+                  "feed-post" && (
+                    <ModerationBlockedCard
+                      level={moderationBlocked.level}
+                      message={moderationBlocked.message}
+                      onEdit={() =>
+                        setModerationBlocked(null)
+                      }
+                    />
+                  )}
                 <div className="modal-preview">
                   <div className="tracked-cover" aria-hidden="true">
                     {selectedComposerBook ? (

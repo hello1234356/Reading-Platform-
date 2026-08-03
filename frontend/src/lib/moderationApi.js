@@ -18,13 +18,13 @@ function runKeywordFallback(text, contextType) {
   let feedback = "";
 
   if (legacyResult.severity === "high") {
+    action = "report";
+    feedback =
+      "This message severely violates our community guidelines. It has been blocked and marked for moderator review.";
+  } else if (legacyResult.hasFilteredLanguage) {
     action = "block";
     feedback =
-      "This message contains language that cannot be published.";
-  } else if (legacyResult.hasFilteredLanguage) {
-    action = "warn";
-    feedback =
-      "This message may come across as disrespectful. Consider revising it before posting.";
+      "This message contains language that is not permitted on the school platform. Please revise it before posting.";
   }
 
   return {
@@ -32,19 +32,23 @@ function runKeywordFallback(text, contextType) {
     contextType,
     originalText,
     approvedText: originalText,
-    filteredText: legacyResult.filteredText,
+    filteredText: originalText,
     matchedTerms: legacyResult.matchedTerms,
     severity:
-      action === "block"
+      action === "report"
         ? "high"
-        : action === "warn"
-          ? legacyResult.severity
+        : action === "block"
+          ? "medium"
           : "none",
     feedback,
     reason: "Keyword fallback moderation.",
-    categories: [],
+    categories:
+      action === "allow"
+        ? ["none"]
+        : ["profanity"],
+    target: "unknown",
     confidence: 0,
-    needsReview: action === "block",
+    needsReview: action === "report",
     provider: "keyword-fallback",
   };
 }
@@ -93,33 +97,23 @@ export async function moderateContent({
       );
     }
 
-    const normalizedAction =
-      data.action === "report"
-        ? "block"
-        : data.action;
-
     return {
-      action: normalizedAction,
+      action: data.action,
       contextType,
       originalText,
       approvedText: originalText,
       filteredText: originalText,
       matchedTerms: [],
-      severity:
-        data.action === "report"
-          ? "high"
-          : data.severity || "none",
+      severity: data.severity || "none",
       feedback: data.feedback || "",
       reason: data.reason || "",
       categories: Array.isArray(data.categories)
         ? data.categories
         : [],
+      target: data.target || "unknown",
       confidence: Number(data.confidence) || 0,
-      needsReview:
-        data.action === "report" ||
-        data.action === "block" ||
-        Boolean(data.needsReview),
-      provider: "deepseek",
+      needsReview: Boolean(data.needsReview),
+      provider: data.provider || "deepseek",
     };
   } catch (error) {
     console.error(
@@ -144,10 +138,19 @@ export async function requireModeratedContent({
     contextType,
   });
 
+  if (moderation.action === "report") {
+    throw new ModerationError(
+      moderation.feedback ||
+        "This message severely violates our community guidelines. It has been blocked and marked for moderator review.",
+      "MODERATION_REPORT",
+      moderation,
+    );
+  }
+
   if (moderation.action === "block") {
     throw new ModerationError(
       moderation.feedback ||
-        "This message cannot be published.",
+        "This message contains inappropriate content and cannot be published.",
       "MODERATION_BLOCK",
       moderation,
     );
@@ -159,7 +162,7 @@ export async function requireModeratedContent({
   ) {
     throw new ModerationError(
       moderation.feedback ||
-        "Consider revising this message before publishing.",
+        "Please consider revising this message before publishing.",
       "MODERATION_WARNING",
       moderation,
     );

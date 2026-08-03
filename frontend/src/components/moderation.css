@@ -263,3 +263,119 @@
 .moderation-status-bar {
     margin: 14px 0 16px;
 }
+.moderation-blocked-card {
+  display: grid;
+  gap: 14px;
+  margin: 10px 0 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(170, 99, 67, 0.32);
+  border-radius: 22px;
+  background:
+    radial-gradient(
+      circle at 92% 10%,
+      rgba(214, 145, 95, 0.2),
+      transparent 34%
+    ),
+    linear-gradient(
+      135deg,
+      #fffaf4,
+      #f8eadc
+    );
+  box-shadow:
+    0 14px 32px rgba(89, 67, 49, 0.14);
+  animation:
+    moderationWarningEnter 180ms ease-out;
+}
+
+.moderation-blocked-card.severe {
+  border-color: rgba(142, 62, 52, 0.42);
+  background:
+    radial-gradient(
+      circle at 92% 10%,
+      rgba(159, 67, 55, 0.18),
+      transparent 34%
+    ),
+    linear-gradient(
+      135deg,
+      #fff8f5,
+      #f4ddd8
+    );
+}
+
+.moderation-blocked-copy {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.moderation-blocked-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #d88d61;
+  color: #fffdf8;
+  font-family: var(--heading);
+  font-size: 20px;
+  font-weight: 900;
+  box-shadow:
+    0 8px 18px rgba(89, 67, 49, 0.16);
+}
+
+.moderation-blocked-card.severe
+.moderation-blocked-icon {
+  background: #9f4337;
+}
+
+.moderation-blocked-copy strong {
+  display: block;
+  color: var(--deep-mocha);
+  font-family: var(--heading);
+  font-size: 20px;
+  line-height: 1.05;
+}
+
+.moderation-blocked-copy p {
+  margin: 6px 0 0;
+  color: var(--charcoal);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.moderation-blocked-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.moderation-blocked-actions button {
+  min-height: 38px;
+  padding: 0 18px;
+
+  border-radius: 999px;
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.moderation-edit-button {
+  border: 1px solid rgba(138, 106, 88, 0.22);
+  border-radius: 999px;
+
+  background: rgba(255, 250, 241, 0.82);
+  color: var(--mocha);
+
+  transition:
+    background .18s ease,
+    border-color .18s ease,
+    transform .18s ease;
+}
+
+.moderation-edit-button:hover {
+  background: #fffdf8;
+  border-color: rgba(138, 106, 88, 0.38);
+  transform: translateY(-1px);
+}

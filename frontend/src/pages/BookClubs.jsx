@@ -19,6 +19,7 @@ import UserAvatar from "../components/UserAvatar";
 import ProfileLink from "../components/ProfileLink";
 import ModerationWarningCard from "../components/ModerationWarningCard";
 import ModerationStatusBar from "../components/ModerationStatusBar";
+import ModerationBlockedCard from "../components/ModerationBlockedCard";
 
 
 function getDefaultSchedule(duration = "4 weeks") {
@@ -145,6 +146,10 @@ function BookClubs() {
     clubMessageChecking,
     setClubMessageChecking,
   ] = useState(false);
+  const [
+    clubModerationBlocked,
+    setClubModerationBlocked,
+  ] = useState(null);
   const [newClub, setNewClub] = useState({
     clubName: "",
     bookTitle: "",
@@ -689,6 +694,7 @@ const filteredClubs = clubs.filter((club) => {
     setActionError("");
     setChatNotice("");
     setClubModerationWarning(null);
+    setClubModerationBlocked(null);
 
     try {
       const createdPost = await createClubPost({
@@ -724,14 +730,22 @@ const filteredClubs = clubs.filter((club) => {
       }
 
       if (error.code === "MODERATION_BLOCK") {
-        setActionError(
-          error.message ||
-            "This message cannot be published.",
-        );
+        setClubModerationBlocked({
+          level: "block",
+          message: error.message,
+        });
 
         return;
       }
 
+      if (error.code === "MODERATION_REPORT") {
+        setClubModerationBlocked({
+          level: "report",
+          message: error.message,
+        });
+
+        return;
+      }
       setActionError(
         error.message ||
           "Could not publish your message.",
@@ -782,6 +796,33 @@ const filteredClubs = clubs.filter((club) => {
       setPostDraft("");
       setClubModerationWarning(null);
     } catch (error) {
+        console.error(
+          "Failed to publish warned club message:",
+          error,
+        );
+
+        if (error.code === "MODERATION_BLOCK") {
+          setClubModerationWarning(null);
+          setClubModerationBlocked({
+            level: "block",
+            message: error.message,
+          });
+          return;
+        }
+
+        if (error.code === "MODERATION_REPORT") {
+          setClubModerationWarning(null);
+          setClubModerationBlocked({
+            level: "report",
+            message: error.message,
+          });
+          return;
+        }
+
+        setActionError(
+          error.message ||
+            "Could not publish your message.",
+        );
       console.error(
         "Failed to publish warned club message:",
         error,
@@ -1110,6 +1151,15 @@ const filteredClubs = clubs.filter((club) => {
                   }
                 />
               )}
+              {clubModerationBlocked && (
+                <ModerationBlockedCard
+                  level={clubModerationBlocked.level}
+                  message={clubModerationBlocked.message}
+                  onEdit={() =>
+                    setClubModerationBlocked(null)
+                  }
+                />
+              )}
               <form className="club-message-form" onSubmit={publishClubPost}>
                 <textarea
                   value={postDraft}
@@ -1122,6 +1172,9 @@ const filteredClubs = clubs.filter((club) => {
 
                     if (clubModerationWarning) {
                       setClubModerationWarning(null);
+                    }
+                    if (clubModerationBlocked) {
+                      setClubModerationBlocked(null);
                     }
                   }}
                   placeholder={`Message ${activeClub.title}...`}
