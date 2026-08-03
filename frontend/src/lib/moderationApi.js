@@ -68,7 +68,7 @@ export async function moderateContent({
   try {
     const { data, error } =
       await supabase.functions.invoke(
-        "moderate-content",
+        "moderation-content",
         {
           body: {
             text: originalText,
@@ -117,15 +117,28 @@ export async function moderateContent({
     };
   } catch (error) {
     console.error(
-      "AI moderation failed; using keyword fallback:",
-      error,
+        "AI moderation request failed:",
+        error,
     );
 
-    return runKeywordFallback(
-      originalText,
-      contextType,
+    throw new ModerationError(
+        "Your message could not be checked right now, so it was not published. Please try again.",
+        "MODERATION_UNAVAILABLE",
+        {
+        action: "block",
+        severity: "high",
+        feedback:
+            "Your message could not be checked right now, so it was not published. Please try again.",
+        categories: [],
+        target: "unknown",
+        confidence: 0,
+        needsReview: false,
+        provider: "unavailable",
+        contextType,
+        originalText,
+        },
     );
-  }
+    }
 }
 
 export async function requireModeratedContent({
