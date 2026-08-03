@@ -1,5 +1,6 @@
 import { requireSupabase } from "./supabase";
 import { getPublicDisplayName } from "./identity";
+import { requireModeratedContent } from "./moderationApi";
 
 function cleanTags(tags) {
   if (!Array.isArray(tags)) {
@@ -755,6 +756,7 @@ export async function createClubPost({
   clubId,
   userId,
   message,
+  allowModerationWarning = false,
 }) {
   if (!clubId) {
     throw new Error("The club ID is missing.");
@@ -766,14 +768,13 @@ export async function createClubPost({
     );
   }
 
-  const cleanedMessage = message?.trim();
+  const moderation = await requireModeratedContent({
+    text: message,
+    contextType: "club_message",
+    allowWarningOverride: allowModerationWarning,
+  });
 
-  if (!cleanedMessage) {
-    throw new Error(
-      "Please write a message first.",
-    );
-  }
-
+  const cleanedMessage = moderation.approvedText;
   const supabase = requireSupabase();
 
   const { data, error } = await supabase

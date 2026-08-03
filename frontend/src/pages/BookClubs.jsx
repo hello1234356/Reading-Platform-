@@ -13,16 +13,12 @@ import {
   joinBookClub,
   leaveBookClub,
   recordClubActivity,
-  reportClubMessageModeration,
   replaceClubSchedule
 } from "../lib/bookClubApi";
-import {
-  moderateText,
-  recordModerationStrike,
-} from "../lib/moderation";
 import UserAvatar from "../components/UserAvatar";
 import ProfileLink from "../components/ProfileLink";
-
+import ModerationWarningCard from "../components/ModerationWarningCard";
+import ModerationStatusBar from "../components/ModerationStatusBar";
 
 
 function getDefaultSchedule(duration = "4 weeks") {
@@ -136,6 +132,19 @@ function BookClubs() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [clubSearchQuery, setClubSearchQuery] = useState("");
   const [postDraft, setPostDraft] = useState("");
+  const [
+    clubModerationWarning,
+    setClubModerationWarning,
+  ] = useState(null);
+
+  const [
+    clubModerationConfirming,
+    setClubModerationConfirming,
+  ] = useState(false);
+  const [
+    clubMessageChecking,
+    setClubMessageChecking,
+  ] = useState(false);
   const [newClub, setNewClub] = useState({
     clubName: "",
     bookTitle: "",
@@ -653,6 +662,7 @@ const filteredClubs = clubs.filter((club) => {
       setActionLoading(false);
     }
   }
+
   async function publishClubPost(event) {
     event.preventDefault();
 
@@ -660,21 +670,32 @@ const filteredClubs = clubs.filter((club) => {
       return;
     }
 
-    if (!activeClub || !postDraft.trim()) {
+    if (clubMessageChecking) {
+      return;
+    }
+
+    if (!activeClub) {
+      return;
+    }
+
+    const message = postDraft.trim();
+
+    if (!message) {
       return;
     }
 
     setActionLoading(true);
+    setClubMessageChecking(true);
     setActionError("");
     setChatNotice("");
+    setClubModerationWarning(null);
 
     try {
-      const moderation = moderateText(postDraft);
-
       const createdPost = await createClubPost({
         clubId: activeClub.id,
         userId: user.id,
-        message: moderation.filteredText,
+        message,
+        allowModerationWarning: false,
       });
 
       setClubPosts((current) => ({
@@ -685,42 +706,93 @@ const filteredClubs = clubs.filter((club) => {
         ],
       }));
 
-      if (moderation.hasFilteredLanguage) {
-        const strike = recordModerationStrike({
-          userId: user.id,
+      setPostDraft("");
+    } catch (error) {
+      console.error(
+        "Failed to publish club message:",
+        error,
+      );
+
+      if (error.code === "MODERATION_WARNING") {
+        setClubModerationWarning({
+          message: error.message,
+          text: message,
           clubId: activeClub.id,
         });
 
-        setChatNotice(
-          "Some language was filtered to keep the discussion room respectful.",
-        );
-
-        if (moderation.shouldReport || strike.shouldReportRepeat) {
-          try {
-            await reportClubMessageModeration({
-              clubId: activeClub.id,
-              postId: createdPost.id,
-              userId: user.id,
-              originalMessage: moderation.originalText,
-              filteredMessage: moderation.filteredText,
-              matchedTerms: moderation.matchedTerms,
-              severity: strike.shouldReportRepeat ? "repeat" : moderation.severity,
-              strikeCount: strike.strikeCount,
-            });
-          } catch (reportError) {
-            console.error("Failed to report moderated club message:", reportError);
-          }
-        }
+        return;
       }
 
-      setPostDraft("");
-    } catch (error) {
-      console.error("Failed to publish club message:", error);
+      if (error.code === "MODERATION_BLOCK") {
+        setActionError(
+          error.message ||
+            "This message cannot be published.",
+        );
+
+        return;
+      }
+
       setActionError(
-        error.message || "Could not publish your message.",
+        error.message ||
+          "Could not publish your message.",
       );
     } finally {
       setActionLoading(false);
+      setClubMessageChecking(false);
+    }
+  }
+  async function confirmWarnedClubPost() {
+    if (
+      !clubModerationWarning ||
+      !activeClub ||
+      !user?.id
+    ) {
+      return;
+    }
+
+    if (
+      String(
+        clubModerationWarning.clubId,
+      ) !== String(activeClub.id)
+    ) {
+      setClubModerationWarning(null);
+      return;
+    }
+
+    setClubModerationConfirming(true);
+    setActionError("");
+
+    try {
+      const createdPost = await createClubPost({
+        clubId: activeClub.id,
+        userId: user.id,
+        message:
+          clubModerationWarning.text,
+        allowModerationWarning: true,
+      });
+
+      setClubPosts((current) => ({
+        ...current,
+        [activeClub.id]: [
+          ...(current[activeClub.id] || []),
+          createdPost,
+        ],
+      }));
+
+      setPostDraft("");
+      setClubModerationWarning(null);
+    } catch (error) {
+      console.error(
+        "Failed to publish warned club message:",
+        error,
+      );
+
+      setActionError(
+        error.message ||
+          "Could not publish your message.",
+      );
+    } finally {
+      setClubModerationConfirming(false);
     }
   }
 
@@ -1005,7 +1077,7 @@ const filteredClubs = clubs.filter((club) => {
                           {new Date(post.createdAt).toLocaleString()}
                         </small>
 
-                        <p>{moderateText(post.message).filteredText}</p>
+                        <p>{post.message}</p>       
                       </div>
                     </article>
                   ))
@@ -1016,15 +1088,56 @@ const filteredClubs = clubs.filter((club) => {
                   {chatNotice}
                 </p>
               ) : null}
+              {clubMessageChecking && (
+                <ModerationStatusBar
+                  label="Checking your club message"
+                />
+              )}
+              {clubModerationWarning && (
+                <ModerationWarningCard
+                  message={
+                    clubModerationWarning.message
+                  }
+                  contentLabel="club message"
+                  confirming={
+                    clubModerationConfirming
+                  }
+                  onEdit={() =>
+                    setClubModerationWarning(null)
+                  }
+                  onConfirm={
+                    confirmWarnedClubPost
+                  }
+                />
+              )}
               <form className="club-message-form" onSubmit={publishClubPost}>
                 <textarea
                   value={postDraft}
-                  onChange={(event) => setPostDraft(event.target.value)}
+                  disabled={
+                    clubMessageChecking ||
+                    clubModerationConfirming
+                  }
+                 onChange={(event) => {
+                    setPostDraft(event.target.value);
+
+                    if (clubModerationWarning) {
+                      setClubModerationWarning(null);
+                    }
+                  }}
                   placeholder={`Message ${activeClub.title}...`}
                   rows="2"
                 />
-                <button className="primary-button" type="submit" disabled ={actionLoading}>
-                  {actionLoading ? "Sending..." : "Send"}
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={
+                    clubMessageChecking ||
+                    clubModerationConfirming
+                  }
+                >
+                  {clubMessageChecking
+                    ? "Checking..."
+                    : "Send"}
                 </button>
               </form>
             </section>

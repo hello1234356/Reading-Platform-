@@ -26,6 +26,9 @@ import {
   getTeacherLeaderboard,
 } from "../lib/leaderboardApi";
 import ProfileLink from "../components/ProfileLink";
+import ModerationWarningCard from "../components/ModerationWarningCard";
+import ModerationStatusBar from "../components/ModerationStatusBar";
+
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
 const defaultTrackedBook = {
@@ -202,7 +205,6 @@ function Home() {
 
   const [trackedBooks, setTrackedBooks] = useState(initialHomeState.trackedBooks);
   const [finishingBook, setFinishingBook] = useState(null);
-
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isLogBookOpen, setIsLogBookOpen] = useState(false);
   const [isFinishReviewOpen, setIsFinishReviewOpen] = useState(false);
@@ -223,7 +225,17 @@ function Home() {
   const [libraryBooks, setLibraryBooks] = useState([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState("");
-  const [publishingNote, setPublishingNote] = useState(false);
+  const [
+    commentModeratingPostId,
+    setCommentModeratingPostId,
+  ] = useState(null);
+  const [publishingNote, setPublishingNote] =
+    useState(false);
+
+  const [moderationConfirming, setModerationConfirming] =
+    useState(false);
+  const [moderationWarning, setModerationWarning] =
+    useState(null);
   const [publishNoteError, setPublishNoteError] = useState("");
   const selectedComposerBook = libraryBooks.find(
     (book) => String(book.bookId) === String(composeDraft.bookId),
@@ -472,18 +484,31 @@ function Home() {
     if (!requireLogin()) return;
     if (!user?.id) return;
 
-    const post = posts.find((p) => p.id === postId);
+    if (commentModeratingPostId !== null) {
+      return;
+    }
+
+    const post = posts.find(
+      (currentPost) =>
+        currentPost.id === postId,
+    );
+
     if (!post) return;
 
     const comment = post.draftComment.trim();
 
     if (!comment) return;
 
+    setModerationWarning(null);
+    setDeletePostError("");
+    setCommentModeratingPostId(postId);
+
     try {
       const createdComment = await addPostComment({
         postId,
         userId: user.id,
         comment,
+        allowModerationWarning: false,
       });
 
       setPosts((currentPosts) =>
@@ -492,16 +517,105 @@ function Home() {
             ? currentPost
             : {
                 ...currentPost,
-                comments: [...currentPost.comments, createdComment],
+                comments: [
+                  ...currentPost.comments,
+                  createdComment,
+                ],
                 draftComment: "",
               },
         ),
       );
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Failed to publish comment:",
+        error,
+      );
+
+      if (error.code === "MODERATION_WARNING") {
+        setModerationWarning({
+          type: "feed-comment",
+          postId,
+          text: comment,
+          message: error.message,
+        });
+
+        return;
+      }
+
+      if (error.code === "MODERATION_BLOCK") {
+        setDeletePostError(
+          error.message ||
+            "This comment cannot be published.",
+        );
+
+        return;
+      }
+
+      setDeletePostError(
+        error.message ||
+          "Could not publish your comment.",
+      );
+    } finally {
+      setCommentModeratingPostId(null);
     }
   }
+  async function confirmWarnedFeedComment() {
+    if (
+      moderationWarning?.type !==
+        "feed-comment" ||
+      !moderationWarning.postId ||
+      !user?.id
+    ) {
+      return;
+    }
 
+    const {
+      postId,
+      text,
+    } = moderationWarning;
+
+    setModerationConfirming(true);
+    setDeletePostError("");
+
+    try {
+      const createdComment =
+        await addPostComment({
+          postId,
+          userId: user.id,
+          comment: text,
+          allowModerationWarning: true,
+        });
+
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id !== postId
+            ? currentPost
+            : {
+                ...currentPost,
+                comments: [
+                  ...currentPost.comments,
+                  createdComment,
+                ],
+                draftComment: "",
+              },
+        ),
+      );
+
+      setModerationWarning(null);
+    } catch (error) {
+      console.error(
+        "Failed to publish warned comment:",
+        error,
+      );
+
+      setDeletePostError(
+        error.message ||
+          "Could not publish your comment.",
+      );
+    } finally {
+      setModerationConfirming(false);
+    }
+  }
   async function removeComment(postId, commentId) {
     if (!requireLogin() || !user?.id) return;
 
@@ -554,6 +668,7 @@ function Home() {
   }
 
   function closeComposer() {
+    setModerationWarning(null);
     setIsComposerOpen(false);
   }
 
@@ -858,27 +973,36 @@ function Home() {
     if (!requireLogin()) return;
 
     if (!user?.id) {
-      setPublishNoteError("You must be logged in to publish.");
+      setPublishNoteError(
+        "You must be logged in to publish.",
+      );
       return;
     }
 
     const note = composeDraft.note.trim();
+
     if (!note) {
-      setPublishNoteError("Please write a note before publishing.");
+      setPublishNoteError(
+        "Please write a note before publishing.",
+      );
       return;
     }
 
     setPublishingNote(true);
     setPublishNoteError("");
+    setModerationWarning(null);
 
     try {
       const createdPost = await createPost({
         userId: user.id,
-        bookId: selectedComposerBook?.bookId || null,
+        bookId:
+          selectedComposerBook?.bookId || null,
         note,
         postType: "note",
-        progress: selectedComposerBook?.progress ?? 0,
+        progress:
+          selectedComposerBook?.progress ?? 0,
         rating: 0,
+        allowModerationWarning: false,
       });
 
       setPosts((currentPosts) => [
@@ -887,19 +1011,103 @@ function Home() {
       ]);
 
       setComposeDraft({
-        bookId: selectedComposerBook ? String(selectedComposerBook.bookId) : "",
+        bookId: selectedComposerBook
+          ? String(selectedComposerBook.bookId)
+          : "",
         note: "",
       });
 
       setIsComposerOpen(false);
     } catch (error) {
-      console.error("Failed to publish reading note:", error);
+      console.error(
+        "Failed to publish reading note:",
+        error,
+      );
+
+      if (error.code === "MODERATION_WARNING") {
+        setModerationWarning({
+          type: "feed-post",
+          message: error.message,
+        });
+
+        return;
+      }
+
+      if (error.code === "MODERATION_BLOCK") {
+        setPublishNoteError(
+          error.message ||
+            "This post cannot be published.",
+        );
+
+        return;
+      }
 
       setPublishNoteError(
-        error.message || "Could not publish your note.",
+        error.message ||
+          "Could not publish your note.",
       );
     } finally {
       setPublishingNote(false);
+    }
+  }
+
+  async function confirmWarnedFeedPost() {
+    if (
+      moderationWarning?.type !== "feed-post" ||
+      !user?.id
+    ) {
+      return;
+    }
+
+    const note = composeDraft.note.trim();
+
+    if (!note) {
+      setModerationWarning(null);
+      return;
+    }
+
+    setModerationConfirming(true);
+    setPublishNoteError("");
+
+    try {
+      const createdPost = await createPost({
+        userId: user.id,
+        bookId:
+          selectedComposerBook?.bookId || null,
+        note,
+        postType: "note",
+        progress:
+          selectedComposerBook?.progress ?? 0,
+        rating: 0,
+        allowModerationWarning: true,
+      });
+
+      setPosts((currentPosts) => [
+        createdPost,
+        ...currentPosts,
+      ]);
+
+      setComposeDraft({
+        bookId: selectedComposerBook
+          ? String(selectedComposerBook.bookId)
+          : "",
+        note: "",
+      });
+
+      setModerationWarning(null);
+      setIsComposerOpen(false);
+    } catch (error) {
+      console.error(
+        "Failed to publish warned reading note:",
+        error,
+      );
+
+      setPublishNoteError(
+        error.message ||
+          "Could not publish your note.",
+      );
+    } finally {
+      setModerationConfirming(false);
     }
   }
   const combinedLeaderboard = [
@@ -1297,14 +1505,48 @@ const thirdPlace = combinedLeaderboard[2];
                     </div>
                   ))}
                 </div>
-
+                {commentModeratingPostId === post.id && (
+                  <ModerationStatusBar
+                    label="Checking your comment"
+                  />
+                )}
+                {moderationWarning?.type ===
+                  "feed-comment" &&
+                  moderationWarning.postId === post.id && (
+                    <ModerationWarningCard
+                      message={moderationWarning.message}
+                      contentLabel="comment"
+                      confirming={moderationConfirming}
+                      onEdit={() =>
+                        setModerationWarning(null)
+                      }
+                      onConfirm={
+                        confirmWarnedFeedComment
+                      }
+                    />
+                  )}
                 <div className="comment-form">
                   <input
                     type="text"
                     value={post.draftComment}
-                    onChange={(event) =>
-                      updateDraft(post.id, event.target.value)
+                    disabled={
+                      commentModeratingPostId === post.id ||
+                      moderationConfirming
                     }
+                    onChange={(event) => {
+                      updateDraft(
+                        post.id,
+                        event.target.value,
+                      );
+
+                      if (
+                        moderationWarning?.type ===
+                          "feed-comment" &&
+                        moderationWarning.postId === post.id
+                      ) {
+                        setModerationWarning(null);
+                      }
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {
                         addComment(post.id);
@@ -1317,8 +1559,14 @@ const thirdPlace = combinedLeaderboard[2];
                   <button
                     type="button"
                     onClick={() => addComment(post.id)}
+                    disabled={
+                      commentModeratingPostId === post.id ||
+                      moderationConfirming
+                    }
                   >
-                    Send
+                    {commentModeratingPostId === post.id
+                      ? "Checking..."
+                      : "Send"}
                   </button>
                 </div>
               </article>
@@ -1393,16 +1641,47 @@ const thirdPlace = combinedLeaderboard[2];
                 <span>Your note or quote</span>
                 <textarea
                   value={composeDraft.note}
-                  onChange={(event) =>
+                  disabled={
+                    publishingNote ||
+                    moderationConfirming
+                  }
+                  onChange={(event) => {
                     setComposeDraft((draft) => ({
                       ...draft,
                       note: event.target.value,
-                    }))
-                  }
+                    }));
+
+                    if (
+                      moderationWarning?.type ===
+                      "feed-post"
+                    ) {
+                      setModerationWarning(null);
+                    }
+                  }}
                   placeholder="What line, thought, or review do you want to share?"
                   rows="6"
                 />
               </label>
+              {publishingNote &&
+                moderationWarning?.type !== "feed-post" && (
+                  <ModerationStatusBar
+                    label="Checking your reading note"
+                  />
+                )}
+              {moderationWarning?.type ===
+                "feed-post" && (
+                  <ModerationWarningCard
+                    message={moderationWarning.message}
+                    contentLabel="reading note"
+                    confirming={moderationConfirming}
+                    onEdit={() =>
+                      setModerationWarning(null)
+                    }
+                    onConfirm={
+                      confirmWarnedFeedPost
+                    }
+                  />
+                )}
                 <div className="modal-preview">
                   <div className="tracked-cover" aria-hidden="true">
                     {selectedComposerBook ? (
@@ -1435,9 +1714,14 @@ const thirdPlace = combinedLeaderboard[2];
               <button
                 className="primary-button full"
                 type="submit"
-                disabled={publishingNote}
+                disabled={
+                  publishingNote ||
+                  moderationConfirming
+                }
               >
-                {publishingNote ? "Publishing..." : "Publish note"}
+                {publishingNote
+                  ? "Checking..."
+                  : "Publish note"}
               </button>
             </form>
           </section>

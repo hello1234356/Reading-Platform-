@@ -1,5 +1,6 @@
 import { requireSupabase } from "./supabase";
 import { getPublicDisplayName } from "./identity";
+import { requireModeratedContent } from "./moderationApi";
 
 function getPostAction(postType, hasBook) {
   switch (postType) {
@@ -186,6 +187,7 @@ export async function createPost({
   postType = "note",
   progress = 0,
   rating = 0,
+  allowModerationWarning = false,
 }) {
   if (!userId) {
     throw new Error("You must be logged in to publish a post.");
@@ -195,11 +197,16 @@ export async function createPost({
   throw new Error("This type of post must be connected to a book.");
 }
 
-  const cleanedNote = note?.trim();
+  const moderation = await requireModeratedContent({
+    text: note,
+    contextType:
+      postType === "review"
+        ? "feed_review"
+        : "feed_post",
+    allowWarningOverride: allowModerationWarning,
+  });
 
-  if (!cleanedNote) {
-    throw new Error("Please write something before publishing.");
-  }
+  const cleanedNote = moderation.approvedText;
 
   const allowedPostTypes = [
     "note",
@@ -299,6 +306,7 @@ export async function addPostComment({
   postId,
   userId,
   comment,
+  allowModerationWarning = false,
 }) {
   if (!postId) {
     throw new Error("This comment is missing its post.");
@@ -308,11 +316,13 @@ export async function addPostComment({
     throw new Error("You must be logged in to comment.");
   }
 
-  const cleanedComment = comment?.trim();
+  const moderation = await requireModeratedContent({
+    text: comment,
+    contextType: "feed_comment",
+    allowWarningOverride: allowModerationWarning,
+  });
 
-  if (!cleanedComment) {
-    throw new Error("Please write a comment first.");
-  }
+  const cleanedComment = moderation.approvedText; 
 
   const supabase = requireSupabase();
 
