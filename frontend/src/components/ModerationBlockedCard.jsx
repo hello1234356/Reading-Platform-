@@ -33,7 +33,7 @@ function ModerationBlockedCard({
           <p>
             {message ||
               (isReported
-                ? "This message severely violates our community guidelines. It has been blocked and marked for moderator review."
+                ? "This message severely violates our community guidelines. It has been blocked and submitted to school moderators for review."
                 : "This message contains language that is not permitted on the school platform. Please revise it before posting.")}
           </p>
         </div>
