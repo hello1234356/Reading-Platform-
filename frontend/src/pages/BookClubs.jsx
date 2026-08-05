@@ -1,4 +1,10 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { requireSupabase } from "../lib/supabase";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { getOpenLibraryBookDetails } from "../lib/openLibrary";
@@ -114,6 +120,26 @@ async function fetchOpenLibraryBooks(searchTerm) {
     }));
 }
 
+function getTypingLabel(names) {
+  if (!Array.isArray(names) || names.length === 0) {
+    return "";
+  }
+
+  if (names.length === 1) {
+    return `${names[0]} is typing`;
+  }
+
+  if (names.length === 2) {
+    return `${names[0]} and ${names[1]} are typing`;
+  }
+
+  if (names.length === 3) {
+    return `${names[0]}, ${names[1]}, and ${names[2]} are typing`;
+  }
+
+  return "3+ users are typing";
+}
+
 function BookClubs() {
   const { requireLogin, user } = useRequireLogin();
   const navigate = useNavigate();
@@ -199,6 +225,26 @@ function BookClubs() {
             getDefaultSchedule(routeClub.duration),
         }
       : null;
+  const currentClubMember =
+    activeClub?.members?.find(
+      (member) =>
+        String(member.userId) ===
+        String(user?.id),
+    );
+
+  const currentClubDisplayName =
+    currentClubMember?.name ||
+    "Someone";
+
+  const typingNames = useMemo(
+    () =>
+      Object.values(typingUsers)
+        .map((typingUser) =>
+          typingUser?.name?.trim(),
+        )
+        .filter(Boolean),
+    [typingUsers],
+  );
 
  const isClubCreator = (club) =>
   Boolean(
@@ -209,6 +255,24 @@ function BookClubs() {
 
   const normalizedClubSearch =
   clubSearchQuery.trim().toLowerCase();
+
+  const [typingUsers, setTypingUsers] =
+    useState({});
+
+  const [clubRealtimeStatus, setClubRealtimeStatus] =
+    useState("connecting");
+
+  const clubRealtimeChannelRef =
+    useRef(null);
+
+  const typingStopTimerRef =
+    useRef(null);
+
+  const typingExpiryTimersRef =
+    useRef(new Map());
+
+  const typingSentRef =
+    useRef(false);
 
 const filteredClubs = clubs.filter((club) => {
   if (!normalizedClubSearch) {
@@ -380,6 +444,293 @@ const filteredClubs = clubs.filter((club) => {
       cancelled = true;
     };
   }, [routeClub?.id, routeClub?.isJoined]);
+
+  useEffect(() => {
+    if (
+      !activeClub?.id ||
+      !user?.id
+    ) {
+      setTypingUsers({});
+      setClubRealtimeStatus("disconnected");
+      return undefined;
+    }
+
+    const supabase = requireSupabase();
+    const activeClubId = activeClub.id;
+
+    let cancelled = false;
+    let refreshInProgress = false;
+    let refreshQueued = false;
+
+    async function refreshClubMessages() {
+      if (refreshInProgress) {
+        refreshQueued = true;
+        return;
+      }
+
+      refreshInProgress = true;
+
+      try {
+        const refreshedPosts =
+          await getClubPosts(activeClubId);
+
+        if (cancelled) {
+          return;
+        }
+
+        setClubPosts((current) => ({
+          ...current,
+          [activeClubId]: refreshedPosts,
+        }));
+      } catch (error) {
+        console.error(
+          "Failed to refresh realtime club messages:",
+          error,
+        );
+      } finally {
+        refreshInProgress = false;
+
+        if (
+          refreshQueued &&
+          !cancelled
+        ) {
+          refreshQueued = false;
+          refreshClubMessages();
+        }
+      }
+    }
+
+    function removeTypingUser(
+      typingUserId,
+    ) {
+      setTypingUsers((current) => {
+        if (
+          !Object.prototype.hasOwnProperty.call(
+            current,
+            typingUserId,
+          )
+        ) {
+          return current;
+        }
+
+        const next = {
+          ...current,
+        };
+
+        delete next[typingUserId];
+
+        return next;
+      });
+    }
+
+    function handleTypingBroadcast(
+      event,
+    ) {
+      const typingPayload =
+        event?.payload || {};
+
+      const typingUserId =
+        String(
+          typingPayload.userId || "",
+        );
+
+      if (
+        !typingUserId ||
+        typingUserId ===
+          String(user.id)
+      ) {
+        return;
+      }
+
+      const existingTimer =
+        typingExpiryTimersRef.current.get(
+          typingUserId,
+        );
+
+      if (existingTimer) {
+        window.clearTimeout(
+          existingTimer,
+        );
+      }
+
+      if (!typingPayload.isTyping) {
+        typingExpiryTimersRef.current.delete(
+          typingUserId,
+        );
+
+        removeTypingUser(
+          typingUserId,
+        );
+
+        return;
+      }
+
+      setTypingUsers((current) => ({
+        ...current,
+        [typingUserId]: {
+          userId: typingUserId,
+          name:
+            String(
+              typingPayload.name ||
+                "Someone",
+            ),
+        },
+      }));
+
+      /*
+      * Safety expiration:
+      * if another client closes unexpectedly without broadcasting
+      * "stopped typing", remove the indicator automatically.
+      */
+      const expiryTimer =
+        window.setTimeout(() => {
+          typingExpiryTimersRef.current.delete(
+            typingUserId,
+          );
+
+          removeTypingUser(
+            typingUserId,
+          );
+        }, 3000);
+
+      typingExpiryTimersRef.current.set(
+        typingUserId,
+        expiryTimer,
+      );
+    }
+
+    const channel = supabase.channel(
+      `club-room-${activeClubId}`,
+      {
+        config: {
+          broadcast: {
+            self: false,
+            ack: false,
+          },
+        },
+      },
+    );
+
+    channel
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "club_posts",
+          filter:
+            `club_id=eq.${activeClubId}`,
+        },
+        () => {
+          refreshClubMessages();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "club_posts",
+        },
+        (payload) => {
+          const deletedClubId =
+            payload?.old?.club_id;
+
+          /*
+          * Filtered DELETE subscriptions are limited, so verify
+          * the club manually when club_id is available.
+          */
+          if (
+            !deletedClubId ||
+            String(deletedClubId) ===
+              String(activeClubId)
+          ) {
+            refreshClubMessages();
+          }
+        },
+      )
+      .on(
+        "broadcast",
+        {
+          event: "typing",
+        },
+        handleTypingBroadcast,
+      )
+      .subscribe((status, error) => {
+        console.log(
+          "Club Realtime status:",
+          {
+            clubId: activeClubId,
+            status,
+            error,
+          },
+        );
+
+        if (status === "SUBSCRIBED") {
+          setClubRealtimeStatus(
+            "connected",
+          );
+          return;
+        }
+
+        if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT"
+        ) {
+          setClubRealtimeStatus(
+            "error",
+          );
+          return;
+        }
+
+        if (status === "CLOSED") {
+          setClubRealtimeStatus(
+            "disconnected",
+          );
+        }
+      });
+
+    clubRealtimeChannelRef.current =
+      channel;
+
+    return () => {
+      cancelled = true;
+
+      if (
+        typingStopTimerRef.current
+      ) {
+        window.clearTimeout(
+          typingStopTimerRef.current,
+        );
+
+        typingStopTimerRef.current =
+          null;
+      }
+
+      typingExpiryTimersRef.current.forEach(
+        (timer) => {
+          window.clearTimeout(timer);
+        },
+      );
+
+      typingExpiryTimersRef.current.clear();
+      typingSentRef.current = false;
+      setTypingUsers({});
+
+      if (
+        clubRealtimeChannelRef.current ===
+        channel
+      ) {
+        clubRealtimeChannelRef.current =
+          null;
+      }
+
+      supabase.removeChannel(channel);
+    };
+  }, [
+    activeClub?.id,
+    user?.id,
+  ]);
   async function openClubDetails(club) {
     setDetailClubId(club.id);
     setDetailBlurb("");
@@ -668,6 +1019,110 @@ const filteredClubs = clubs.filter((club) => {
     }
   }
 
+  function broadcastTypingState(
+    isTyping,
+  ) {
+    const channel =
+      clubRealtimeChannelRef.current;
+
+    if (
+      !channel ||
+      !activeClub?.id ||
+      !user?.id
+    ) {
+      return;
+    }
+
+    channel
+      .send({
+        type: "broadcast",
+        event: "typing",
+        payload: {
+          userId: user.id,
+          name:
+            currentClubDisplayName,
+          isTyping,
+          sentAt:
+            new Date().toISOString(),
+        },
+      })
+      .catch((error) => {
+        console.error(
+          "Failed to broadcast typing state:",
+          error,
+        );
+      });
+  }
+
+  function stopClubTyping() {
+    if (
+      typingStopTimerRef.current
+    ) {
+      window.clearTimeout(
+        typingStopTimerRef.current,
+      );
+
+      typingStopTimerRef.current =
+        null;
+    }
+
+    if (typingSentRef.current) {
+      broadcastTypingState(false);
+      typingSentRef.current = false;
+    }
+  }
+
+  function handleClubDraftChange(
+    nextValue,
+  ) {
+    setPostDraft(nextValue);
+
+    if (clubModerationWarning) {
+      setClubModerationWarning(null);
+    }
+
+    if (clubModerationBlocked) {
+      setClubModerationBlocked(null);
+    }
+
+    const hasText =
+      Boolean(nextValue.trim());
+
+    if (!hasText) {
+      stopClubTyping();
+      return;
+    }
+
+    /*
+    * Send "typing started" only once instead of broadcasting on
+    * every keystroke.
+    */
+    if (!typingSentRef.current) {
+      broadcastTypingState(true);
+      typingSentRef.current = true;
+    }
+
+    if (
+      typingStopTimerRef.current
+    ) {
+      window.clearTimeout(
+        typingStopTimerRef.current,
+      );
+    }
+
+    /*
+    * If no new keystroke occurs for 1.4 seconds, announce that
+    * this user stopped typing.
+    */
+    typingStopTimerRef.current =
+      window.setTimeout(() => {
+        broadcastTypingState(false);
+        typingSentRef.current = false;
+        typingStopTimerRef.current =
+          null;
+      }, 1400);
+  }
+
   async function publishClubPost(event) {
     event.preventDefault();
 
@@ -688,6 +1143,7 @@ const filteredClubs = clubs.filter((club) => {
     if (!message) {
       return;
     }
+    stopClubTyping();
 
     setActionLoading(true);
     setClubMessageChecking(true);
@@ -755,6 +1211,8 @@ const filteredClubs = clubs.filter((club) => {
       setClubMessageChecking(false);
     }
   }
+
+  
   async function confirmWarnedClubPost() {
     if (
       !clubModerationWarning ||
@@ -772,7 +1230,7 @@ const filteredClubs = clubs.filter((club) => {
       setClubModerationWarning(null);
       return;
     }
-
+    stopClubTyping();
     setClubModerationConfirming(true);
     setActionError("");
 
@@ -1160,6 +1618,36 @@ const filteredClubs = clubs.filter((club) => {
                   }
                 />
               )}
+              {clubRealtimeStatus === "error" && (
+                <p
+                  className="club-realtime-error"
+                  role="status"
+                >
+                  Live updates disconnected. Reconnecting…
+                </p>
+              )}
+              {typingNames.length > 0 && (
+                <div
+                  className="club-typing-indicator"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span
+                    className="club-typing-dots"
+                    aria-hidden="true"
+                  >
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+
+                  <span>
+                    {getTypingLabel(
+                      typingNames,
+                    )}
+                  </span>
+                </div>
+              )}
               <form className="club-message-form" onSubmit={publishClubPost}>
                 <textarea
                   value={postDraft}
@@ -1168,14 +1656,9 @@ const filteredClubs = clubs.filter((club) => {
                     clubModerationConfirming
                   }
                  onChange={(event) => {
-                    setPostDraft(event.target.value);
-
-                    if (clubModerationWarning) {
-                      setClubModerationWarning(null);
-                    }
-                    if (clubModerationBlocked) {
-                      setClubModerationBlocked(null);
-                    }
+                    handleClubDraftChange(
+                      event.target.value,
+                    );
                   }}
                   placeholder={`Message ${activeClub.title}...`}
                   rows="2"
