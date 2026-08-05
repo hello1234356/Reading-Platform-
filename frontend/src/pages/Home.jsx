@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
@@ -198,6 +202,12 @@ function Home() {
   const [feedError, setFeedError] = useState("");
   const [deletingPostId, setDeletingPostId] = useState(null);
   const [deletingCommentId, setDeletingCommentId] = useState(null);
+  const [
+    expandedCommentPostIds,
+    setExpandedCommentPostIds,
+  ] = useState(() => new Set());
+
+  const commentInputRefs = useRef({});
   const [deletePostError, setDeletePostError] = useState("");
   const [gradeLeaderboard, setGradeLeaderboard] = useState([]);
   const [teacherBooksRead, setTeacherBooksRead] = useState(0);  
@@ -465,6 +475,70 @@ function Home() {
         post.id === postId ? { ...post, draftComment: value } : post,
       ),
     );
+  }
+  function toggleComments(postId) {
+    setExpandedCommentPostIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+
+      return next;
+    });
+  }
+
+  function focusCommentInput(postId) {
+    window.requestAnimationFrame(() => {
+      commentInputRefs.current[postId]?.focus();
+    });
+  }
+
+  function beginCommentReply({
+    postId,
+    commenterName,
+  }) {
+    if (!requireLogin()) {
+      return;
+    }
+
+    const cleanedName =
+      String(commenterName || "Reader").trim();
+
+    const mention = `@${cleanedName} `;
+
+    setPosts((currentPosts) =>
+      currentPosts.map((post) => {
+        if (post.id !== postId) {
+          return post;
+        }
+
+        const currentDraft =
+          post.draftComment || "";
+
+        /*
+        * Preserve anything already typed.
+        * Do not insert the same mention twice.
+        */
+        if (
+          currentDraft
+            .trimStart()
+            .startsWith(mention.trim())
+        ) {
+          return post;
+        }
+
+        return {
+          ...post,
+          draftComment:
+            `${mention}${currentDraft.trimStart()}`,
+        };
+      }),
+    );
+
+    focusCommentInput(postId);
   }
   async function openBookDetails(book) {
     setModalShelf("to-be-read");
@@ -1539,6 +1613,9 @@ const thirdPlace = combinedLeaderboard[2];
                     className="feed-action"
                     type="button"
                     aria-label="Comment on post"
+                    onClick={() =>
+                      focusCommentInput(post.id)
+                    }
                   >
                     <span aria-hidden="true">↩</span>
                     <small>{post.comments.length}</small>
@@ -1559,28 +1636,93 @@ const thirdPlace = combinedLeaderboard[2];
                   )}
                 </div>
 
+                <div className="comment-section">
+                  
                 <div className="comment-list">
-                  {post.comments.slice(-2).map((comment) => (
-                    <div className="comment-item" key={comment.id}>
-                     <p>
-                      <ProfileLink userId={comment.userId}>
-                        <strong>{comment.commenterName}</strong>
-                      </ProfileLink>{" "}
-                      {comment.text}
-                    </p>
-                      {comment.userId === user?.id && (
-                        <button
-                          type="button"
-                          onClick={() => removeComment(post.id, comment.id)}
-                          disabled={deletingCommentId === comment.id}
-                          aria-label="Delete your comment"
-                        >
-                          {deletingCommentId === comment.id ? "Deleting..." : "Delete"}
-                        </button>
-                      )}
+                  {(
+                    expandedCommentPostIds.has(post.id)
+                      ? post.comments
+                      : post.comments.slice(-3)
+                  ).map((comment) => (
+                    <div
+                      className="comment-item"
+                      key={comment.id}
+                    >
+                      <div className="comment-content">
+                        <p>
+                          <ProfileLink
+                            userId={comment.userId}
+                          >
+                            <strong>
+                              {comment.commenterName}
+                            </strong>
+                          </ProfileLink>{" "}
+                          {comment.text}
+                        </p>
+
+                        <div className="comment-item-actions">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              beginCommentReply({
+                                postId: post.id,
+                                commenterName:
+                                  comment.commenterName,
+                              })
+                            }
+                          >
+                            Reply
+                          </button>
+
+                          {comment.userId === user?.id && (
+                            <button
+                              type="button"
+                              className="comment-delete-button"
+                              onClick={() =>
+                                removeComment(
+                                  post.id,
+                                  comment.id,
+                                )
+                              }
+                              disabled={
+                                deletingCommentId ===
+                                comment.id
+                              }
+                              aria-label="Delete your comment"
+                            >
+                              {deletingCommentId ===
+                              comment.id
+                                ? "Deleting..."
+                                : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
+
+                {post.comments.length > 3 && (
+                  <button
+                    className="comment-fold-button"
+                    type="button"
+                    onClick={() =>
+                      toggleComments(post.id)
+                    }
+                    aria-expanded={
+                      expandedCommentPostIds.has(
+                        post.id,
+                      )
+                    }
+                  >
+                    {expandedCommentPostIds.has(
+                      post.id,
+                    )
+                      ? "Hide comments"
+                      : `View all ${post.comments.length} comments`}
+                  </button>
+                )}
+              </div>
                 {commentModeratingPostId === post.id && (
                   <ModerationStatusBar
                     label="Checking your comment"
@@ -1615,6 +1757,17 @@ const thirdPlace = combinedLeaderboard[2];
                 <div className="comment-form">
                   <input
                     type="text"
+                    ref={(node) => {
+                      if (node) {
+                        commentInputRefs.current[
+                          post.id
+                        ] = node;
+                      } else {
+                        delete commentInputRefs.current[
+                          post.id
+                        ];
+                      }
+                    }}
                     value={post.draftComment}
                     disabled={
                       commentModeratingPostId === post.id ||
