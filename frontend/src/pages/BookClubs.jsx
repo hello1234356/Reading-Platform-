@@ -159,6 +159,23 @@ function BookClubs() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [clubSearchQuery, setClubSearchQuery] = useState("");
   const [postDraft, setPostDraft] = useState("");
+  const [typingUsers, setTypingUsers] =
+    useState({});
+
+  const [clubRealtimeStatus, setClubRealtimeStatus] =
+    useState("connecting");
+
+  const clubRealtimeChannelRef =
+    useRef(null);
+
+  const typingStopTimerRef =
+    useRef(null);
+
+  const typingExpiryTimersRef =
+    useRef(new Map());
+
+  const typingSentRef =
+    useRef(false);
   const [
     clubModerationWarning,
     setClubModerationWarning,
@@ -255,24 +272,6 @@ function BookClubs() {
 
   const normalizedClubSearch =
   clubSearchQuery.trim().toLowerCase();
-
-  const [typingUsers, setTypingUsers] =
-    useState({});
-
-  const [clubRealtimeStatus, setClubRealtimeStatus] =
-    useState("connecting");
-
-  const clubRealtimeChannelRef =
-    useRef(null);
-
-  const typingStopTimerRef =
-    useRef(null);
-
-  const typingExpiryTimersRef =
-    useRef(new Map());
-
-  const typingSentRef =
-    useRef(false);
 
 const filteredClubs = clubs.filter((club) => {
   if (!normalizedClubSearch) {
@@ -1281,18 +1280,9 @@ const filteredClubs = clubs.filter((club) => {
           error.message ||
             "Could not publish your message.",
         );
-      console.error(
-        "Failed to publish warned club message:",
-        error,
-      );
-
-      setActionError(
-        error.message ||
-          "Could not publish your message.",
-      );
-    } finally {
-      setClubModerationConfirming(false);
-    }
+      } finally {
+        setClubModerationConfirming(false);
+      }
   }
 
   async function createClub(event) {
