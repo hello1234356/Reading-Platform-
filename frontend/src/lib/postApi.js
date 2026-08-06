@@ -59,7 +59,24 @@ function mapComment(row) {
     id: row.id,
     userId: row.user_id,
     text: row.comment,
-    commenterName: getPublicDisplayName(row.profiles),
+
+    commenterName:
+      getPublicDisplayName(row.profiles),
+
+    commenterUsername:
+      row.profiles?.username || "",
+
+    mentionedUserId:
+      row.mentioned_user_id || null,
+
+    mentionedUsername:
+      row.mentioned_profile?.username || "",
+
+    mentionedName:
+      getPublicDisplayName(
+        row.mentioned_profile,
+      ),
+
     createdAt: row.created_at,
   };
 }
@@ -146,10 +163,17 @@ const FEED_SELECT = `
     id,
     post_id,
     user_id,
+    mentioned_user_id,
     comment,
     created_at,
 
     profiles!comments_user_id_fkey (
+      id,
+      full_name,
+      username
+    ),
+
+    mentioned_profile:profiles!comments_mentioned_user_id_fkey (
       id,
       full_name,
       username
@@ -306,6 +330,7 @@ export async function addPostComment({
   postId,
   userId,
   comment,
+  mentionedUserId = null,
   allowModerationWarning = false,
 }) {
   if (!postId) {
@@ -331,15 +356,25 @@ export async function addPostComment({
     .insert({
       post_id: postId,
       user_id: userId,
+      mentioned_user_id:
+        mentionedUserId || null,
       comment: cleanedComment,
     })
     .select(`
       id,
       post_id,
       user_id,
+      mentioned_user_id,
       comment,
       created_at,
-      profiles (
+
+      profiles!comments_user_id_fkey (
+        id,
+        full_name,
+        username
+      ),
+
+      mentioned_profile:profiles!comments_mentioned_user_id_fkey (
         id,
         full_name,
         username

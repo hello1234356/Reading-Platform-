@@ -3,6 +3,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
@@ -253,6 +254,9 @@ function Home() {
   const selectedComposerBook = libraryBooks.find(
     (book) => String(book.bookId) === String(composeDraft.bookId),
   );
+  const [commentReplyTargets, setCommentReplyTargets] =
+    useState({});
+
   useEffect(() => {
     let cancelled = false;
 
@@ -498,45 +502,28 @@ function Home() {
 
   function beginCommentReply({
     postId,
+    userId,
+    username,
     commenterName,
   }) {
     if (!requireLogin()) {
       return;
     }
 
-    const cleanedName =
-      String(commenterName || "Reader").trim();
-
-    const mention = `@${cleanedName} `;
-
-    setPosts((currentPosts) =>
-      currentPosts.map((post) => {
-        if (post.id !== postId) {
-          return post;
-        }
-
-        const currentDraft =
-          post.draftComment || "";
-
-        /*
-        * Preserve anything already typed.
-        * Do not insert the same mention twice.
-        */
-        if (
-          currentDraft
-            .trimStart()
-            .startsWith(mention.trim())
-        ) {
-          return post;
-        }
-
-        return {
-          ...post,
-          draftComment:
-            `${mention}${currentDraft.trimStart()}`,
-        };
-      }),
-    );
+    setCommentReplyTargets((current) => ({
+      ...current,
+      [postId]: {
+        userId,
+        username:
+          String(username || "")
+            .trim()
+            .replace(/^@/, ""),
+        name:
+          String(
+            commenterName || "Reader",
+          ).trim(),
+      },
+    }));
 
     focusCommentInput(postId);
   }
@@ -569,8 +556,10 @@ function Home() {
       (currentPost) =>
         currentPost.id === postId,
     );
-
+    
     if (!post) return;
+    const replyTarget =
+      commentReplyTargets[postId] || null;
 
     const comment = post.draftComment.trim();
 
@@ -582,12 +571,15 @@ function Home() {
     setCommentModeratingPostId(postId);
 
     try {
-      const createdComment = await addPostComment({
-        postId,
-        userId: user.id,
-        comment,
-        allowModerationWarning: false,
-      });
+      const createdComment =
+        await addPostComment({
+          postId,
+          userId: user.id,
+          comment,
+          mentionedUserId:
+            replyTarget?.userId || null,
+          allowModerationWarning: false,
+        });
 
       setPosts((currentPosts) =>
         currentPosts.map((currentPost) =>
@@ -603,6 +595,11 @@ function Home() {
               },
         ),
       );
+      setCommentReplyTargets((current) => {
+        const next = { ...current };
+        delete next[postId];
+        return next;
+      });
     } catch (error) {
       console.error(
         "Failed to publish comment:",
@@ -614,6 +611,8 @@ function Home() {
           type: "feed-comment",
           postId,
           text: comment,
+          mentionedUserId:
+            replyTarget?.userId || null,
           message: error.message,
         });
 
@@ -659,18 +658,25 @@ function Home() {
       return;
     }
 
-    const { postId, text } = moderationWarning;
+    const {
+      postId,
+      text,
+      mentionedUserId,
+    } = moderationWarning;
 
     setModerationConfirming(true);
     setDeletePostError("");
 
     try {
-      const createdComment = await addPostComment({
-        postId,
-        userId: user.id,
-        comment: text,
-        allowModerationWarning: true,
-      });
+      const createdComment =
+        await addPostComment({
+          postId,
+          userId: user.id,
+          comment: text,
+          mentionedUserId:
+            mentionedUserId || null,
+          allowModerationWarning: true,
+        });
 
       setPosts((currentPosts) =>
         currentPosts.map((currentPost) =>
@@ -686,6 +692,12 @@ function Home() {
               },
         ),
       );
+
+      setCommentReplyTargets((current) => {
+        const next = { ...current };
+        delete next[postId];
+        return next;
+      });
 
       setModerationWarning(null);
     } catch (error) {
@@ -1657,6 +1669,18 @@ const thirdPlace = combinedLeaderboard[2];
                               {comment.commenterName}
                             </strong>
                           </ProfileLink>{" "}
+
+                            {comment.mentionedUserId && (
+                              <span className="comment-posted-mention">
+                                <ProfileLink
+                                  userId={comment.mentionedUserId}
+                                >
+                                  @{comment.mentionedUsername ||
+                                    comment.mentionedName}
+                                </ProfileLink>{" "}
+                              </span>
+                            )}
+
                           {comment.text}
                         </p>
 
@@ -1666,6 +1690,9 @@ const thirdPlace = combinedLeaderboard[2];
                             onClick={() =>
                               beginCommentReply({
                                 postId: post.id,
+                                userId: comment.userId,
+                                username:
+                                  comment.commenterUsername,
                                 commenterName:
                                   comment.commenterName,
                               })
@@ -1755,68 +1782,146 @@ const thirdPlace = combinedLeaderboard[2];
                       />
                     )}
                 <div className="comment-form">
-                  <input
-                    type="text"
-                    ref={(node) => {
-                      if (node) {
-                        commentInputRefs.current[
-                          post.id
-                        ] = node;
-                      } else {
-                        delete commentInputRefs.current[
-                          post.id
-                        ];
-                      }
-                    }}
-                    value={post.draftComment}
-                    disabled={
-                      commentModeratingPostId === post.id ||
-                      moderationConfirming
-                    }
-                    onChange={(event) => {
-                      updateDraft(
-                        post.id,
-                        event.target.value,
-                      );
+                  <div className="comment-input-shell">
+                    {commentReplyTargets[post.id] && (
+                      <span
+                        className="comment-mention-chip"
+                        role="link"
+                        tabIndex={0}
+                        onClick={() => {
+                          const target =
+                            commentReplyTargets[post.id];
 
-                      if (
-                        moderationWarning?.type ===
-                          "feed-comment" &&
-                        moderationWarning.postId === post.id
-                      ) {
-                        setModerationWarning(null);
+                          if (target?.userId) {
+                            navigate(`/profile/${target.userId}`);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === "Enter" ||
+                            event.key === " "
+                          ) {
+                            event.preventDefault();
+
+                            const target =
+                              commentReplyTargets[post.id];
+
+                            if (target?.userId) {
+                              navigate(
+                                `/profile/${target.userId}`,
+                              );
+                            }
+                          }
+                        }}
+                      >
+                        @{commentReplyTargets[post.id].username ||
+                          commentReplyTargets[post.id].name}
+                      </span>
+                    )}
+
+                    <input
+                      type="text"
+                      ref={(node) => {
+                        if (node) {
+                          commentInputRefs.current[
+                            post.id
+                          ] = node;
+                        } else {
+                          delete commentInputRefs.current[
+                            post.id
+                          ];
+                        }
+                      }}
+                      value={post.draftComment}
+                      disabled={
+                        commentModeratingPostId ===
+                          post.id ||
+                        moderationConfirming
                       }
-                      if (
-                        moderationBlocked?.type ===
-                          "feed-comment" &&
-                        moderationBlocked.postId === post.id
-                      ) {
-                        setModerationBlocked(null);
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (
-                        event.key === "Enter" &&
-                        commentModeratingPostId === null &&
-                        !moderationConfirming
-                      ) {
-                        event.preventDefault();
-                        addComment(post.id);
-                      }
-                    }}
-                    placeholder="Add a quiet thought..."
-                    aria-label={`Comment on ${post.book}`}
-                  />
+                      onChange={(event) => {
+                        updateDraft(
+                          post.id,
+                          event.target.value,
+                        );
+
+                        if (
+                          moderationWarning?.type ===
+                            "feed-comment" &&
+                          moderationWarning.postId ===
+                            post.id
+                        ) {
+                          setModerationWarning(null);
+                        }
+
+                        if (
+                          moderationBlocked?.type ===
+                            "feed-comment" &&
+                          moderationBlocked.postId ===
+                            post.id
+                        ) {
+                          setModerationBlocked(null);
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        const replyTarget =
+                          commentReplyTargets[
+                            post.id
+                          ];
+
+                        /*
+                        * When the input is empty, Backspace removes
+                        * the whole mention chip in one press.
+                        */
+                        if (
+                          event.key === "Backspace" &&
+                          !post.draftComment &&
+                          replyTarget
+                        ) {
+                          event.preventDefault();
+
+                          setCommentReplyTargets(
+                            (current) => {
+                              const next = {
+                                ...current,
+                              };
+
+                              delete next[post.id];
+
+                              return next;
+                            },
+                          );
+
+                          return;
+                        }
+
+                        if (
+                          event.key === "Enter" &&
+                          commentModeratingPostId ===
+                            null &&
+                          !moderationConfirming
+                        ) {
+                          event.preventDefault();
+                          addComment(post.id);
+                        }
+                      }}
+                      placeholder="Add a quiet thought..."
+                      aria-label={`Comment on ${post.book}`}
+                    />
+                  </div>
 
                   <button
                     type="button"
-                    onClick={() => addComment(post.id)}
+                    onClick={() =>
+                      addComment(post.id)
+                    }
                     disabled={
-                      commentModeratingPostId === post.id ||
+                      commentModeratingPostId ===
+                        post.id ||
                       moderationConfirming
                     }
                   >
-                    {commentModeratingPostId === post.id
+                    {commentModeratingPostId ===
+                    post.id
                       ? "Checking..."
                       : "Send"}
                   </button>
