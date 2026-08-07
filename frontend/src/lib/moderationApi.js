@@ -1,5 +1,4 @@
 import { requireSupabase } from "./supabase";
-import { moderateText } from "./moderation";
 
 export class ModerationError extends Error {
   constructor(message, code, moderation) {
@@ -8,49 +7,6 @@ export class ModerationError extends Error {
     this.code = code;
     this.moderation = moderation;
   }
-}
-
-function runKeywordFallback(text, contextType) {
-  const originalText = String(text || "").trim();
-  const legacyResult = moderateText(originalText);
-
-  let action = "allow";
-  let feedback = "";
-
-  if (legacyResult.severity === "high") {
-    action = "report";
-    feedback =
-      "This message severely violates our community guidelines. It has been blocked and marked for moderator review.";
-  } else if (legacyResult.hasFilteredLanguage) {
-    action = "block";
-    feedback =
-      "This message contains language that is not permitted on the school platform. Please revise it before posting.";
-  }
-
-  return {
-    action,
-    contextType,
-    originalText,
-    approvedText: originalText,
-    filteredText: originalText,
-    matchedTerms: legacyResult.matchedTerms,
-    severity:
-      action === "report"
-        ? "high"
-        : action === "block"
-          ? "medium"
-          : "none",
-    feedback,
-    reason: "Keyword fallback moderation.",
-    categories:
-      action === "allow"
-        ? ["none"]
-        : ["profanity"],
-    target: "unknown",
-    confidence: 0,
-    needsReview: action === "report",
-    provider: "keyword-fallback",
-  };
 }
 
 export async function moderateContent({

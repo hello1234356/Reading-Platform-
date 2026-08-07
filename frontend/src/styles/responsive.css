@@ -54,11 +54,12 @@
   }
 
   .grade-leaderboard-strip {
+    align-items: stretch;
     grid-template-columns: 1fr;
   }
 
-  .grade-leaderboard-strip ol {
-    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  .leaderboard-podium {
+    width: 100%;
   }
 
   .teacher-leaderboard-strip {
@@ -408,12 +409,18 @@
     font-size: 40px;
   }
 
-  .grade-leaderboard-strip ol {
-    grid-template-columns: 1fr;
+  .leaderboard-podium {
+    grid-template-columns: repeat(5, minmax(104px, 1fr));
+    min-width: 580px;
+    gap: 8px;
   }
 
-  .grade-leaderboard-strip li {
-    min-height: 64px;
+  .podium-step {
+    padding: 14px 8px 12px;
+  }
+
+  .podium-step strong {
+    font-size: 12px;
   }
 
   .teacher-leaderboard-list {

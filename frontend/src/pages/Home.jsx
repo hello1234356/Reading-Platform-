@@ -1289,10 +1289,6 @@ function Home() {
       a.tieOrder - b.tieOrder,
 );
 
-const firstPlace = combinedLeaderboard[0];
-const secondPlace = combinedLeaderboard[1];
-const thirdPlace = combinedLeaderboard[2];    
-
   return (
     <div className="home-page">
       <section className="reading-room-hero" aria-labelledby="home-title">
@@ -1336,43 +1332,28 @@ const thirdPlace = combinedLeaderboard[2];
             {leaderboardError}
           </p>
         ) : (
-          <div
+          <ol
             className="leaderboard-podium"
-            aria-label="Top three school groups by books read"
+            aria-label="School groups ranked by books read"
           >
-            <div className="podium-step second">
-              <span aria-label="Second place">2</span>
-              <strong>
-                {secondPlace?.label ?? "—"}
-              </strong>
-              <small>
-                {secondPlace?.booksRead ?? 0}{" "}
-                {(secondPlace?.booksRead ?? 0) === 1 ? "book" : "books"} read
-              </small>
-            </div>
+            {combinedLeaderboard.map((ranking, index) => {
+              const rank = index + 1;
 
-            <div className="podium-step first">
-              <span aria-label="First place">1</span>
-              <strong>
-                {firstPlace?.label ?? "—"}
-              </strong>
-              <small>
-                {firstPlace?.booksRead ?? 0}{" "}
-                {(firstPlace?.booksRead ?? 0) === 1 ? "book" : "books"} read
-              </small>
-            </div>
-
-            <div className="podium-step third">
-              <span aria-label="Third place">3</span>
-              <strong>
-                {thirdPlace?.label ?? "—"}
-              </strong> 
-              <small>
-                {thirdPlace?.booksRead ?? 0}{" "}
-                {(thirdPlace?.booksRead ?? 0) === 1 ? "book" : "books"} read
-              </small>
-            </div>
-          </div>
+              return (
+                <li
+                  className={`podium-step rank-${rank}`}
+                  key={ranking.label}
+                >
+                  <span aria-label={`Rank ${rank}`}>{rank}</span>
+                  <strong>{ranking.label}</strong>
+                  <small>
+                    {ranking.booksRead}{" "}
+                    {ranking.booksRead === 1 ? "book" : "books"} read
+                  </small>
+                </li>
+              );
+            })}
+          </ol>
         )}
       </section>
 	      <div className="home-grid">
