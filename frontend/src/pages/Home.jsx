@@ -188,6 +188,7 @@ function getInitialHomeState() {
 }
 
 function Home() {
+  const navigate = useNavigate();
   const [initialHomeState] = useState(getInitialHomeState);
   const [dailyQuote] = useState(() => getDailyLiteraryQuote());
   const { requireLogin, isLoggedIn } = useRequireLogin();

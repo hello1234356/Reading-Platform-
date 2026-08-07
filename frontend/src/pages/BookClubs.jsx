@@ -449,8 +449,6 @@ const filteredClubs = clubs.filter((club) => {
       !activeClub?.id ||
       !user?.id
     ) {
-      setTypingUsers({});
-      setClubRealtimeStatus("disconnected");
       return undefined;
     }
 
@@ -691,6 +689,8 @@ const filteredClubs = clubs.filter((club) => {
 
     clubRealtimeChannelRef.current =
       channel;
+    const typingExpiryTimers =
+      typingExpiryTimersRef.current;
 
     return () => {
       cancelled = true;
@@ -706,15 +706,16 @@ const filteredClubs = clubs.filter((club) => {
           null;
       }
 
-      typingExpiryTimersRef.current.forEach(
+      typingExpiryTimers.forEach(
         (timer) => {
           window.clearTimeout(timer);
         },
       );
 
-      typingExpiryTimersRef.current.clear();
+      typingExpiryTimers.clear();
       typingSentRef.current = false;
       setTypingUsers({});
+      setClubRealtimeStatus("disconnected");
 
       if (
         clubRealtimeChannelRef.current ===
@@ -1726,35 +1727,30 @@ const filteredClubs = clubs.filter((club) => {
                     />
                   )}
                 </div>
-                <div>
-                  <h2>{club.bookTitle}</h2>
-                  <p className="club-card-name">{club.title}</p>
-                  <small className="club-card-founder">
-                    Started by{" "}
-                    <ProfileLink userId={club.creatorId}>
-                      {club.creatorName}
-                    </ProfileLink>
-                  </small>
+                <div className="club-card-copy">
+                  <div className="club-card-heading">
+                    <h2>{club.bookTitle}</h2>
+                    <p className="club-card-name">{club.title}</p>
+                    <small className="club-card-founder">
+                      Started by{" "}
+                      <ProfileLink userId={club.creatorId}>
+                        {club.creatorName}
+                      </ProfileLink>
+                    </small>
+                  </div>
 
                   <p className="club-card-description">{club.description}</p>
-                  <p className="club-activity-status">
-                    {getClubActivityLabel(club.lastActivityAt)}
-                  </p>
-                  {club.tags.length > 0 && (
-                    <div className="club-tag-list" aria-label="Club tags">
-                      {club.tags.map((tag) => (
-                        <span className="club-tag" key={tag}>
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="club-capacity">
+                  <div className="club-card-meta">
+                    <p className="club-activity-status">
+                      {getClubActivityLabel(club.lastActivityAt)}
+                    </p>
+                    <strong>
+                      {club.memberCount}/{club.membersWanted} readers
+                    </strong>
+                  </div>
+                  <div className="club-capacity" aria-hidden="true">
                     <span style={{ width: `${(club.memberCount / club.membersWanted) * 100}%` }} />
                   </div>
-                  <strong>
-                    {club.memberCount}/{club.membersWanted} readers
-                  </strong>
                   <div className="club-card-actions">
                     <button
                       className="ghost-button"

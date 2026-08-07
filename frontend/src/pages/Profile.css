@@ -518,8 +518,7 @@
 
 .profile-review-list {
   display: grid;
-  gap: 0;
-  border-top: 1px solid rgba(138, 106, 88, 0.16);
+  gap: 14px;
 }
 
 .profile-review {
@@ -527,14 +526,19 @@
   grid-template-columns: 104px minmax(0, 1fr);
   gap: 20px;
   align-items: center;
-  padding: 22px 0;
+  padding: 26px 0 32px;
   border-bottom: 1px solid rgba(138, 106, 88, 0.14);
+}
+
+.profile-review-list .profile-review:last-child {
+  border-bottom: 0;
 }
 
 .profile-review-media {
   display: grid;
   justify-items: center;
-  gap: 10px;
+  gap: 16px;
+  align-self: start;
 }
 
 .profile-review-media img {
@@ -550,6 +554,7 @@
   display: flex;
   gap: 3px;
   justify-content: center;
+  margin-bottom: 4px;
   color: rgba(138, 106, 88, 0.22);
   font-size: 15px;
   font-weight: 900;
@@ -1096,4 +1101,3 @@
   font-size: 42px;
   line-height: 0.98;
 }
-
