@@ -102,6 +102,26 @@ function Discover() {
     (list) => list.username,
   );
 
+  async function refreshRecentFinishes({ showLoading = false } = {}) {
+    if (showLoading) {
+      setRecentFinishesLoading(true);
+    }
+
+    setRecentFinishesError("");
+
+    try {
+      const finishedBooks = await getRecentFinishedBooks(10);
+      setRecentFinishes(finishedBooks);
+    } catch (error) {
+      console.error("Failed to load recent finished books:", error);
+      setRecentFinishesError("Recent finishes are unavailable right now.");
+    } finally {
+      if (showLoading) {
+        setRecentFinishesLoading(false);
+      }
+    }
+  }
+
   async function runBookSearch(searchTerm) {
     const normalizedSearchTerm = searchTerm.trim();
 
@@ -226,6 +246,7 @@ function Discover() {
 	    );
 
       if (targetShelf === "read") {
+        await refreshRecentFinishes();
         setReviewBook({
           ...book,
           bookId: savedLibraryBook.book.id,
@@ -280,6 +301,7 @@ async function submitReview(event) {
 	
 	    setReviewBook(null);
 	    setReviewDraft({ rating: 5, review: "", visibility: "public" });
+      await refreshRecentFinishes();
 	    setSearchMessage(`${reviewBook.title} was added to Read with your review.`);
   } catch (error) {
     console.error("Failed to save review:", error);
@@ -338,7 +360,7 @@ async function openBookDetails(book) {
           ) : recentFinishesError ? (
             <p className="recent-finishes-status" role="alert">{recentFinishesError}</p>
           ) : recentFinishes.length === 0 ? (
-            <p className="recent-finishes-status">No finished books have been rated yet.</p>
+            <p className="recent-finishes-status">No finished books yet.</p>
           ) : (
             <div className="recent-finishes-list">
               {recentFinishes.map((book) => (
@@ -347,7 +369,11 @@ async function openBookDetails(book) {
                   type="button"
                   key={book.id}
                   onClick={() => openBookDetails(book)}
-                  aria-label={`View ${book.title}, rated ${book.rating} out of 5 anonymously`}
+                  aria-label={
+                    book.rating == null
+                      ? `View ${book.title}, finished anonymously`
+                      : `View ${book.title}, rated ${book.rating} out of 5 anonymously`
+                  }
                 >
                   <div className="recent-finish-cover" aria-hidden="true">
                     {(book.coverUrl || book.isbn) ? (
@@ -364,13 +390,17 @@ async function openBookDetails(book) {
                   <div>
                     <strong>{book.title}</strong>
                     <small>{book.author}</small>
-                    <span
-                      className="recent-finish-rating"
-                      aria-label={`${book.rating.toFixed(1)} out of 5 open books`}
-                    >
-                      <StarRating rating={book.rating} size={14} />
-                      {book.rating.toFixed(1)}
-                    </span>
+                    {book.rating == null ? (
+                      <span className="recent-finish-rating">Finished</span>
+                    ) : (
+                      <span
+                        className="recent-finish-rating"
+                        aria-label={`${book.rating.toFixed(1)} out of 5 open books`}
+                      >
+                        <StarRating rating={book.rating} size={14} />
+                        {book.rating.toFixed(1)}
+                      </span>
+                    )}
                   </div>
                 </button>
               ))}

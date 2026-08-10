@@ -891,7 +891,11 @@ function Home() {
     setLibraryBooks((currentBooks) =>
       currentBooks.map((book) =>
         String(book.shelfEntryId) === String(bookToUpdate.shelfEntryId)
-          ? { ...book, progress: nextProgress }
+          ? {
+              ...book,
+              progress: nextProgress,
+              shelf: shouldFinish ? "read" : "currently-reading",
+            }
           : book,
       ),
     );
@@ -922,7 +926,7 @@ function Home() {
     }
   }
 
-  function finishTrackedBook(bookToFinish) {
+  async function finishTrackedBook(bookToFinish) {
     if (!requireLogin()) return;
     if (!bookToFinish) return;
     const bookKey = getTrackedBookKey(bookToFinish);
@@ -932,25 +936,51 @@ function Home() {
       finished: true,
     };
 
+    setFinishReviewError("");
     setTrackedBooks((currentBooks) =>
       currentBooks.map((book) =>
         getTrackedBookKey(book) === bookKey ? finishedBook : book,
       ),
     );
+    setLibraryBooks((currentBooks) =>
+      currentBooks.map((book) =>
+        String(book.shelfEntryId) === String(bookToFinish.shelfEntryId)
+          ? { ...book, shelf: "read", progress: 100 }
+          : book,
+      ),
+    );
+
+    if (bookToFinish.shelfEntryId) {
+      try {
+        const savedBook = await updateLibraryBookProgress(
+          bookToFinish.shelfEntryId,
+          100,
+        );
+
+        setLibraryBooks((currentBooks) =>
+          currentBooks.map((book) =>
+            String(book.shelfEntryId) === String(savedBook.shelfEntryId)
+              ? savedBook
+              : book,
+          ),
+        );
+      } catch (error) {
+        console.error("Failed to mark book as finished:", error);
+        setFinishReviewError(
+          error.message || "Could not mark this book as finished.",
+        );
+      }
+    }
+
     setFinishingBook(finishedBook);
-    setFinishReviewError("");
     setIsFinishReviewOpen(true);
   }
 
   function closeFinishReview() {
     if (finishingBook) {
-      const bookKey = getTrackedBookKey(finishingBook);
-
       setTrackedBooks((currentBooks) =>
-        currentBooks.map((book) =>
-          getTrackedBookKey(book) === bookKey
-            ? { ...book, finished: false }
-            : book,
+        currentBooks.filter(
+          (book) => getTrackedBookKey(book) !== getTrackedBookKey(finishingBook),
         ),
       );
     }
