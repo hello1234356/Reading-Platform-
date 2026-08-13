@@ -22,11 +22,12 @@ export async function getRecentFinishedBooks(limit = 10) {
   const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 10));
 
   const { data, error } = await supabase
-    .from("reviews")
+    .from("shelves")
     .select(`
       id,
       book_id,
       rating,
+      progress,
       updated_at,
       books (
         id,
@@ -36,6 +37,7 @@ export async function getRecentFinishedBooks(limit = 10) {
         cover_url
       )
     `)
+    .eq("shelf", "read")
     .order("updated_at", { ascending: false })
     .limit(safeLimit);
 
@@ -43,14 +45,15 @@ export async function getRecentFinishedBooks(limit = 10) {
     throw error;
   }
 
-  return (data || []).map((row) => ({
+  return (data || []).filter((row) => row.books).map((row) => ({
     id: row.id,
     bookId: row.book_id,
     title: row.books?.title || "Untitled",
     author: row.books?.author || "Unknown author",
     isbn: row.books?.isbn || "",
     coverUrl: row.books?.cover_url || "",
-    rating: Number(row.rating),
+    rating: row.rating == null ? null : Number(row.rating),
+    progress: Number(row.progress ?? 100),
   }));
 }
 
@@ -149,6 +152,16 @@ export async function saveReview({
 
   if (error) {
     throw error;
+  }
+
+  const { error: shelfRatingError } = await supabase
+    .from("shelves")
+    .update({ rating: numericRating })
+    .eq("user_id", userId)
+    .eq("book_id", bookId);
+
+  if (shelfRatingError) {
+    throw shelfRatingError;
   }
 
   return mapReview(data);
