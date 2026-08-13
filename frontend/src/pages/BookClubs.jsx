@@ -7,7 +7,12 @@ import {
 import { requireSupabase } from "../lib/supabase";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useRequireLogin } from "../hooks/useRequireLogin";
-import { getOpenLibraryBookDetails } from "../lib/openLibrary";
+import {
+  BLOCKED_BOOK_CATEGORY_MESSAGE,
+  filterOpenLibraryResults,
+  getOpenLibraryBookDetails,
+  isBlockedOpenLibraryCategoryText,
+} from "../lib/openLibrary";
 import {
   archiveInactiveBookClubs,
   createBookClub,
@@ -97,7 +102,7 @@ function simplifySearchTerm(searchTerm) {
 
 async function fetchOpenLibraryBooks(searchTerm) {
   const response = await fetch(
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year&limit=12`,
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year,subject,subject_facet,person,place,time,publisher,lcc,ddc,ia_collection_s,seed&limit=20`,
   );
 
   if (!response.ok) {
@@ -106,7 +111,9 @@ async function fetchOpenLibraryBooks(searchTerm) {
 
   const data = await response.json();
 
-  return (data.docs || [])
+  const { allowedResults } = filterOpenLibraryResults(data.docs || []);
+
+  return allowedResults
     .filter((result) => result.isbn?.length)
     .map((result) => ({
       openLibraryKey: result.key,
@@ -375,6 +382,13 @@ const filteredClubs = clubs.filter((club) => {
       setBookSearchMessage("");
 
       try {
+        if (isBlockedOpenLibraryCategoryText(searchTerm)) {
+          setBookSearchResults([]);
+          setBookSearchStatus("error");
+          setBookSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
+          return;
+        }
+
         const simplifiedSearchTerm = simplifySearchTerm(searchTerm);
         let results = await fetchOpenLibraryBooks(searchTerm);
 

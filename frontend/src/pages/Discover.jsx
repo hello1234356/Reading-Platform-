@@ -5,7 +5,12 @@ import { recommendationLists } from "../data/recommendationLists";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
-import { getOpenLibraryBookDetails } from "../lib/openLibrary";
+import {
+  BLOCKED_BOOK_CATEGORY_MESSAGE,
+  filterOpenLibraryResults,
+  getOpenLibraryBookDetails,
+  isBlockedOpenLibraryCategoryText,
+} from "../lib/openLibrary";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
@@ -29,7 +34,7 @@ function simplifySearchTerm(searchTerm) {
 
 async function fetchOpenLibraryResults(searchTerm) {
   const response = await fetch(
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year&limit=10`,
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year,subject,subject_facet,person,place,time,publisher,lcc,ddc,ia_collection_s,seed&limit=20`,
   );
 
   if (!response.ok) {
@@ -117,6 +122,12 @@ function Discover() {
     setBookResults([]);
 
     try {
+      if (isBlockedOpenLibraryCategoryText(normalizedSearchTerm)) {
+        setSearchStatus("error");
+        setSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
+        return;
+      }
+
       const simplifiedSearchTerm = simplifySearchTerm(normalizedSearchTerm);
       let results = await fetchOpenLibraryResults(normalizedSearchTerm);
 
@@ -132,7 +143,16 @@ function Discover() {
         return;
       }
 
-      setBookResults(results.map(mapOpenLibraryResult));
+      const { allowedResults, blockedCount } =
+        filterOpenLibraryResults(results);
+
+      if (!allowedResults.length && blockedCount > 0) {
+        setSearchStatus("error");
+        setSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
+        return;
+      }
+
+      setBookResults(allowedResults.map(mapOpenLibraryResult));
       setSearchStatus("success");
     } catch {
       setSearchStatus("error");
