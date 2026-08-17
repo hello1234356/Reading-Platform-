@@ -28,7 +28,7 @@ export async function getRecentFinishedBooks(limit = 10) {
       book_id,
       rating,
       progress,
-      updated_at,
+      created_at,
       books (
         id,
         title,
@@ -38,7 +38,7 @@ export async function getRecentFinishedBooks(limit = 10) {
       )
     `)
     .eq("shelf", "read")
-    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(safeLimit);
 
   if (error) {
