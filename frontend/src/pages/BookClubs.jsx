@@ -100,9 +100,20 @@ function simplifySearchTerm(searchTerm) {
     .trim();
 }
 
+const OPEN_LIBRARY_SEARCH_FIELDS = [
+  "key",
+  "title",
+  "author_name",
+  "isbn",
+  "cover_i",
+  "first_publish_year",
+  "subject",
+  "publisher",
+].join(",");
+
 async function fetchOpenLibraryBooks(searchTerm) {
   const response = await fetch(
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=key,title,author_name,isbn,cover_i,first_publish_year,subject,subject_facet,person,place,time,publisher,lcc,ddc,ia_collection_s,seed&limit=20`,
+    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=${encodeURIComponent(OPEN_LIBRARY_SEARCH_FIELDS)}&limit=20`,
   );
 
   if (!response.ok) {
