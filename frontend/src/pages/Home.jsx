@@ -187,6 +187,54 @@ function getInitialHomeState() {
   }
 }
 
+function SpoilerSegment({ text }) {
+  const [isRevealed, setIsRevealed] =
+    useState(false);
+
+  if (isRevealed) {
+    return (
+      <span className="spoiler-revealed-text">
+        {text}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      className="spoiler-redaction"
+      type="button"
+      aria-label="Reveal spoiler"
+      onClick={() => setIsRevealed(true)}
+    >
+      <span className="spoiler-hidden-text">
+        {text}
+      </span>
+    </button>
+  );
+}
+
+function renderSpoilerText(text) {
+  const parts = String(text || "").split(/(\|\|[\s\S]+?\|\|)/g);
+
+  return parts.map((part, index) => {
+    const isSpoiler =
+      part.startsWith("||") && part.endsWith("||");
+
+    if (!isSpoiler) {
+      return part;
+    }
+
+    const spoilerText = part.slice(2, -2);
+
+    return (
+      <SpoilerSegment
+        key={`${spoilerText}-${index}`}
+        text={spoilerText}
+      />
+    );
+  });
+}
+
 function Home() {
   const navigate = useNavigate();
   const [initialHomeState] = useState(getInitialHomeState);
@@ -234,7 +282,9 @@ function Home() {
   const [composeDraft, setComposeDraft] = useState({
     bookId: "",
     note: "",
+    hasSpoilers: false,
   });
+  const composerTextareaRef = useRef(null);
   const [libraryBooks, setLibraryBooks] = useState([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
   const [libraryError, setLibraryError] = useState("");
@@ -794,6 +844,43 @@ function Home() {
     setIsComposerOpen(false);
   }
 
+  function markSelectedTextAsSpoiler() {
+    const textarea = composerTextareaRef.current;
+
+    if (!textarea) {
+      return;
+    }
+
+    const { selectionStart, selectionEnd, value } =
+      textarea;
+    const selectedText = value.slice(selectionStart, selectionEnd);
+
+    if (!selectedText.trim()) {
+      setPublishNoteError(
+        "Highlight the spoiler text in your note first.",
+      );
+      textarea.focus();
+      return;
+    }
+
+    const nextNote = `${value.slice(0, selectionStart)}||${selectedText}||${value.slice(selectionEnd)}`;
+
+    setComposeDraft((draft) => ({
+      ...draft,
+      note: nextNote,
+      hasSpoilers: true,
+    }));
+    setPublishNoteError("");
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        selectionStart,
+        selectionEnd + 4,
+      );
+    });
+  }
+
   async function logCurrentBook(event) {
     event.preventDefault();
     if (!requireLogin()) return;
@@ -1132,10 +1219,18 @@ function Home() {
     }
 
     const note = composeDraft.note.trim();
+    const hasMarkedSpoilers = /\|\|[\s\S]+?\|\|/.test(note);
 
     if (!note) {
       setPublishNoteError(
         "Please write a note before publishing.",
+      );
+      return;
+    }
+
+    if (composeDraft.hasSpoilers && !hasMarkedSpoilers) {
+      setPublishNoteError(
+        "Highlight the spoiler text and click Mark Spoiler before publishing.",
       );
       return;
     }
@@ -1168,6 +1263,7 @@ function Home() {
           ? String(selectedComposerBook.bookId)
           : "",
         note: "",
+        hasSpoilers: false,
       });
 
       setIsComposerOpen(false);
@@ -1224,9 +1320,18 @@ function Home() {
     }
 
     const note = composeDraft.note.trim();
+    const hasMarkedSpoilers = /\|\|[\s\S]+?\|\|/.test(note);
 
     if (!note) {
       setModerationWarning(null);
+      return;
+    }
+
+    if (composeDraft.hasSpoilers && !hasMarkedSpoilers) {
+      setModerationWarning(null);
+      setPublishNoteError(
+        "Highlight the spoiler text and click Mark Spoiler before publishing.",
+      );
       return;
     }
 
@@ -1256,6 +1361,7 @@ function Home() {
           ? String(selectedComposerBook.bookId)
           : "",
         note: "",
+        hasSpoilers: false,
       });
 
       setModerationWarning(null);
@@ -1542,7 +1648,7 @@ function Home() {
                 </header>
 
                 <div className="feed-note-bubble">
-                  <p>{post.note}</p>
+                  <p>{renderSpoilerText(post.note)}</p>
                 </div>
                 {post.hasBook && (
                 <button
@@ -2009,6 +2115,7 @@ function Home() {
               <label>
                 <span>Your note or quote</span>
                 <textarea
+                  ref={composerTextareaRef}
                   value={composeDraft.note}
                   disabled={
                     publishingNote ||
@@ -2037,6 +2144,42 @@ function Home() {
                   rows="6"
                 />
               </label>
+              <div className="spoiler-tools">
+                <label className="spoiler-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={composeDraft.hasSpoilers}
+                    disabled={
+                      publishingNote ||
+                      moderationConfirming
+                    }
+                    onChange={(event) =>
+                      setComposeDraft((draft) => ({
+                        ...draft,
+                        hasSpoilers: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>This note contains spoilers</span>
+                </label>
+                <button
+                  className="ghost-button spoiler-mark-button"
+                  type="button"
+                  disabled={
+                    !composeDraft.hasSpoilers ||
+                    publishingNote ||
+                    moderationConfirming
+                  }
+                  onClick={markSelectedTextAsSpoiler}
+                >
+                  Mark Selected Text
+                </button>
+              </div>
+              {composeDraft.hasSpoilers ? (
+                <p className="spoiler-help">
+                  Highlight the spoiler sentence, then mark it before publishing.
+                </p>
+              ) : null}
               {publishingNote &&
                 moderationWarning?.type !== "feed-post" && (
                   <ModerationStatusBar

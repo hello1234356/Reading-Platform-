@@ -1209,6 +1209,53 @@
   line-height: 1.55;
 }
 
+.feed-note-bubble .spoiler-redaction {
+  appearance: none;
+  display: inline-block;
+  margin: 0 2px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--deep-mocha);
+  color: transparent;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.55;
+  text-align: inherit;
+  vertical-align: baseline;
+  box-shadow: none;
+  user-select: none;
+}
+
+.feed-note-bubble .spoiler-hidden-text {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.feed-note-bubble .spoiler-revealed-text {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--charcoal);
+  font-family: var(--sans);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: normal;
+  text-decoration: none;
+  text-transform: none;
+  vertical-align: baseline;
+}
+
 .feed-note-bubble span {
   display: inline-flex;
   margin-top: 10px;

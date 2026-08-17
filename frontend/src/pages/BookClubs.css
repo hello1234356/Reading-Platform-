@@ -135,6 +135,7 @@
     "search search";
   align-items: end;
   gap: 1rem 1.5rem;
+  margin-top: 26px;
 }
 
 .club-toolbar > div:first-child {

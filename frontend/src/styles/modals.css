@@ -132,6 +132,52 @@
   line-height: 1.5;
 }
 
+.spoiler-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: -4px;
+}
+
+.spoiler-checkbox {
+  display: flex !important;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 9px !important;
+  width: fit-content;
+  color: var(--charcoal);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.spoiler-checkbox input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  accent-color: var(--terracotta);
+}
+
+.spoiler-mark-button {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.spoiler-mark-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.spoiler-help {
+  margin-top: -8px;
+  color: var(--soft-gray);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .composer-modal input:focus,
 .composer-modal select:focus,
 .composer-modal textarea:focus {
