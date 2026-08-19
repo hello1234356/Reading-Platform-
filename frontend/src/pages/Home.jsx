@@ -1457,7 +1457,7 @@ function Home() {
           </div>
           <div className="daily-quote-actions">
             <button className="primary-button hero-action" type="button" onClick={() => openComposer()}>
-              Share your reading
+              Share Your Reading
             </button>
           </div>
         </div>
@@ -1468,12 +1468,12 @@ function Home() {
         aria-label="School Reading leaderboard"
       >
         <div className="leaderboard-strip-heading">
-          <p className="eyebrow">School leaderboard</p>
-          <strong>Total books read</strong>
+          <p className="eyebrow">School Leaderboard</p>
+          <strong>Total Books Read</strong>
         </div>
 
         {leaderboardLoading ? (
-          <p className="leaderboard-status">Loading grade totals...</p>
+          <p className="leaderboard-status">Loading Grade Totals...</p>
         ) : leaderboardError ? (
           <p className="profile-save-error" role="alert">
             {leaderboardError}
@@ -1495,7 +1495,7 @@ function Home() {
                   <strong>{ranking.label}</strong>
                   <small>
                     {ranking.booksRead}{" "}
-                    {ranking.booksRead === 1 ? "book" : "books"} read
+                    {ranking.booksRead === 1 ? "Book" : "Books"} Read
                   </small>
                 </li>
               );
@@ -1510,7 +1510,7 @@ function Home() {
 	              <section className="current-book-card" aria-label="Currently reading tracker">
                 <div className="section-heading compact">
               <div>
-                <p className="eyebrow">Currently Reading</p>
+          <p className="eyebrow">Currently Reading</p>
                 <h2>Reading Tracker</h2>
               </div>
             </div>
@@ -1539,7 +1539,7 @@ function Home() {
                       </label>
                       <div>
                         <span>{book.progress}%</span>
-                        <strong>{book.finished ? "Finished" : "In progress"}</strong>
+                        <strong>{book.finished ? "Finished" : "In Progress"}</strong>
                       </div>
                     </div>
                     <button
@@ -1726,7 +1726,7 @@ function Home() {
                       ? `${post.rating} / 5`
                       : post.postType === "review"
                         ? "Finished"
-                        : "In progress"}
+                        : "In Progress"}
                   </div>
                   </button>
 )}

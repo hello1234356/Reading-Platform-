@@ -78,26 +78,6 @@
     position: static;
   }
 
-  .tracked-panel,
-  .search-panel {
-    grid-column: 1 / -1;
-  }
-
-  .search-panel {
-    display: grid;
-    grid-template-columns: 300px minmax(0, 1fr);
-  }
-
-  .favorite-book-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .favorite-book,
-  .favorite-book:nth-child(2),
-  .favorite-book:nth-child(3) {
-    margin-top: 0;
-  }
-
   .club-toolbar,
   .club-room-grid {
     grid-template-columns: 1fr;
@@ -121,11 +101,6 @@
 
   .create-club-preview {
     position: static;
-  }
-
-  .editorial-image {
-    height: 100%;
-    min-height: 260px;
   }
 
   .profile-hero {
@@ -287,7 +262,6 @@
   .club-room-layout,
   .discover-layout,
   .discovery-layout,
-  .discovery-quiz-rail,
   .create-club-layout,
   .book-detail-modal {
     grid-template-columns: 1fr;
@@ -458,6 +432,7 @@
   }
 
   .podium-step {
+    align-content: center;
     min-height: 92px;
     padding: 12px 8px;
   }
@@ -479,8 +454,7 @@
   .discovery-pick-grid,
   .themed-list-grid,
   .book-search-results,
-  .club-grid,
-  .quiz-option-list {
+  .club-grid {
     grid-template-columns: 1fr;
   }
 
@@ -557,8 +531,7 @@
   }
 
   .profile-identity h1,
-  .profile-challenge h2,
-  .favorites-heading h2 {
+  .profile-challenge h2 {
     font-size: clamp(34px, 11vw, 52px);
     line-height: 0.98;
   }
@@ -885,11 +858,6 @@
     height: 160px;
   }
 
-  .discovery-quiz-rail,
-  .quiz-option-list {
-    grid-template-columns: 1fr;
-  }
-
   .list-modal {
     padding: 22px;
   }
@@ -959,11 +927,6 @@
     line-height: 1.72;
   }
 
-  .discovery-quiz-rail .primary-button {
-    grid-column: auto;
-    grid-row: auto;
-  }
-
   .discovery-pick-card {
     grid-template-columns: 1fr;
     grid-template-rows: 250px minmax(0, 1fr);
@@ -998,6 +961,7 @@
   }
 
   .podium-step {
+    align-content: center;
     padding: 14px 8px 12px;
   }
 
@@ -1007,18 +971,6 @@
 
   .teacher-leaderboard-list {
     grid-template-columns: 1fr;
-  }
-
-  .favorite-book {
-    grid-template-columns: 1fr;
-  }
-
-  .favorite-cover {
-    min-height: 190px;
-  }
-
-  .favorites-heading h2 {
-    font-size: 34px;
   }
 
   .clubs-hero {
@@ -1110,15 +1062,6 @@
   .home-grid {
     grid-template-columns: 1fr;
     gap: 20px;
-  }
-
-  .search-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .editorial-image {
-    height: 176px;
-    min-height: 0;
   }
 
   .section-heading,
@@ -1267,8 +1210,7 @@
   .discovery-pick-grid,
   .themed-list-grid,
   .book-search-results,
-  .club-grid,
-  .quiz-option-list {
+  .club-grid {
     grid-template-columns: 1fr;
   }
 

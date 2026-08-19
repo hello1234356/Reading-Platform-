@@ -287,6 +287,8 @@ async function findOrCreateBook(selectedBook) {
       author: selectedBook.author?.trim() || "Unknown author",
       isbn,
       cover_url: selectedBook.coverUrl || null,
+      description: selectedBook.description || null,
+      genre: selectedBook.genre || null,
     })
     .select("id, title, author, isbn, cover_url")
     .single();

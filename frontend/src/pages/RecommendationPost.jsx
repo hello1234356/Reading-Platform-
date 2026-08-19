@@ -10,6 +10,38 @@ function getCoverUrl(isbn) {
   return getGoogleBooksCoverUrl(isbn);
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getSectionCoverUrl(section) {
+  return section.coverUrl || getCoverUrl(section.isbn);
+}
+
+function SectionCover({ section }) {
+  const [coverFailed, setCoverFailed] = useState(false);
+  const coverUrl = getSectionCoverUrl(section);
+  const title = section.title || section.heading;
+
+  if (coverUrl && !coverFailed) {
+    return (
+      <img
+        src={coverUrl}
+        alt={`${title} cover`}
+        loading="lazy"
+        onError={() => setCoverFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="era-cover-title-card">
+      <strong>{title}</strong>
+      {section.author ? <small>{section.author}</small> : null}
+    </div>
+  );
+}
+
 function renderPostBody(post) {
   if (!post.body || !post.sectionMeta) {
     return post.body ? (
@@ -20,7 +52,7 @@ function renderPostBody(post) {
   }
 
   const headings = post.sectionMeta.map((section) => section.heading);
-  const bodyPieces = post.body.split(new RegExp(`(${headings.join("|")})`));
+  const bodyPieces = post.body.split(new RegExp(`(${headings.map(escapeRegExp).join("|")})`));
   const intro = bodyPieces[0]?.trim();
   const sections = [];
 
@@ -40,26 +72,24 @@ function renderPostBody(post) {
     <div className="blog-post-body designed">
       {intro ? <p className="blog-post-intro">{intro}</p> : null}
       <div className="era-recommendation-grid">
-        {sections.map((section, index) => (
-          <section className="era-recommendation" key={section.heading}>
-            <div className="era-cover-wrap">
-              <img
-                src={section.coverUrl || getCoverUrl(section.isbn)}
-                alt={`${section.heading} cover`}
-                loading="lazy"
-              />
-            </div>
-            <div className="era-copy">
-              <div className="era-title-row">
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <div>
-                  <h2>{section.heading}</h2>
-                </div>
+        {sections.map((section, index) => {
+          return (
+            <section className="era-recommendation" key={section.heading}>
+              <div className="era-cover-wrap">
+                <SectionCover section={section} />
               </div>
-              <p className="era-body">{section.text}</p>
-            </div>
-          </section>
-        ))}
+              <div className="era-copy">
+                <div className="era-title-row">
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <div>
+                    <h2>{section.heading}</h2>
+                  </div>
+                </div>
+                <p className="era-body">{section.text}</p>
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
@@ -90,7 +120,7 @@ function RecommendationPost() {
     return (
       <section className="home-page blog-post-page">
         <Link className="blog-back-link" to="/discover">
-          Back to Discovery
+          Back to Discover
         </Link>
         <article className="blog-post-shell">
           <p className="eyebrow">Recommendation Post</p>
@@ -106,11 +136,20 @@ function RecommendationPost() {
   return (
     <section className="home-page blog-post-page">
       <Link className="blog-back-link" to="/discover">
-        Back to Discovery
+        Back to Discover
       </Link>
-      <article className="blog-post-shell">
+      <article
+        className={`blog-post-shell ${post.language === "zh" ? "chinese-post" : ""} post-${post.slug}`}
+      >
         <header className="blog-post-hero">
-          <img src={post.imageUrl} alt="" />
+          {post.imageUrl ? (
+            <img src={post.imageUrl} alt="" />
+          ) : (
+            <div className="blog-post-title-card" aria-hidden="true">
+              <span>{post.kicker}</span>
+              <strong>{post.coverTitle || post.title}</strong>
+            </div>
+          )}
           <div>
             <p>{post.kicker}</p>
             <h1>{post.title}</h1>

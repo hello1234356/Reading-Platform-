@@ -644,16 +644,7 @@ const filteredClubs = clubs.filter((club) => {
         },
         handleTypingBroadcast,
       )
-      .subscribe((status, error) => {
-        console.log(
-          "Club Realtime status:",
-          {
-            clubId: activeClubId,
-            status,
-            error,
-          },
-        );
-
+      .subscribe((status) => {
         if (status === "SUBSCRIBED") {
           setClubRealtimeStatus(
             "connected",
@@ -1289,7 +1280,7 @@ const filteredClubs = clubs.filter((club) => {
         duration: newClub.duration,
         membersWanted: Number(newClub.membersWanted),
         tags,
-        coverUrl: null,
+        coverUrl: selectedClubBook.coverUrl || null,
         schedule: newClub.schedule.map((step) => ({
           title: step.theme,
           chapters: step.chapters,
@@ -2082,7 +2073,7 @@ const filteredClubs = clubs.filter((club) => {
                       <button
                         type="button"
                         className={selectedClubBook?.isbn === book.isbn ? "selected" : ""}
-                        key={`${book.googleBooksId}-${book.isbn}`}
+                        key={`${book.source || "book"}-${book.googleBooksId || book.isbn}`}
                         onClick={() =>
                           {
                             setSelectedClubBook(book);
@@ -2099,7 +2090,10 @@ const filteredClubs = clubs.filter((club) => {
                         <strong>{book.title}</strong>
                         <small>
                           {book.author}
-                          {book.firstPublished ? ` / ${book.firstPublished}` : ""} / ISBN {book.isbn}
+                          {book.firstPublished ? ` / ${book.firstPublished}` : ""}
+                          {book.source === "isbn_work" ? " / Chinese ISBN database" : ""}
+                          {" "}
+                          / ISBN {book.isbn}
                         </small>
                       </button>
                     ))}

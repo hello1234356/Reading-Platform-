@@ -258,47 +258,6 @@
   line-height: 1.45;
 }
 
-.genre-filter-list {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 10px;
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  justify-content: flex-start;
-  align-items: center;
-  align-self: end;
-  padding-left: 18px;
-  padding-bottom: 1px;
-}
-
-.genre-filter-list::-webkit-scrollbar {
-  display: none;
-}
-
-.genre-filter {
-  flex: 0 0 auto;
-}
-
-.genre-filter {
-  min-height: 38px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(242, 231, 215, 0.82);
-  color: var(--mocha);
-  font-size: 13px;
-  font-weight: 800;
-  box-shadow: inset 0 -2px 0 rgba(138, 106, 88, 0.08);
-}
-
-.genre-filter.active,
-.genre-filter:hover {
-  background: var(--butter);
-  color: var(--mocha);
-  transform: translateY(-1px);
-}
-
 .club-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(320px, 1fr));

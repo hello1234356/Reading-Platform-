@@ -84,6 +84,11 @@
   font-size: 11px;
 }
 
+.profile-edit-modal label small.profile-field-warning {
+  color: var(--terracotta);
+  font-weight: 900;
+}
+
 .profile-school-email-input {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -376,4 +381,3 @@
     font-size: 3rem;
   }
 }
-

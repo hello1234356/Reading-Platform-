@@ -14,6 +14,7 @@ import {
   isBlockedGoogleBooksCategoryText,
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
+import { getIsbnWorkBookDetails } from "../lib/isbnWorkBooks";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
@@ -34,21 +35,6 @@ function simplifySearchTerm(searchTerm) {
     .replace(/\s+/g, " ")
     .trim();
 }
-
-const readingQuizzes = [
-  {
-    title: "Discover Your Reading Identity",
-    blurb: "Are you a margin-note romantic, a plot loyalist, or a sentence collector?",
-  },
-  {
-    title: "Your MBTI Based on Favorite Books",
-    blurb: "Choose your shelves and we will wildly overinterpret them, affectionately.",
-  },
-  {
-    title: "Favorite Movies to Next Reads",
-    blurb: "Tell us the films you rewatch and get a stack for your weekend.",
-  },
-];
 
 function Discover() {
   const { requireLogin } = useRequireLogin();
@@ -76,12 +62,11 @@ function Discover() {
   });
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewError, setReviewError] = useState("");
-  const [selectedQuiz, setSelectedQuiz] = useState(readingQuizzes[0]);
   const [hydratedEditorPicks, setHydratedEditorPicks] = useState(editorPicks);
   const featuredPick = hydratedEditorPicks[0];
   const supportingPicks = hydratedEditorPicks.slice(1);
   const authoredRecommendationPosts = recommendationLists.filter(
-    (list) => list.username,
+    (list) => list.body,
   );
 
   useEffect(() => {
@@ -330,7 +315,10 @@ async function openBookDetails(book) {
   setBookDetailLoading(true);
   setBookDetailError("");
 
-  const details = await getGoogleBooksBookDetails(book);
+  const details =
+    book.source === "isbn_work"
+      ? await getIsbnWorkBookDetails(book)
+      : await getGoogleBooksBookDetails(book);
   setSelectedBook(details);
   setBookDetailError(details.error || "");
   setBookDetailLoading(false);
@@ -443,7 +431,7 @@ async function openBookDetails(book) {
                         </div>
                         <div>
                           <p className="eyebrow">
-                            {book.source === "open_library" ? "Open Library result" : "Google Books result"}
+                            {book.source === "isbn_work" ? "Chinese ISBN database" : "Google Books result"}
                           </p>
                           <h2>{book.title}</h2>
                           <p className="isbn-result-author">{book.author}</p>
@@ -567,18 +555,25 @@ async function openBookDetails(book) {
                 <div className="themed-list-grid">
                   {authoredRecommendationPosts.map((list) => (
                     <Link
-                      className={`themed-list-card ${list.tone}`}
+                      className={`themed-list-card ${list.tone} ${list.language === "zh" ? "zh-list-card" : ""}`}
                       key={list.title}
                       to={`/discover/lists/${list.slug}`}
                     >
                       <div className="themed-list-preview" aria-hidden="true">
-                        <img src={list.imageUrl} alt="" loading="lazy" />
+                        {list.imageUrl ? (
+                          <img src={list.imageUrl} alt="" loading="lazy" />
+                        ) : (
+                          <div className="themed-list-title-card">
+                            <span>{list.kicker}</span>
+                            <strong>{list.coverTitle || list.title}</strong>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <p>{list.kicker}</p>
                         <h3>{list.title}</h3>
                         <small>{list.blurb}</small>
-                        <em>By {list.username}</em>
+                        {list.username ? <em>By {list.username}</em> : null}
                       </div>
                     </Link>
                   ))}
@@ -588,32 +583,6 @@ async function openBookDetails(book) {
 
 	        </main>
 
-        <aside className="discovery-quiz-rail" aria-label="Reading quizzes">
-          <p className="eyebrow">Occasional Quiz</p>
-          <h2>{selectedQuiz.title}</h2>
-          <p>{selectedQuiz.blurb}</p>
-          <button
-            className="primary-button full"
-            type="button"
-            onClick={() => {
-              if (!requireLogin()) return;
-            }}
-          >
-            Take Quiz
-          </button>
-          <div className="quiz-option-list">
-            {readingQuizzes.map((quiz) => (
-              <button
-                type="button"
-                className={selectedQuiz.title === quiz.title ? "active" : ""}
-                key={quiz.title}
-                onClick={() => setSelectedQuiz(quiz)}
-              >
-                {quiz.title}
-              </button>
-            ))}
-          </div>
-        </aside>
       </div>
       <BookDetailModal
         book={selectedBook}

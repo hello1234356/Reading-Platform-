@@ -55,7 +55,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
 
   if (!normalizedIsbn) {
     throw new Error(
-      "This Google Books result has no ISBN. Choose another edition for now.",
+      "This book result has no ISBN. Choose another edition for now.",
     );
   }
 
@@ -85,8 +85,8 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
         author: book.author?.trim() || "Unknown author",
         isbn: normalizedIsbn,
         cover_url: book.coverUrl || null,
-        description: null,
-        genre: null,
+        description: book.description || null,
+        genre: book.genre || null,
         shelf: null,
       })
       .select("id, title, author, isbn, cover_url")

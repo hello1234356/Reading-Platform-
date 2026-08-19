@@ -28,10 +28,16 @@ import {
 } from "../lib/identity";
 
 const profileShelves = [
-  { label: "Read", slug: "read", tone: "butter", note: "finished and reviewed" },
-  { label: "Currently Reading", slug: "currently-reading", tone: "sage", note: "open on your desk" },
-  { label: "To Be Read", slug: "to-be-read", tone: "coral", note: "saved for later" },
+  { label: "Read", slug: "read", tone: "butter", note: "Finished and reviewed" },
+  { label: "Currently Reading", slug: "currently-reading", tone: "sage", note: "Open on your desk" },
+  { label: "To Be Read", slug: "to-be-read", tone: "coral", note: "Saved for later" },
 ];
+
+const USERNAME_CHARACTER_LIMIT = 20;
+
+function countDisplayCharacters(value = "") {
+  return Array.from(String(value).trim()).length;
+}
 
 function getCoverUrl(isbn) {
   return getGoogleBooksCoverUrl(isbn);
@@ -92,6 +98,13 @@ function Profile() {
   const [joinedClubs, setJoinedClubs] = useState([]);
   const [clubsLoading, setClubsLoading] = useState(true);
   const [clubsError, setClubsError] = useState("");
+  const usernameCharacterCount = countDisplayCharacters(
+    profileDraft.username,
+  );
+  const usernameCharactersOverLimit = Math.max(
+    0,
+    usernameCharacterCount - USERNAME_CHARACTER_LIMIT,
+  );
   
   useEffect(() => {
     async function loadProfile() {
@@ -236,7 +249,7 @@ function Profile() {
     loadReviews();
   }, [user?.id]);
 
-  function selectAvatarFile(event) {
+  async function selectAvatarFile(event) {
     const file = event.target.files?.[0];
 
     setAvatarUploadError("");
@@ -268,16 +281,19 @@ function Profile() {
     }
 
     setAvatarFile(file);
-    setAvatarPreview(URL.createObjectURL(file));
-    }
+    const nextPreviewUrl = URL.createObjectURL(file);
+    setAvatarPreview(nextPreviewUrl);
+    await saveAvatar(file, nextPreviewUrl);
+    event.target.value = "";
+  }
 
-    async function saveAvatar() {
+  async function saveAvatar(fileToUpload = avatarFile, previewUrl = avatarPreview) {
     if (!user?.id) {
       setAvatarUploadError("You must be logged in to upload a profile photo.");
       return;
     }
 
-    if (!avatarFile) {
+    if (!fileToUpload) {
       setAvatarUploadError("Please choose an image first.");
       return;
     }
@@ -288,20 +304,27 @@ function Profile() {
     try {
       const updatedProfile = await uploadUserAvatar(
         user.id,
-        avatarFile,
+        fileToUpload,
       );
 
       setProfile(updatedProfile);
       setAvatarFile(null);
 
-      if (avatarPreview) {
-        URL.revokeObjectURL(avatarPreview);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
       }
 
       setAvatarPreview("");
     } catch (error) {
       console.error("Failed to upload avatar:", error);
 
+      setAvatarFile(null);
+
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      setAvatarPreview("");
       setAvatarUploadError(
         error.message || "Could not upload your profile photo.",
       );
@@ -337,6 +360,7 @@ function Profile() {
     }
 
     const cleanedUsername = profileDraft.username.trim();
+    const usernameCharacterCount = countDisplayCharacters(cleanedUsername);
     const yearlyGoal = Number(profileDraft.yearly_goal);
 
     if (!cleanedUsername) {
@@ -344,8 +368,12 @@ function Profile() {
       return;
     }
 
-    if (cleanedUsername.length > 40) {
-      setProfileSaveError("Username must be 40 characters or fewer.");
+    if (usernameCharacterCount > USERNAME_CHARACTER_LIMIT) {
+      setProfileSaveError(
+        `Username is ${usernameCharacterCount - USERNAME_CHARACTER_LIMIT} character${
+          usernameCharacterCount - USERNAME_CHARACTER_LIMIT === 1 ? "" : "s"
+        } over the 20-character limit. Please shorten it.`,
+      );
       return;
     }
 
@@ -1051,11 +1079,11 @@ function Profile() {
           </span>
           <p className="eyebrow">2026 Reading Challenge</p>
           <h2>{booksRead} / {yearlyGoal}</h2>
-          <span>books completed</span>
+          <span>Books Completed</span>
           <div className="profile-progress" aria-label={`${progress}% complete`}>
             <i style={{ width: `${progress}%` }} />
           </div>
-          <small>{progress}% of this year's goal</small>
+          <small>{progress}% Of This Year's Goal</small>
         </aside>
       </header>
 
@@ -1294,7 +1322,7 @@ function Profile() {
                   <div className="profile-avatar-controls">
                     <label className="profile-avatar-file-button">
                       <span>
-                        {avatarFile ? "Choose another photo" : "Choose photo"}
+                        {avatarUploading ? "Uploading..." : "Choose photo"}
                       </span>
 
                       <input
@@ -1305,20 +1333,11 @@ function Profile() {
                       />
                     </label>
 
-                    {avatarFile ? (
-                      <button
-                        className="ghost-button"
-                        type="button"
-                        onClick={saveAvatar}
-                        disabled={avatarUploading || profileSaving}
-                      >
-                        {avatarUploading
-                          ? "Uploading..."
-                          : "Upload photo"}
-                      </button>
-                    ) : null}
-
-                    <small>JPG, PNG, or WebP. Maximum 5 MB.</small>
+                    <small>
+                      {avatarUploading
+                        ? "Uploading and saving your new photo..."
+                        : "JPG, PNG, or WebP. Maximum 5 MB."}
+                    </small>
                   </div>
                 </div>
 
@@ -1340,10 +1359,21 @@ function Profile() {
                     }))
                   }
                   placeholder="Your public display name"
-                  maxLength="40"
                   disabled={profileSaving}
                 />
-                <small>This is the name other readers will see.</small>
+                <small
+                  className={
+                    usernameCharactersOverLimit > 0
+                      ? "profile-field-warning"
+                      : ""
+                  }
+                >
+                  {usernameCharactersOverLimit > 0
+                    ? `${usernameCharactersOverLimit} character${
+                        usernameCharactersOverLimit === 1 ? "" : "s"
+                      } over the 20-character limit. Please shorten it.`
+                    : `${usernameCharacterCount}/${USERNAME_CHARACTER_LIMIT} characters. This is the name other readers will see.`}
+                </small>
               </label>
 
              <div className="profile-readonly-row">
@@ -1422,9 +1452,13 @@ function Profile() {
               <button
                 className="primary-button full"
                 type="submit"
-                disabled={profileSaving}
+                disabled={profileSaving || avatarUploading}
               >
-                {profileSaving ? "Saving..." : "Save profile"}
+                {avatarUploading
+                  ? "Uploading photo..."
+                  : profileSaving
+                    ? "Saving..."
+                    : "Save profile"}
               </button>
             </form>
           </article>
