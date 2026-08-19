@@ -215,6 +215,19 @@
   line-height: 1;
 }
 
+@media (pointer: coarse) {
+  .rating-picker-control {
+    width: 44px;
+    height: 44px;
+  }
+
+  .rating-picker-control .rating-star-control {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+  }
+}
+
 .rating-picker-control,
 .rating-book-control {
   display: block;

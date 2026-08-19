@@ -120,11 +120,12 @@ export async function saveReview({
   }
 
   const numericRating = Number(rating);
+  const normalizedRating = Math.round(numericRating * 2) / 2;
 
   if (
     Number.isNaN(numericRating) ||
-    numericRating < 0.5 ||
-    numericRating > 5
+    normalizedRating < 0.5 ||
+    normalizedRating > 5
   ) {
     throw new Error("Rating must be between 0.5 and 5.");
   }
@@ -137,7 +138,7 @@ export async function saveReview({
       {
         user_id: userId,
         book_id: bookId,
-        rating: numericRating,
+        rating: normalizedRating,
         review_text: reviewText?.trim() || null,
         updated_at: new Date().toISOString(),
       },
@@ -169,7 +170,7 @@ export async function saveReview({
 
   const { error: shelfRatingError } = await supabase
     .from("shelves")
-    .update({ rating: numericRating })
+    .update({ rating: normalizedRating })
     .eq("user_id", userId)
     .eq("book_id", bookId);
 

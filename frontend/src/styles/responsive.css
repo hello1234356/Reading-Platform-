@@ -1,3 +1,67 @@
+/* iPad portrait and landscape */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .home-page,
+  .clubs-page,
+  .discover-page,
+  .profile-page {
+    width: 100%;
+    max-width: 100%;
+    padding-inline: clamp(18px, 3vw, 30px);
+  }
+
+  .site-nav {
+    padding-inline: clamp(18px, 3vw, 28px);
+  }
+
+  button,
+  select,
+  input,
+  .nav-link,
+  .nav-login,
+  .primary-button,
+  .ghost-button {
+    min-height: 44px;
+  }
+
+  .composer-modal-backdrop {
+    padding: 18px;
+  }
+
+  .composer-modal,
+  .book-detail-modal,
+  .club-detail-modal,
+  .create-club-modal,
+  .profile-modal {
+    width: min(760px, calc(100vw - 36px));
+    max-height: calc(100dvh - 36px);
+    overflow: auto;
+  }
+
+  .book-search-results,
+  .profile-book-grid,
+  .profile-reading-list,
+  .discovery-pick-grid,
+  .themed-list-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .club-room-grid,
+  .create-club-layout {
+    min-width: 0;
+  }
+
+  .club-posts,
+  .club-chat-messages,
+  textarea {
+    overscroll-behavior: contain;
+  }
+
+  .star-rating-picker {
+    gap: 4px;
+    border-radius: 24px;
+  }
+}
+
 @media (max-width: 1100px) {
   .site-nav {
     grid-template-columns: minmax(190px, 1fr) minmax(520px, auto) minmax(92px, 1fr);
