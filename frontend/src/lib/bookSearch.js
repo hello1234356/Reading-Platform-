@@ -32,23 +32,56 @@ function mapOpenLibraryResult(result) {
   };
 }
 
-async function searchChineseOpenLibrary(searchTerm, limit) {
-  const url = new URL("https://openlibrary.org/search.json");
-  url.searchParams.set("q", searchTerm);
-  url.searchParams.set("language", "chi");
-  url.searchParams.set("limit", String(limit));
-  url.searchParams.set(
-    "fields",
-    "key,title,author_name,isbn,cover_i,first_publish_year,subject,language",
-  );
+const openLibraryFields =
+  "key,title,author_name,isbn,cover_i,first_publish_year,subject,language";
 
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Open Library search is unavailable right now.");
-  const data = await response.json();
+function createOpenLibrarySearchUrl(params) {
+  const url = new URL("https://openlibrary.org/search.json");
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, String(value));
+    }
+  });
+
+  url.searchParams.set("fields", openLibraryFields);
+  return url;
+}
+
+function getChineseOpenLibrarySearchUrls(searchTerm, limit) {
+  return [
+    createOpenLibrarySearchUrl({ q: searchTerm, lang: "zh", limit }),
+    createOpenLibrarySearchUrl({ q: `${searchTerm} language:chi`, limit }),
+    createOpenLibrarySearchUrl({ q: `${searchTerm} language:zho`, limit }),
+    createOpenLibrarySearchUrl({ title: searchTerm, lang: "zh", limit }),
+    createOpenLibrarySearchUrl({ q: searchTerm, limit }),
+  ];
+}
+
+async function fetchOpenLibrarySearch(url) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Open Library returned ${response.status}.`);
+    }
+
+    return response.json();
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+function filterOpenLibraryResults(docs = []) {
   let blockedCount = 0;
   const results = [];
 
-  (data.docs || []).forEach((result) => {
+  docs.forEach((result) => {
     const categoryText = [
       result.title,
       ...(result.author_name || []),
@@ -59,6 +92,33 @@ async function searchChineseOpenLibrary(searchTerm, limit) {
   });
 
   return { results, blockedCount };
+}
+
+async function searchChineseOpenLibrary(searchTerm, limit) {
+  const urls = getChineseOpenLibrarySearchUrls(searchTerm, limit);
+  let lastError = null;
+  let emptyResult = { results: [], blockedCount: 0 };
+
+  for (const url of urls) {
+    try {
+      const data = await fetchOpenLibrarySearch(url);
+      const filteredResults = filterOpenLibraryResults(data.docs || []);
+
+      if (filteredResults.results.length > 0 || filteredResults.blockedCount > 0) {
+        return filteredResults;
+      }
+
+      emptyResult = filteredResults;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError) {
+    throw new Error("Open Library search is unavailable right now. Please try again in a moment.");
+  }
+
+  return emptyResult;
 }
 
 export async function searchBooksByQueryLanguage(searchTerm, limit = 20) {
