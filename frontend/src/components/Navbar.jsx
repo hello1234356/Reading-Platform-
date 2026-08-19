@@ -35,60 +35,73 @@ function Navbar() {
   }
 
   return (
-    <nav className="site-nav" aria-label="Primary navigation">
-      <NavLink className="nav-brand" to="/">
-        <span className="brand-mark" aria-hidden="true">ls</span>
-        <span className="brand-copy">
-          <strong>LitShelf</strong>
-          <small>Tsinglan Reading Social</small>
-        </span>
-      </NavLink>
+  <nav className="site-nav" aria-label="Primary navigation">
+    <NavLink
+      className="nav-brand"
+      to="/"
+      aria-label="LitShelf home"
+    >
+      <img
+        className="litshelf-logo"
+        src="/branding/litshelf-logo.svg"
+        alt="LitShelf — Tsinglan Reading Social"
+      />
+    </NavLink>
 
-      <div className="nav-center">
-        <div className="nav-links">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                isActive ? "nav-link active" : "nav-link"
-              }
-            >
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-        </div>
-
-        <form className="nav-search" role="search" onSubmit={handleSearch}>
-          <input
-            name="site-search"
-            type="search"
-            placeholder="Search books..."
-            aria-label="Search books"
-          />
-          <button type="submit" aria-label="Search">
-            ⌕
-          </button>
-        </form>
-
-        {isLoggedIn ? (
-          <button className="nav-login" type="button" onClick={handleLogout}>
-            Log out
-          </button>
-        ) : (
-          <NavLink className="nav-login" to="/login">
-            Sign in
+    <div className="nav-center">
+      <div className="nav-links">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              isActive ? "nav-link active" : "nav-link"
+            }
+          >
+            <span>{item.label}</span>
           </NavLink>
-        )}
+        ))}
       </div>
 
-      <img
-        className="school-logo"
-        src={tsinglanLogo}
-        alt="Tsinglan School"
-      />
-    </nav>
-  );
+      <form
+        className="nav-search"
+        role="search"
+        onSubmit={handleSearch}
+      >
+        <input
+          name="site-search"
+          type="search"
+          placeholder="Search books..."
+          aria-label="Search books"
+        />
+
+        <button type="submit" aria-label="Search">
+          ⌕
+        </button>
+      </form>
+
+      {isLoggedIn ? (
+        <button
+          className="nav-login"
+          type="button"
+          onClick={handleLogout}
+        >
+          Log out
+        </button>
+      ) : (
+        <NavLink className="nav-login" to="/login">
+          Sign in
+        </NavLink>
+      )}
+    </div>
+
+    <img
+      className="school-logo"
+      src={tsinglanLogo}
+      alt="Tsinglan School"
+    />
+  </nav>
+);
 }
 
 export default Navbar;
