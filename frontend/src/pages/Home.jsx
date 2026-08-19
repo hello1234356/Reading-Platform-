@@ -23,7 +23,11 @@ import {
 } from "../lib/postApi";
 import { saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
-import { getOpenLibraryBookDetails } from "../lib/openLibrary";
+import {
+  getGoogleBooksBookDetails,
+  getGoogleBooksCoverUrl,
+  getPreferredGoogleBooksCoverUrl,
+} from "../lib/googleBooks";
 import StarRating, { RatingPicker } from "../components/StarRating";
 import UserAvatar from "../components/UserAvatar";
 import {
@@ -91,7 +95,7 @@ const dailyLiteraryQuotes = [
 ];
 
 function getCoverUrl(isbn) {
-  return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
+  return getGoogleBooksCoverUrl(isbn);
 }
 
 function saveProfileReview(review) {
@@ -136,7 +140,7 @@ function getShelfLabel(shelf) {
 function getBookCoverSource(book) {
   if (!book) return "";
 
-  return book.coverUrl || getCoverUrl(book.isbn);
+  return getPreferredGoogleBooksCoverUrl(book.coverUrl, book.isbn);
 }
 
 function getDailyLiteraryQuote(date = new Date()) {
@@ -589,7 +593,7 @@ function Home() {
     setBookDetailLoading(true);
     setBookDetailError("");
 
-    const details = await getOpenLibraryBookDetails(book);
+    const details = await getGoogleBooksBookDetails(book);
 
     setSelectedBook(details);
     setBookDetailError(details.error || "");
@@ -927,7 +931,10 @@ function Home() {
         isbn: savedLibraryBook.book.isbn,
         genre: savedLibraryBook.book.genre,
         description: savedLibraryBook.book.description,
-        coverUrl: savedLibraryBook.book.cover_url,
+        coverUrl: getPreferredGoogleBooksCoverUrl(
+          savedLibraryBook.book.cover_url,
+          savedLibraryBook.book.isbn || selectedBook.isbn,
+        ),
       };
 
       setTrackedBooks((currentBooks) => [
@@ -1186,7 +1193,10 @@ function Home() {
         isbn: savedLibraryBook.book.isbn,
         genre: savedLibraryBook.book.genre,
         description: savedLibraryBook.book.description,
-        coverUrl: savedLibraryBook.book.cover_url,
+        coverUrl: getPreferredGoogleBooksCoverUrl(
+          savedLibraryBook.book.cover_url,
+          savedLibraryBook.book.isbn || selectedBook.isbn,
+        ),
       };
 
       setLibraryBooks((currentBooks) => [

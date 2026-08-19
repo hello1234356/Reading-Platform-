@@ -7,10 +7,13 @@ import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
 import {
   BLOCKED_BOOK_CATEGORY_MESSAGE,
-  filterOpenLibraryResults,
-  getOpenLibraryBookDetails,
-  isBlockedOpenLibraryCategoryText,
-} from "../lib/openLibrary";
+  enrichBooksWithGoogleBooks,
+  getGoogleBooksBookDetails,
+  getGoogleBooksCoverUrl,
+  getPreferredGoogleBooksCoverUrl,
+  isBlockedGoogleBooksCategoryText,
+} from "../lib/googleBooks";
+import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
@@ -18,7 +21,7 @@ import StarRating from "../components/StarRating";
 import { createPost } from "../lib/postApi";
 
 function getCoverUrl(isbn, size = "L") {
-  return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-${size}.jpg?default=false` : "";
+  return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
 }
 
 function hideBrokenCover(event) {
@@ -30,44 +33,6 @@ function simplifySearchTerm(searchTerm) {
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-const OPEN_LIBRARY_SEARCH_FIELDS = [
-  "key",
-  "title",
-  "author_name",
-  "isbn",
-  "cover_i",
-  "first_publish_year",
-  "subject",
-  "publisher",
-].join(",");
-
-async function fetchOpenLibraryResults(searchTerm) {
-  const response = await fetch(
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=${encodeURIComponent(OPEN_LIBRARY_SEARCH_FIELDS)}&limit=20`,
-  );
-
-  if (!response.ok) {
-    throw new Error("Open Library request failed");
-  }
-
-  const data = await response.json();
-
-  return data.docs || [];
-}
-
-function mapOpenLibraryResult(result) {
-  return {
-    openLibraryKey: result.key,
-    isbn: result.isbn?.[0] || "",
-    title: result.title || "Untitled",
-    author: result.author_name?.join(", ") || "Unknown author",
-    firstPublished: result.first_publish_year || null,
-    coverUrl: result.cover_i
-      ? `https://covers.openlibrary.org/b/id/${result.cover_i}-M.jpg`
-      : "",
-  };
 }
 
 const readingQuizzes = [
@@ -112,11 +77,24 @@ function Discover() {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewError, setReviewError] = useState("");
   const [selectedQuiz, setSelectedQuiz] = useState(readingQuizzes[0]);
-  const featuredPick = editorPicks[0];
-  const supportingPicks = editorPicks.slice(1);
+  const [hydratedEditorPicks, setHydratedEditorPicks] = useState(editorPicks);
+  const featuredPick = hydratedEditorPicks[0];
+  const supportingPicks = hydratedEditorPicks.slice(1);
   const authoredRecommendationPosts = recommendationLists.filter(
     (list) => list.username,
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    enrichBooksWithGoogleBooks(editorPicks).then((books) => {
+      if (!cancelled) setHydratedEditorPicks(books);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function refreshRecentFinishes({ showLoading = false } = {}) {
     if (showLoading) {
@@ -153,17 +131,25 @@ function Discover() {
     setBookResults([]);
 
     try {
-      if (isBlockedOpenLibraryCategoryText(normalizedSearchTerm)) {
+      if (isBlockedGoogleBooksCategoryText(normalizedSearchTerm)) {
         setSearchStatus("error");
         setSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
         return;
       }
 
       const simplifiedSearchTerm = simplifySearchTerm(normalizedSearchTerm);
-      let results = await fetchOpenLibraryResults(normalizedSearchTerm);
+      let { results, blockedCount } =
+        await searchBooksByQueryLanguage(normalizedSearchTerm);
 
       if (!results.length && simplifiedSearchTerm !== normalizedSearchTerm) {
-        results = await fetchOpenLibraryResults(simplifiedSearchTerm);
+        ({ results, blockedCount } =
+          await searchBooksByQueryLanguage(simplifiedSearchTerm));
+      }
+
+      if (!results.length && blockedCount > 0) {
+        setSearchStatus("error");
+        setSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
+        return;
       }
 
       if (!results.length) {
@@ -174,20 +160,11 @@ function Discover() {
         return;
       }
 
-      const { allowedResults, blockedCount } =
-        filterOpenLibraryResults(results);
-
-      if (!allowedResults.length && blockedCount > 0) {
-        setSearchStatus("error");
-        setSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
-        return;
-      }
-
-      setBookResults(allowedResults.map(mapOpenLibraryResult));
+      setBookResults(results);
       setSearchStatus("success");
-    } catch {
+    } catch (error) {
       setSearchStatus("error");
-      setSearchMessage("The book search is unavailable right now. Please try again.");
+      setSearchMessage(error.message || "The book search is unavailable right now. Please try again.");
     }
   }
 
@@ -251,7 +228,7 @@ function Discover() {
     return;
   }
 
-	  const bookKey = book.isbn || book.openLibraryKey;
+	  const bookKey = book.isbn || book.googleBooksId;
     const targetShelf = selectedShelves[bookKey] || "to-be-read";
 
 	  setSavingBookKey(bookKey);
@@ -281,7 +258,10 @@ function Discover() {
         setReviewBook({
           ...book,
           bookId: savedLibraryBook.book.id,
-          coverUrl: book.coverUrl || savedLibraryBook.book.cover_url || "",
+          coverUrl: getPreferredGoogleBooksCoverUrl(
+            book.coverUrl || savedLibraryBook.book.cover_url,
+            book.isbn || savedLibraryBook.book.isbn,
+          ),
         });
         setReviewDraft({ rating: 5, review: "", visibility: "public" });
         setReviewError("");
@@ -295,7 +275,7 @@ function Discover() {
   }
 }
 function getBookKey(book) {
-  return book.isbn || book.openLibraryKey;
+  return book.isbn || book.googleBooksId;
 }
 
 function isBookSaved(book) {
@@ -350,7 +330,7 @@ async function openBookDetails(book) {
   setBookDetailLoading(true);
   setBookDetailError("");
 
-  const details = await getOpenLibraryBookDetails(book);
+  const details = await getGoogleBooksBookDetails(book);
   setSelectedBook(details);
   setBookDetailError(details.error || "");
   setBookDetailLoading(false);
@@ -441,13 +421,13 @@ async function openBookDetails(book) {
         <div className="isbn-search-feedback" aria-live="polite">
           {searchMessage ? <p className="isbn-search-message">{searchMessage}</p> : null}
           {bookResults.length > 0 ? (
-            <div className="book-search-results" aria-label="Open Library search results">
+            <div className="book-search-results" aria-label="Google Books search results">
               {bookResults.map((book) => {
                 const isSaved = isBookSaved(book);
                 const isSaving = savingBookKey === getBookKey(book);
 
                 return (
-	                  <article className="isbn-search-result" key={`${book.openLibraryKey}-${book.isbn}`}>
+	                  <article className="isbn-search-result" key={`${book.googleBooksId}-${book.isbn}`}>
 	                    <button
                         className="isbn-result-details-button"
                         type="button"
@@ -462,7 +442,9 @@ async function openBookDetails(book) {
                           )}
                         </div>
                         <div>
-                          <p className="eyebrow">Open Library result</p>
+                          <p className="eyebrow">
+                            {book.source === "open_library" ? "Open Library result" : "Google Books result"}
+                          </p>
                           <h2>{book.title}</h2>
                           <p className="isbn-result-author">{book.author}</p>
                           {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
@@ -527,7 +509,7 @@ async function openBookDetails(book) {
                 <div className="discovery-book-cover featured" aria-hidden="true">
                   {featuredPick.isbn && (
                     <img
-                      src={getCoverUrl(featuredPick.isbn)}
+                      src={featuredPick.coverUrl || getCoverUrl(featuredPick.isbn)}
                       alt=""
                       loading="lazy"
                       onError={hideBrokenCover}
@@ -555,7 +537,7 @@ async function openBookDetails(book) {
                     <div className="discovery-book-cover" aria-hidden="true">
                       {book.isbn && (
                         <img
-                          src={getCoverUrl(book.isbn)}
+                          src={book.coverUrl || getCoverUrl(book.isbn)}
                           alt=""
                           loading="lazy"
                           onError={hideBrokenCover}

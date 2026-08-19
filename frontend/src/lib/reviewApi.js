@@ -1,4 +1,8 @@
 import { requireSupabase } from "./supabase";
+import {
+  enrichBooksWithGoogleBooks,
+  getPreferredGoogleBooksCoverUrl,
+} from "./googleBooks";
 
 function mapReview(row) {
   return {
@@ -13,7 +17,10 @@ function mapReview(row) {
     book: row.books?.title || "Untitled",
     author: row.books?.author || "Unknown author",
     isbn: row.books?.isbn || "",
-    coverUrl: row.books?.cover_url || "",
+    coverUrl: getPreferredGoogleBooksCoverUrl(
+      row.books?.cover_url,
+      row.books?.isbn,
+    ),
   };
 }
 
@@ -45,16 +52,21 @@ export async function getRecentFinishedBooks(limit = 10) {
     throw error;
   }
 
-  return (data || []).filter((row) => row.books).map((row) => ({
+  const books = (data || []).filter((row) => row.books).map((row) => ({
     id: row.id,
     bookId: row.book_id,
     title: row.books?.title || "Untitled",
     author: row.books?.author || "Unknown author",
     isbn: row.books?.isbn || "",
-    coverUrl: row.books?.cover_url || "",
+    coverUrl: getPreferredGoogleBooksCoverUrl(
+      row.books?.cover_url,
+      row.books?.isbn,
+    ),
     rating: row.rating == null ? null : Number(row.rating),
     progress: Number(row.progress ?? 100),
   }));
+
+  return enrichBooksWithGoogleBooks(books);
 }
 
 export async function getUserReviews(userId) {
@@ -89,7 +101,8 @@ export async function getUserReviews(userId) {
     throw error;
   }
 
-  return (data || []).map(mapReview);
+  const reviews = (data || []).map(mapReview);
+  return enrichBooksWithGoogleBooks(reviews);
 }
 
 export async function saveReview({
@@ -164,7 +177,8 @@ export async function saveReview({
     throw shelfRatingError;
   }
 
-  return mapReview(data);
+  const [review] = await enrichBooksWithGoogleBooks([mapReview(data)]);
+  return review;
 }
 
 export async function deleteReview(reviewId) {

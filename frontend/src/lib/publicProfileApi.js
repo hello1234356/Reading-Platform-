@@ -1,7 +1,12 @@
 import { requireSupabase } from "./supabase";
+import {
+  enrichBooksWithGoogleBooks,
+  getGoogleBooksCoverUrl,
+  getPreferredGoogleBooksCoverUrl,
+} from "./googleBooks";
 
 function getCoverUrl(isbn) {
-  return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
+  return getGoogleBooksCoverUrl(isbn);
 }
 
 export async function getPublicProfile(userId) {
@@ -74,8 +79,10 @@ export async function getPublicProfile(userId) {
       String(book.isbn),
       {
         ...book,
-        coverUrl:
-          book.cover_url || getCoverUrl(book.isbn),
+        coverUrl: getPreferredGoogleBooksCoverUrl(
+          book.cover_url,
+          book.isbn,
+        ),
       },
     ]),
   );
@@ -98,6 +105,6 @@ export async function getPublicProfile(userId) {
 
   return {
     ...profile,
-    favoriteBooks,
+    favoriteBooks: await enrichBooksWithGoogleBooks(favoriteBooks),
   };
 }

@@ -1,4 +1,8 @@
 import { requireSupabase } from "./supabase";
+import {
+  enrichBooksWithGoogleBooks,
+  getPreferredGoogleBooksCoverUrl,
+} from "./googleBooks";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
@@ -25,7 +29,10 @@ function mapLibraryRow(row) {
     isbn: row.books.isbn,
     genre: row.books.genre,
     description: row.books.description,
-    coverUrl: row.books.cover_url,
+    coverUrl: getPreferredGoogleBooksCoverUrl(
+      row.books.cover_url,
+      row.books.isbn,
+    ),
   };
 }
 
@@ -48,7 +55,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
 
   if (!normalizedIsbn) {
     throw new Error(
-      "This Open Library result has no ISBN. Choose another edition for now.",
+      "This Google Books result has no ISBN. Choose another edition for now.",
     );
   }
 
@@ -208,7 +215,8 @@ export async function getUserLibrary(userId) {
     throw error;
   }
 
-  return (data || []).filter((row) => row.books).map(mapLibraryRow);
+  const books = (data || []).filter((row) => row.books).map(mapLibraryRow);
+  return enrichBooksWithGoogleBooks(books);
 }
 export async function moveLibraryBook(shelfEntryId, nextShelf) {
   if (!shelfEntryId) {

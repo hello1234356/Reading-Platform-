@@ -1,6 +1,10 @@
 import { requireSupabase } from "./supabase";
 import { getPublicDisplayName } from "./identity";
 import { requireModeratedContent } from "./moderationApi";
+import {
+  getGoogleBooksBookDetails,
+  getPreferredGoogleBooksCoverUrl,
+} from "./googleBooks";
 
 function getPostAction(postType, hasBook) {
   switch (postType) {
@@ -113,7 +117,10 @@ function mapPost(row, currentUserId = null) {
     book: book?.title || "Untitled",
     author: book?.author || "Unknown author",
     isbn: book?.isbn || "",
-    coverUrl: book?.cover_url || "",
+    coverUrl: getPreferredGoogleBooksCoverUrl(
+      book?.cover_url,
+      book?.isbn,
+    ),
     genre: book?.genre || "Reading",
 
     note: row.note || "",
@@ -199,8 +206,21 @@ export async function getFeedPosts(currentUserId = null) {
     throw error;
   }
 
-  return (data || []).map((row) =>
+  const posts = (data || []).map((row) =>
     mapPost(row, currentUserId),
+  );
+
+  return Promise.all(
+    posts.map(async (post) => {
+      if (!post.isbn) return post;
+      const details = await getGoogleBooksBookDetails({
+        title: post.book,
+        author: post.author,
+        isbn: post.isbn,
+        coverUrl: post.coverUrl,
+      });
+      return { ...post, coverUrl: details.coverUrl || post.coverUrl };
+    }),
   );
 }
 

@@ -1,5 +1,18 @@
 # React + Vite
 
+## Google Books setup
+
+Book search, covers, ISBNs, and descriptions use the Google Books API. Enable the
+Books API in a Google Cloud project, create an API key, and add it to `.env.local`:
+
+```env
+VITE_GOOGLE_BOOKS_API_KEY=your_api_key
+```
+
+Restart the Vite development server after changing `.env.local`. For a deployed
+site, add the same variable in the hosting provider and rebuild. Because this is
+a browser app, restrict the key to the site's HTTP referrers and to the Books API.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

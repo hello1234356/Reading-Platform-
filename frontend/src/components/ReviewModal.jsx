@@ -1,4 +1,5 @@
 import { RatingPicker } from "./StarRating";
+import { getGoogleBooksCoverUrl } from "../lib/googleBooks";
 
 function ReviewModal({
   book,
@@ -39,7 +40,7 @@ function ReviewModal({
             {book.coverUrl || book.isbn ? (
               <img
                 className="review-modal-cover"
-                src={book.coverUrl || `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg?default=false`}
+                src={book.coverUrl || getGoogleBooksCoverUrl(book.isbn)}
                 alt={`Cover of ${book.title}`}
               />
             ) : (

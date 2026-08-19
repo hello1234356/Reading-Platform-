@@ -1,6 +1,10 @@
 import { requireSupabase } from "./supabase";
 import { getPublicDisplayName } from "./identity";
 import { requireModeratedContent } from "./moderationApi";
+import {
+  getGoogleBooksBookDetails,
+  getPreferredGoogleBooksCoverUrl,
+} from "./googleBooks";
 
 function cleanTags(tags) {
   if (!Array.isArray(tags)) {
@@ -59,12 +63,15 @@ function mapClub(row, currentUserId = null) {
     bookTitle: row.books?.title || "Untitled",
     author: row.books?.author || "Unknown author",
     isbn: row.books?.isbn || "",
-    bookCoverUrl: row.books?.cover_url || "",
+    bookCoverUrl: getPreferredGoogleBooksCoverUrl(
+      row.books?.cover_url,
+      row.books?.isbn,
+    ),
 
-    coverUrl:
-      row.cover_url ||
-      row.books?.cover_url ||
-      "",
+    coverUrl: getPreferredGoogleBooksCoverUrl(
+      row.cover_url || row.books?.cover_url,
+      row.books?.isbn,
+    ),
 
     creatorName: getPublicDisplayName(row.creator_profile),
     creatorAvatarUrl:
@@ -79,6 +86,28 @@ function mapClub(row, currentUserId = null) {
 
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+async function enrichClubCover(club) {
+  if (!club?.isbn) return club;
+
+  const hasCreatorCover =
+    club.customCoverUrl &&
+    !/^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(club.customCoverUrl);
+
+  if (hasCreatorCover) return club;
+
+  const details = await getGoogleBooksBookDetails({
+    title: club.bookTitle,
+    author: club.author,
+    isbn: club.isbn,
+    coverUrl: club.coverUrl,
+  });
+
+  return {
+    ...club,
+    coverUrl: details.coverUrl || club.coverUrl,
   };
 }
 
@@ -194,9 +223,11 @@ export async function getBookClubs(
     throw error;
   }
 
-  return (data || []).map((row) =>
+  const clubs = (data || []).map((row) =>
     mapClub(row, currentUserId),
   );
+
+  return Promise.all(clubs.map(enrichClubCover));
 }
 
 export async function getBookClubById({
@@ -224,7 +255,7 @@ export async function getBookClubById({
     return null;
   }
 
-  return mapClub(data, currentUserId);
+  return enrichClubCover(mapClub(data, currentUserId));
 }
 
 async function findOrCreateBook(selectedBook) {

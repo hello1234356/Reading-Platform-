@@ -4,7 +4,10 @@ import { requireSupabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
-import { getOpenLibraryBookDetails } from "../lib/openLibrary";
+import {
+  getGoogleBooksBookDetails,
+  getGoogleBooksCoverUrl,
+} from "../lib/googleBooks";
 import {
   getUserLibrary,
   moveLibraryBook,
@@ -31,7 +34,7 @@ const profileShelves = [
 ];
 
 function getCoverUrl(isbn) {
-  return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
+  return getGoogleBooksCoverUrl(isbn);
 }
 
 function TrophyIcon() {
@@ -643,7 +646,7 @@ function Profile() {
     setBookDetailLoading(true);
     setBookDetailError("");
 
-    const details = await getOpenLibraryBookDetails(book);
+    const details = await getGoogleBooksBookDetails(book);
     setSelectedBook(details);
     setBookDetailError(details.error || "");
     setBookDetailLoading(false);
@@ -844,7 +847,11 @@ function Profile() {
                 aria-label={`${book.title} by ${book.author}`}
                 onClick={() => openBookDetails(book)}
               >
-                <img src={getCoverUrl(book.isbn)} alt="" loading="lazy" />
+                <img
+                  src={book.coverUrl || getCoverUrl(book.isbn)}
+                  alt=""
+                  loading="lazy"
+                />
                 <div className="profile-book-popover">
                   <strong>{book.title}</strong>
                   <small>{book.author}</small>

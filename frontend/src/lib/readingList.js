@@ -16,7 +16,8 @@ export function saveBookToReadingList(book) {
     currentBooks.some(
       (savedBook) =>
         (book.isbn && savedBook.isbn === book.isbn) ||
-        savedBook.openLibraryKey === book.openLibraryKey,
+        (book.googleBooksId && savedBook.googleBooksId === book.googleBooksId) ||
+        (book.openLibraryKey && savedBook.openLibraryKey === book.openLibraryKey),
     )
   ) {
     return currentBooks;

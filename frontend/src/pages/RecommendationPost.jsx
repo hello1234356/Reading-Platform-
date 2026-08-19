@@ -1,8 +1,13 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { recommendationLists } from "../data/recommendationLists";
+import {
+  enrichBooksWithGoogleBooks,
+  getGoogleBooksCoverUrl,
+} from "../lib/googleBooks";
 
 function getCoverUrl(isbn) {
-  return `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`;
+  return getGoogleBooksCoverUrl(isbn);
 }
 
 function renderPostBody(post) {
@@ -39,7 +44,7 @@ function renderPostBody(post) {
           <section className="era-recommendation" key={section.heading}>
             <div className="era-cover-wrap">
               <img
-                src={getCoverUrl(section.isbn)}
+                src={section.coverUrl || getCoverUrl(section.isbn)}
                 alt={`${section.heading} cover`}
                 loading="lazy"
               />
@@ -63,6 +68,23 @@ function renderPostBody(post) {
 function RecommendationPost() {
   const { listSlug } = useParams();
   const post = recommendationLists.find((list) => list.slug === listSlug);
+  const [hydratedPost, setHydratedPost] = useState(post);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!post?.sectionMeta?.length) {
+      return undefined;
+    }
+
+    enrichBooksWithGoogleBooks(post.sectionMeta).then((sectionMeta) => {
+      if (!cancelled) setHydratedPost({ ...post, sectionMeta });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [post]);
 
   if (!post) {
     return (
@@ -96,7 +118,7 @@ function RecommendationPost() {
             <span>{post.count} books</span>
           </div>
         </header>
-        {renderPostBody(post)}
+        {renderPostBody(hydratedPost || post)}
       </article>
     </section>
   );

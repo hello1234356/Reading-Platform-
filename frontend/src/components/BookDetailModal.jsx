@@ -41,7 +41,7 @@ function BookDetailModal({
         </div>
 
         <section className="book-detail-copy">
-          <p className="eyebrow">Open Library</p>
+          <p className="eyebrow">Google Books</p>
           <h2 id="book-detail-title">{book.title}</h2>
           <p className="book-detail-author">{book.author}</p>
           {book.isbn ? <small>ISBN {book.isbn}</small> : null}

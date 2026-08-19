@@ -9,10 +9,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import {
   BLOCKED_BOOK_CATEGORY_MESSAGE,
-  filterOpenLibraryResults,
-  getOpenLibraryBookDetails,
-  isBlockedOpenLibraryCategoryText,
-} from "../lib/openLibrary";
+  getGoogleBooksCoverUrl,
+  isBlockedGoogleBooksCategoryText,
+} from "../lib/googleBooks";
+import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import {
   archiveInactiveBookClubs,
   createBookClub,
@@ -43,7 +43,7 @@ function getDefaultSchedule(duration = "4 weeks") {
 }
 
 function getCoverUrl(isbn, size = "L") {
-  return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-${size}.jpg?default=false` : "";
+  return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
 }
 
 function hideBrokenCover(event) {
@@ -100,42 +100,9 @@ function simplifySearchTerm(searchTerm) {
     .trim();
 }
 
-const OPEN_LIBRARY_SEARCH_FIELDS = [
-  "key",
-  "title",
-  "author_name",
-  "isbn",
-  "cover_i",
-  "first_publish_year",
-  "subject",
-  "publisher",
-].join(",");
-
-async function fetchOpenLibraryBooks(searchTerm) {
-  const response = await fetch(
-    `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&fields=${encodeURIComponent(OPEN_LIBRARY_SEARCH_FIELDS)}&limit=20`,
-  );
-
-  if (!response.ok) {
-    throw new Error("Open Library request failed");
-  }
-
-  const data = await response.json();
-
-  const { allowedResults } = filterOpenLibraryResults(data.docs || []);
-
-  return allowedResults
-    .filter((result) => result.isbn?.length)
-    .map((result) => ({
-      openLibraryKey: result.key,
-      title: result.title || "Untitled",
-      author: result.author_name?.join(", ") || "Unknown author",
-      isbn: result.isbn[0],
-      firstPublished: result.first_publish_year || null,
-      coverUrl: result.cover_i
-        ? `https://covers.openlibrary.org/b/id/${result.cover_i}-M.jpg`
-        : getCoverUrl(result.isbn[0], "M"),
-    }));
+async function fetchGoogleBooks(searchTerm) {
+  const { results } = await searchBooksByQueryLanguage(searchTerm);
+  return results.filter((book) => book.isbn);
 }
 
 function getTypingLabel(names) {
@@ -171,9 +138,6 @@ function BookClubs() {
   const [chatNotice, setChatNotice] = useState("");
   const [actionLoading, setActionLoading] = useState(false);  
   const [detailClubId, setDetailClubId] = useState(null);
-  const [detailBlurb, setDetailBlurb] = useState("");
-  const [detailBlurbLoading, setDetailBlurbLoading] = useState(false);
-  const [detailBlurbError, setDetailBlurbError] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [clubSearchQuery, setClubSearchQuery] = useState("");
   const [postDraft, setPostDraft] = useState("");
@@ -393,7 +357,7 @@ const filteredClubs = clubs.filter((club) => {
       setBookSearchMessage("");
 
       try {
-        if (isBlockedOpenLibraryCategoryText(searchTerm)) {
+        if (isBlockedGoogleBooksCategoryText(searchTerm)) {
           setBookSearchResults([]);
           setBookSearchStatus("error");
           setBookSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
@@ -401,10 +365,10 @@ const filteredClubs = clubs.filter((club) => {
         }
 
         const simplifiedSearchTerm = simplifySearchTerm(searchTerm);
-        let results = await fetchOpenLibraryBooks(searchTerm);
+        let results = await fetchGoogleBooks(searchTerm);
 
         if (!results.length && simplifiedSearchTerm !== searchTerm) {
-          results = await fetchOpenLibraryBooks(simplifiedSearchTerm);
+          results = await fetchGoogleBooks(simplifiedSearchTerm);
         }
 
         setBookSearchResults(results);
@@ -415,9 +379,11 @@ const filteredClubs = clubs.filter((club) => {
             : "No ISBN-backed results found. Check the spelling or try the author name.",
         );
       } catch (error) {
-        console.error("Failed to search Open Library:", error);
+        console.error("Failed to search Google Books:", error);
         setBookSearchStatus("error");
-        setBookSearchMessage("Book search is unavailable right now. Please try again.");
+        setBookSearchMessage(
+          error.message || "Book search is unavailable right now. Please try again.",
+        );
       }
     }, 350);
 
@@ -756,30 +722,6 @@ const filteredClubs = clubs.filter((club) => {
     activeClub?.id,
     user?.id,
   ]);
-  async function openClubDetails(club) {
-    setDetailClubId(club.id);
-    setDetailBlurb("");
-    setDetailBlurbError("");
-    setDetailBlurbLoading(true);
-
-    try {
-      const details = await getOpenLibraryBookDetails({
-        title: club.bookTitle,
-        author: club.author,
-        isbn: club.isbn,
-        coverUrl: club.coverUrl,
-      });
-
-      setDetailBlurb(details.description || "");
-      setDetailBlurbError(details.error || "");
-    } catch (error) {
-      console.error("Failed to load club book details:", error);
-      setDetailBlurbError(error.message || "Could not load the official book blurb.");
-    } finally {
-      setDetailBlurbLoading(false);
-    }
-  }
-
   async function joinClub(selectedClubId) {
     if (!requireLogin() || !user?.id) {
       return;
@@ -1780,7 +1722,7 @@ const filteredClubs = clubs.filter((club) => {
                     <button
                       className="ghost-button"
                       type="button"
-                      onClick={() => openClubDetails(club)}
+                      onClick={() => setDetailClubId(club.id)}
                     >
                       Details
                     </button>
@@ -1872,15 +1814,6 @@ const filteredClubs = clubs.filter((club) => {
             <p>
               <strong>{detailClub.bookTitle}</strong> by {detailClub.author}
             </p>
-            {detailBlurbLoading ? (
-              <p>Loading the official book blurb...</p>
-            ) : (
-              <p>
-                {detailBlurb ||
-                  detailBlurbError ||
-                  "No official Open Library blurb is available for this book yet."}
-              </p>
-            )}
             <dl>
               <div>
                 <dt>Tags</dt>
@@ -2149,7 +2082,7 @@ const filteredClubs = clubs.filter((club) => {
                       <button
                         type="button"
                         className={selectedClubBook?.isbn === book.isbn ? "selected" : ""}
-                        key={`${book.openLibraryKey}-${book.isbn}`}
+                        key={`${book.googleBooksId}-${book.isbn}`}
                         onClick={() =>
                           {
                             setSelectedClubBook(book);
