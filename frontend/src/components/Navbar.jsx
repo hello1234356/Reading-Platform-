@@ -43,7 +43,7 @@ function Navbar() {
     >
       <img
         className="litshelf-logo"
-        src="/branding/litshelf-logo.svg"
+        src="/branding/litshelf-logo9.svg"
         alt="LitShelf — Tsinglan Reading Social"
       />
     </NavLink>
