@@ -1326,7 +1326,7 @@ const filteredClubs = clubs.filter((club) => {
         <>
           <header className="clubs-hero">
             <p className="eyebrow">Book Clubs</p>
-            <h1>Find Your Community</h1>
+            <h1>Circles</h1>
             <p>Join or create a book club- it's all up to you.</p>
           </header>
 
@@ -2072,8 +2072,13 @@ const filteredClubs = clubs.filter((club) => {
                     {bookSearchResults.map((book) => (
                       <button
                         type="button"
-                        className={selectedClubBook?.isbn === book.isbn ? "selected" : ""}
-                        key={`${book.source || "book"}-${book.googleBooksId || book.isbn}`}
+                        className={
+                          (selectedClubBook?.isbn && selectedClubBook?.isbn === book.isbn) ||
+                          (selectedClubBook?.openLibraryKey && selectedClubBook?.openLibraryKey === book.openLibraryKey)
+                            ? "selected"
+                            : ""
+                        }
+                        key={`${book.source || "book"}-${book.googleBooksId || book.isbn || book.openLibraryKey || book.editionKey}`}
                         onClick={() =>
                           {
                             setSelectedClubBook(book);
@@ -2091,9 +2096,10 @@ const filteredClubs = clubs.filter((club) => {
                         <small>
                           {book.author}
                           {book.firstPublished ? ` / ${book.firstPublished}` : ""}
+                          {book.source === "open_library" ? " / Open Library" : ""}
                           {book.source === "isbn_work" ? " / Chinese ISBN database" : ""}
                           {" "}
-                          / ISBN {book.isbn}
+                          {book.isbn ? `/ ISBN ${book.isbn}` : ""}
                         </small>
                       </button>
                     ))}

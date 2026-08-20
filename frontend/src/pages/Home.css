@@ -33,7 +33,7 @@
 
 .daily-quote-meta {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   justify-content: flex-end;
   padding-right: clamp(8px, 2vw, 24px);
 }
@@ -57,11 +57,13 @@
   position: relative;
   margin: 18px 0 0;
   padding: 0 0 0 clamp(18px, 3vw, 38px);
+  isolation: isolate;
 }
 
 .daily-quote-panel blockquote > span:first-child,
 .daily-quote-panel blockquote > span:last-child {
   position: absolute;
+  z-index: -1;
   color: rgba(201, 122, 90, 0.2);
   font-family: var(--quote);
   font-size: 132px;
@@ -70,8 +72,8 @@
 }
 
 .daily-quote-panel blockquote > span:first-child {
-  top: -20px;
-  left: 0;
+  top: 8px;
+  left: -6px;
 }
 
 .daily-quote-panel blockquote > span:last-child {

@@ -42,7 +42,11 @@ function BookDetailModal({
 
         <section className="book-detail-copy">
           <p className="eyebrow">
-            {book.source === "isbn_work" ? "Chinese ISBN database" : "Google Books"}
+            {book.source === "open_library"
+              ? "Open Library"
+              : book.source === "isbn_work"
+                ? "Chinese ISBN database"
+                : "Google Books"}
           </p>
           <h2 id="book-detail-title">{book.title}</h2>
           <p className="book-detail-author">{book.author}</p>

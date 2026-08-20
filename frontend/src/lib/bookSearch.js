@@ -4,6 +4,7 @@ import {
   searchGoogleBooks,
 } from "./googleBooks";
 import { isLikelyIsbn, searchIsbnWorkBooks } from "./isbnWorkBooks";
+import { searchOpenLibraryBooks } from "./openLibraryBooks";
 
 export function isChineseBookSearch(searchTerm) {
   return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(
@@ -12,9 +13,13 @@ export function isChineseBookSearch(searchTerm) {
 }
 
 export async function searchBooksByQueryLanguage(searchTerm, limit = 20) {
-  if (isChineseBookSearch(searchTerm) || isLikelyIsbn(searchTerm)) {
+  if (isChineseBookSearch(searchTerm)) {
+    return searchOpenLibraryBooks(searchTerm, limit);
+  }
+
+  if (isLikelyIsbn(searchTerm)) {
     const isbnWorkResults = await searchIsbnWorkBooks(searchTerm, limit);
-    if (isbnWorkResults.results.length > 0 || isChineseBookSearch(searchTerm)) {
+    if (isbnWorkResults.results.length > 0) {
       return isbnWorkResults;
     }
   }
