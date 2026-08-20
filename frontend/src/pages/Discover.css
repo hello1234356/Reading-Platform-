@@ -32,14 +32,14 @@
 .discover-page-title h1::after {
   content: "";
   position: absolute;
-  right: -0.08em;
-  bottom: -0.02em;
-  left: -0.08em;
-  height: 0.34em;
+  right: 0.02em;
+  bottom: 0.04em;
+  left: 0.02em;
+  height: 0.18em;
   z-index: -1;
-  border-radius: 46% 54% 50% 50%;
-  background: rgba(244, 220, 123, 0.5);
-  transform: rotate(-1deg);
+  border-radius: 8px 12px 10px 9px;
+  background: linear-gradient(90deg, rgba(244, 220, 123, 0.24), rgba(244, 220, 123, 0.52), rgba(239, 183, 165, 0.28));
+  transform: rotate(-0.35deg) skewX(-3deg);
 }
 
 .school-motto {

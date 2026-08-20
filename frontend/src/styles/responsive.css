@@ -306,7 +306,7 @@
 
   .daily-quote-panel blockquote > span:first-child,
   .daily-quote-panel blockquote > span:last-child {
-    font-size: 92px;
+    font-size: 82px;
   }
 
   .grade-leaderboard-strip,
@@ -453,12 +453,13 @@
   }
 
   .daily-quote-panel blockquote {
+    margin-top: 28px;
     padding-left: 18px;
   }
 
   .daily-quote-panel blockquote > span:first-child {
-    top: -10px;
-    left: -4px;
+    top: 10px;
+    left: -8px;
   }
 
   .daily-quote-panel blockquote > span:last-child {
@@ -726,7 +727,12 @@
 
   .daily-quote-panel blockquote > span:first-child,
   .daily-quote-panel blockquote > span:last-child {
-    font-size: 72px;
+    font-size: 62px;
+  }
+
+  .daily-quote-panel blockquote > span:first-child {
+    top: 12px;
+    left: -6px;
   }
 
   .leaderboard-podium {
@@ -1352,5 +1358,222 @@
   .club-room-cover,
   .club-detail-cover {
     min-height: 220px;
+  }
+}
+
+/* Final navbar layout pass: keeps auth/search/navigation in normal flow on split-screen, tablet, and phone. */
+@media (max-width: 1280px) {
+  .site-nav {
+    grid-template-columns: minmax(176px, 0.85fr) minmax(0, 1.8fr) minmax(82px, 0.3fr);
+    gap: 14px;
+    padding: 14px clamp(16px, 2.4vw, 28px);
+  }
+
+  .nav-brand {
+    min-width: 0;
+  }
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 15px 21px 17px 21px;
+    font-size: 16px;
+  }
+
+  .brand-copy strong {
+    font-size: clamp(24px, 2.4vw, 31px);
+  }
+
+  .brand-copy small {
+    font-size: 10px;
+  }
+
+  .nav-center {
+    grid-template-columns: minmax(0, auto) minmax(150px, 260px) auto;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .nav-links {
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .nav-link,
+  .nav-login {
+    min-height: 40px;
+    padding-inline: 10px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .nav-login {
+    position: static;
+    justify-self: end;
+    margin-left: 0;
+    padding-inline: 14px;
+  }
+
+  .school-logo {
+    height: 34px;
+    max-width: 116px;
+  }
+}
+
+@media (max-width: 1020px) {
+  .site-nav {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px 14px;
+    min-height: 0;
+  }
+
+  .nav-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .school-logo {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .nav-center {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) auto;
+    align-items: center;
+    gap: 8px;
+    justify-self: stretch;
+  }
+
+  .nav-links {
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-link {
+    flex: 0 0 auto;
+  }
+
+  .nav-search {
+    grid-column: auto;
+    order: initial;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .nav-search button {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
+    padding: 0;
+    border-radius: 50%;
+    aspect-ratio: 1;
+    line-height: 1;
+    flex: 0 0 30px;
+  }
+}
+
+@media (max-width: 720px) {
+  .site-nav {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 12px 14px;
+  }
+
+  .brand-copy strong {
+    font-size: 24px;
+  }
+
+  .brand-copy small {
+    display: none;
+  }
+
+  .school-logo {
+    height: 30px;
+    max-width: 104px;
+  }
+
+  .nav-center {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 8px;
+  }
+
+  .nav-links {
+    grid-column: 1;
+    grid-row: 1;
+    gap: 4px;
+  }
+
+  .nav-login {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    min-height: 36px;
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+
+  .nav-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .nav-search input {
+    min-height: 40px;
+    padding-right: 44px;
+    font-size: 16px;
+  }
+
+  .nav-search button {
+    right: 6px;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+    flex-basis: 28px;
+  }
+}
+
+@media (max-width: 460px) {
+  .site-nav {
+    padding-inline: 10px;
+  }
+
+  .school-logo {
+    display: none;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .brand-copy strong {
+    font-size: 22px;
+  }
+
+  .nav-link {
+    min-height: 36px;
+    padding-inline: 9px;
+    font-size: 13px;
+  }
+
+  .nav-login {
+    min-height: 34px;
+    padding-inline: 10px;
+    font-size: 12px;
   }
 }

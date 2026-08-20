@@ -15,6 +15,7 @@ import {
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import { getIsbnWorkBookDetails } from "../lib/isbnWorkBooks";
+import { getOpenLibraryBookDetails } from "../lib/openLibraryBooks";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
@@ -260,7 +261,7 @@ function Discover() {
   }
 }
 function getBookKey(book) {
-  return book.isbn || book.googleBooksId;
+  return book.isbn || book.googleBooksId || book.openLibraryKey || book.editionKey;
 }
 
 function isBookSaved(book) {
@@ -316,9 +317,11 @@ async function openBookDetails(book) {
   setBookDetailError("");
 
   const details =
-    book.source === "isbn_work"
-      ? await getIsbnWorkBookDetails(book)
-      : await getGoogleBooksBookDetails(book);
+    book.source === "open_library"
+      ? await getOpenLibraryBookDetails(book)
+      : book.source === "isbn_work"
+        ? await getIsbnWorkBookDetails(book)
+        : await getGoogleBooksBookDetails(book);
   setSelectedBook(details);
   setBookDetailError(details.error || "");
   setBookDetailLoading(false);
@@ -409,13 +412,13 @@ async function openBookDetails(book) {
         <div className="isbn-search-feedback" aria-live="polite">
           {searchMessage ? <p className="isbn-search-message">{searchMessage}</p> : null}
           {bookResults.length > 0 ? (
-            <div className="book-search-results" aria-label="Google Books search results">
+            <div className="book-search-results" aria-label="Book search results">
               {bookResults.map((book) => {
                 const isSaved = isBookSaved(book);
                 const isSaving = savingBookKey === getBookKey(book);
 
                 return (
-	                  <article className="isbn-search-result" key={`${book.googleBooksId}-${book.isbn}`}>
+	                  <article className="isbn-search-result" key={getBookKey(book)}>
 	                    <button
                         className="isbn-result-details-button"
                         type="button"
@@ -431,7 +434,11 @@ async function openBookDetails(book) {
                         </div>
                         <div>
                           <p className="eyebrow">
-                            {book.source === "isbn_work" ? "Chinese ISBN database" : "Google Books result"}
+                            {book.source === "open_library"
+                              ? "Open Library result"
+                              : book.source === "isbn_work"
+                                ? "Chinese ISBN database"
+                                : "Google Books result"}
                           </p>
                           <h2>{book.title}</h2>
                           <p className="isbn-result-author">{book.author}</p>

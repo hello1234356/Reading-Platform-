@@ -70,15 +70,20 @@
   top: 50%;
   right: 7px;
   width: 30px;
+  min-width: 30px;
   height: 30px;
+  min-height: 30px;
   display: grid;
   place-items: center;
   border: 0;
   border-radius: 50%;
+  padding: 0;
+  aspect-ratio: 1;
   background: var(--butter);
   color: var(--mocha);
   font-size: 16px;
   font-weight: 900;
+  line-height: 1;
   transform: translateY(-50%);
 }
 
@@ -279,19 +284,24 @@
   right: 7px;
 
   width: 30px;
+  min-width: 30px;
   height: 30px;
+  min-height: 30px;
 
   display: grid;
   place-items: center;
 
   border: 0;
   border-radius: 50%;
+  padding: 0;
+  aspect-ratio: 1;
 
   background: var(--butter);
   color: var(--mocha);
 
   font-size: 16px;
   font-weight: 900;
+  line-height: 1;
 
   transform: translateY(-50%);
 }
