@@ -67,6 +67,7 @@ function mapLibraryRow(row) {
     description: row.books.description,
     source: bookSource,
     externalId: row.books.external_id || "",
+    skipGoogleBooksEnrichment: bookSource !== "google_books",
     coverUrl:
       bookSource === "google_books"
         ? getPreferredGoogleBooksCoverUrl(row.books.cover_url, row.books.isbn)

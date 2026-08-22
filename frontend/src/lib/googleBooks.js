@@ -278,8 +278,8 @@ export async function getGoogleBooksBookDetails(book) {
 export async function enrichBooksWithGoogleBooks(books = []) {
   return Promise.all(
     books.map(async (book) => {
+      if (book?.skipGoogleBooksEnrichment) return book;
       if (book?.source && book.source !== "google_books") return book;
-      if (!book?.source && !book?.googleBooksId) return book;
       if (!book?.isbn && !book?.googleBooksId) return book;
 
       const details = await getGoogleBooksBookDetails(book);
