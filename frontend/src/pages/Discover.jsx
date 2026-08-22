@@ -27,6 +27,17 @@ function getCoverUrl(isbn, size = "L") {
   return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
 }
 
+function isGeneratedGoogleIsbnCoverUrl(coverUrl) {
+  const url = String(coverUrl || "");
+  return /^https?:\/\/books\.google\.com\/books\/content\?/i.test(url)
+    && /[?&]id=ISBN/i.test(url);
+}
+
+function getEditorPickCoverUrl(book) {
+  const coverUrl = String(book?.coverUrl || "").trim();
+  return isGeneratedGoogleIsbnCoverUrl(coverUrl) ? "" : coverUrl;
+}
+
 function hideBrokenCover(event) {
   event.currentTarget.hidden = true;
 }
@@ -769,14 +780,14 @@ async function submitMissingBook(event) {
                 aria-label={`View details for ${featuredPick.title}`}
               >
                 <div className="discovery-book-cover featured" aria-hidden="true">
-                  {featuredPick.isbn && (
+                  {getEditorPickCoverUrl(featuredPick) ? (
                     <img
-                      src={featuredPick.coverUrl || getCoverUrl(featuredPick.isbn)}
+                      src={getEditorPickCoverUrl(featuredPick)}
                       alt=""
                       loading="lazy"
                       onError={hideBrokenCover}
                     />
-                  )}
+                  ) : null}
                   <span>{featuredPick.title}</span>
                 </div>
                 <div>
@@ -797,14 +808,14 @@ async function submitMissingBook(event) {
                     aria-label={`View details for ${book.title}`}
                   >
                     <div className="discovery-book-cover" aria-hidden="true">
-                      {book.isbn && (
+                      {getEditorPickCoverUrl(book) ? (
                         <img
-                          src={book.coverUrl || getCoverUrl(book.isbn)}
+                          src={getEditorPickCoverUrl(book)}
                           alt=""
                           loading="lazy"
                           onError={hideBrokenCover}
                         />
-                      )}
+                      ) : null}
                       <span>{book.title}</span>
                     </div>
                     <div>
