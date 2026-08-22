@@ -352,9 +352,7 @@
 
 .public-profile-modal {
   scrollbar-width: thin;
-  scrollbar-color:
-    rgba(138, 106, 88, 0.28)
-    transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .public-profile-modal::-webkit-scrollbar {
@@ -368,7 +366,7 @@
 .public-profile-modal::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
-  background: rgba(138, 106, 88, 0.24);
+  background: var(--scrollbar-thumb);
   background-clip: padding-box;
 }
 
