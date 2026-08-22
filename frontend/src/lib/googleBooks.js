@@ -120,10 +120,8 @@ export function getGoogleBooksCoverUrl(isbn, zoom = 2) {
 
 export function getPreferredGoogleBooksCoverUrl(coverUrl, isbn, zoom = 2) {
   const storedCoverUrl = String(coverUrl || "").trim();
-  const isOpenLibraryCover =
-    /^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(storedCoverUrl);
 
-  if (storedCoverUrl && !isOpenLibraryCover) {
+  if (storedCoverUrl) {
     return secureImageUrl(storedCoverUrl);
   }
 
