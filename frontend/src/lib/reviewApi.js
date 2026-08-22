@@ -210,7 +210,7 @@ export async function saveReview({
 
   const { error: shelfRatingError } = await supabase
     .from("shelves")
-    .update({ rating: normalizedRating })
+    .update({ rating: normalizedRating, progress: 100, shelf: "read" })
     .eq("user_id", userId)
     .eq("book_id", bookId);
 

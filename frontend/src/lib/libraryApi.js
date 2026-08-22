@@ -49,14 +49,21 @@ const allowedShelves = [
   "read",
 ];
 
+function normalizeShelfProgress(shelf, progress) {
+  if (shelf === "read") return 100;
+  if (shelf === "to-be-read") return 0;
+  return Math.max(0, Math.min(Number(progress) || 0, 100));
+}
+
 function mapLibraryRow(row) {
   const bookSource = row.books.source || "";
+  const shelf = row.shelf;
 
   return {
     shelfEntryId: row.id,
     bookId: row.book_id,
-    shelf: row.shelf,
-    progress: row.progress ?? 0,
+    shelf,
+    progress: normalizeShelfProgress(shelf, row.progress),
     rating: row.rating,
     createdAt: row.created_at,
 
@@ -246,7 +253,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
         user_id: userId,
         book_id: savedBook.id,
         shelf: nextShelf,
-        progress: nextShelf === "read" ? 100 : 0,
+        progress: normalizeShelfProgress(nextShelf, 0),
         rating: null,
       },
       {
@@ -286,7 +293,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
     .from("shelves")
     .update({
       shelf: nextShelf,
-      progress: nextShelf === "read" ? 100 : existingShelfRow.progress ?? 0,
+      progress: normalizeShelfProgress(nextShelf, existingShelfRow.progress),
     })
     .eq("id", existingShelfRow.id)
     .select("id, user_id, book_id, shelf, progress, rating")

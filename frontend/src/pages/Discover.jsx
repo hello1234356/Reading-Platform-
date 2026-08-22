@@ -408,6 +408,7 @@ async function submitReview(event) {
         userId: user.id,
         bookId: reviewBook.bookId,
         postType: "review",
+        progress: 100,
         rating: reviewDraft.rating,
         note:
           reviewDraft.review.trim() ||

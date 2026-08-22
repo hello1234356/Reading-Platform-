@@ -924,7 +924,10 @@ function Home() {
         shelfEntryId: savedLibraryBook.shelf.id,
         bookId: savedLibraryBook.book.id,
         shelf: savedLibraryBook.shelf.shelf,
-        progress: savedLibraryBook.shelf.progress ?? 0,
+        progress:
+          savedLibraryBook.shelf.shelf === "read"
+            ? 100
+            : savedLibraryBook.shelf.progress ?? 0,
         rating: savedLibraryBook.shelf.rating,
         title: savedLibraryBook.book.title,
         author: savedLibraryBook.book.author,
@@ -1186,7 +1189,10 @@ function Home() {
         shelfEntryId: savedLibraryBook.shelf.id,
         bookId: savedLibraryBook.book.id,
         shelf: savedLibraryBook.shelf.shelf,
-        progress: savedLibraryBook.shelf.progress ?? 0,
+        progress:
+          savedLibraryBook.shelf.shelf === "read"
+            ? 100
+            : savedLibraryBook.shelf.progress ?? 0,
         rating: savedLibraryBook.shelf.rating,
         title: savedLibraryBook.book.title,
         author: savedLibraryBook.book.author,
