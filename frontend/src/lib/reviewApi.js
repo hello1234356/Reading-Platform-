@@ -24,10 +24,33 @@ function mapReview(row) {
   };
 }
 
-export async function getRecentFinishedBooks(limit = 10) {
-  const supabase = requireSupabase();
-  const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 10));
+function mapFinishedBook(row) {
+  const source = row.source || "";
 
+  return {
+    id: row.id,
+    bookId: row.book_id,
+    title: row.title || row.books?.title || "Untitled",
+    author: row.author || row.books?.author || "Unknown author",
+    isbn: row.isbn || row.books?.isbn || "",
+    source,
+    externalId: row.external_id || "",
+    coverUrl:
+      source === "google_books"
+        ? getPreferredGoogleBooksCoverUrl(row.cover_url, row.isbn)
+        : row.cover_url || row.books?.cover_url || "",
+    rating: row.rating == null ? null : Number(row.rating),
+    progress: Number(row.progress ?? 100),
+    skipGoogleBooksEnrichment: Boolean(source && source !== "google_books"),
+  };
+}
+
+function isMissingRecentFinishesRpc(error) {
+  return error?.code === "PGRST202" ||
+    String(error?.message || "").includes("get_recent_finished_books");
+}
+
+async function getRecentFinishedBooksFallback(supabase, safeLimit) {
   const { data, error } = await supabase
     .from("shelves")
     .select(`
@@ -41,7 +64,9 @@ export async function getRecentFinishedBooks(limit = 10) {
         title,
         author,
         isbn,
-        cover_url
+        cover_url,
+        source,
+        external_id
       )
     `)
     .eq("shelf", "read")
@@ -52,19 +77,34 @@ export async function getRecentFinishedBooks(limit = 10) {
     throw error;
   }
 
-  const books = (data || []).filter((row) => row.books).map((row) => ({
-    id: row.id,
-    bookId: row.book_id,
-    title: row.books?.title || "Untitled",
-    author: row.books?.author || "Unknown author",
-    isbn: row.books?.isbn || "",
-    coverUrl: getPreferredGoogleBooksCoverUrl(
-      row.books?.cover_url,
-      row.books?.isbn,
-    ),
-    rating: row.rating == null ? null : Number(row.rating),
-    progress: Number(row.progress ?? 100),
-  }));
+  return (data || [])
+    .filter((row) => row.books)
+    .map((row) => mapFinishedBook({
+      ...row,
+      title: row.books?.title,
+      author: row.books?.author,
+      isbn: row.books?.isbn,
+      cover_url: row.books?.cover_url,
+      source: row.books?.source,
+      external_id: row.books?.external_id,
+    }));
+}
+
+export async function getRecentFinishedBooks(limit = 10) {
+  const supabase = requireSupabase();
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 10, 10));
+
+  const { data, error } = await supabase.rpc("get_recent_finished_books", {
+    p_limit: safeLimit,
+  });
+
+  if (error && !isMissingRecentFinishesRpc(error)) {
+    throw error;
+  }
+
+  const books = error
+    ? await getRecentFinishedBooksFallback(supabase, safeLimit)
+    : (data || []).map(mapFinishedBook);
 
   return enrichBooksWithGoogleBooks(books);
 }
