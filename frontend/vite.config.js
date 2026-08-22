@@ -11,6 +11,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/isbn-work-api/, ''),
       },
+      '/open-library-api': {
+        target: 'https://openlibrary.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/open-library-api/, ''),
+      },
     },
   },
 })

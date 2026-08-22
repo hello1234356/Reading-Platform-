@@ -1,7 +1,6 @@
 import { isBlockedGoogleBooksCategoryText } from "./googleBooks";
 
-const OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json";
-const OPEN_LIBRARY_BASE_URL = "https://openlibrary.org";
+const OPEN_LIBRARY_BASE_PATH = "/open-library-api";
 const OPEN_LIBRARY_SEARCH_FIELDS =
   "key,title,author_name,first_publish_year,cover_i,isbn,edition_key,publisher,subject";
 
@@ -105,7 +104,7 @@ function parseResponseBody(body) {
 }
 
 function buildOpenLibrarySearchUrl(query, limit) {
-  const url = new URL(OPEN_LIBRARY_SEARCH_URL);
+  const url = new URL(`${OPEN_LIBRARY_BASE_PATH}/search.json`, window.location.origin);
   url.searchParams.set(getOpenLibrarySearchParam(query), query);
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("fields", OPEN_LIBRARY_SEARCH_FIELDS);
@@ -168,7 +167,11 @@ export async function getOpenLibraryBookDetails(book) {
   }
 
   try {
-    const response = await fetch(`${OPEN_LIBRARY_BASE_URL}${book.openLibraryKey}.json`);
+    const detailUrl = new URL(
+      `${OPEN_LIBRARY_BASE_PATH}${book.openLibraryKey}.json`,
+      window.location.origin,
+    );
+    const response = await fetch(detailUrl);
 
     if (!response.ok) {
       throw new Error("Open Library could not load this book.");

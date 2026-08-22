@@ -1276,6 +1276,96 @@
     padding: 18px 12px;
   }
 
+  .grade-leaderboard-strip {
+    margin-bottom: 28px;
+    padding-bottom: 6px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .grade-leaderboard-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .feed-column > .section-heading {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding-top: 22px;
+    margin-top: 4px;
+    border-top-color: rgba(138, 106, 88, 0.16);
+  }
+
+  .feed-column .section-heading h2 {
+    max-width: 100%;
+    font-size: clamp(30px, 9vw, 40px);
+    line-height: 1;
+  }
+
+  .feed-column .section-heading .ghost-button {
+    width: fit-content;
+    max-width: 100%;
+    justify-self: start;
+    padding-inline: 4px;
+  }
+
+  .profile-page[aria-label$="shelf"] {
+    padding-inline: 16px;
+    overflow-x: hidden;
+  }
+
+  .profile-shelf-page-header {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .profile-shelf-page-header h1 {
+    max-width: 100%;
+    font-size: clamp(42px, 14vw, 64px);
+    line-height: 0.95;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-book-grid {
+    width: 100%;
+    max-width: 360px;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+    margin-inline: auto;
+    gap: 30px;
+  }
+
+  .profile-book-card {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .profile-book-detail-button {
+    display: grid;
+    justify-items: center;
+  }
+
+  .profile-book-detail-button > img {
+    width: min(100%, 220px);
+  }
+
+  .profile-book-popover {
+    right: 12px;
+    bottom: 14px;
+    left: 12px;
+    max-width: calc(100% - 24px);
+  }
+
+  .profile-book-actions {
+    justify-content: center;
+  }
+
+  .profile-book-actions > *,
+  .profile-shelf-select select {
+    width: 100%;
+  }
+
   .reading-room-hero {
     min-height: 320px;
     padding: 26px 18px;
@@ -1362,6 +1452,13 @@
     width: 100%;
   }
 
+  .club-toolbar h2 {
+    max-width: 100%;
+    font-size: clamp(28px, 8vw, 38px);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
   .club-modal,
   .composer-modal,
   .book-detail-modal,
@@ -1369,6 +1466,54 @@
     width: calc(100vw - 24px);
     max-height: calc(100dvh - 24px);
     padding: 20px;
+  }
+
+  .club-modal-backdrop {
+    place-items: center;
+    padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  }
+
+  .club-modal {
+    width: min(100%, calc(100vw - 28px));
+    max-height: calc(100dvh - 28px);
+    margin: auto;
+    border-radius: 24px;
+  }
+
+  .club-posts {
+    padding-bottom: 92px;
+  }
+
+  .club-message-form {
+    position: sticky;
+    right: 0;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 0;
+    z-index: 12;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: end;
+    margin-top: 18px;
+    padding: 10px;
+    border: 1px solid rgba(138, 106, 88, 0.16);
+    border-radius: 24px;
+    background:
+      linear-gradient(135deg, rgba(255, 250, 241, 0.98), rgba(242, 231, 215, 0.95)),
+      var(--paper);
+    box-shadow: 0 16px 34px rgba(89, 67, 49, 0.18);
+  }
+
+  .club-message-form textarea {
+    min-height: 46px;
+    max-height: 120px;
+    border-radius: 18px;
+  }
+
+  .club-message-form .primary-button {
+    width: auto;
+    min-width: 74px;
+    min-height: 44px;
+    padding-inline: 14px;
   }
 
   .feed-note-bubble,
