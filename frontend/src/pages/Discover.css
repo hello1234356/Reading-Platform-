@@ -119,8 +119,9 @@
   display: grid;
   gap: 14px;
   margin-top: 8px;
-  padding: 22px 0 4px;
+  padding: 22px 0 8px;
   border-top: 1px solid rgba(138, 106, 88, 0.13);
+  border-bottom: 1px solid rgba(138, 106, 88, 0.13);
 }
 
 .recent-finishes-heading {
@@ -332,6 +333,7 @@
   grid-template-columns: 110px minmax(0, 1fr);
   gap: 20px;
   align-items: center;
+  min-width: 0;
   width: 100%;
   padding: 0;
   border: 0;
@@ -354,6 +356,7 @@
 
 .isbn-result-cover {
   display: grid;
+  flex: 0 0 auto;
   place-items: center;
   overflow: hidden;
   background: var(--linen);
@@ -370,22 +373,26 @@
   display: grid;
   justify-items: start;
   gap: 9px;
+  min-width: 0;
 }
 
 .isbn-search-result h2 {
   color: var(--mocha);
   font-size: clamp(26px, 3vw, 38px);
   line-height: 0.98;
+  overflow-wrap: anywhere;
 }
 
 .isbn-result-author {
   color: var(--charcoal);
   font-size: 19px;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .isbn-search-result small {
   color: var(--soft-gray);
+  overflow-wrap: anywhere;
 }
 
 .isbn-search-result .primary-button {
@@ -398,6 +405,7 @@
   gap: 12px;
   align-items: end;
   justify-content: flex-start;
+  min-width: 0;
   padding-left: 130px;
 }
 
@@ -414,6 +422,7 @@
 }
 
 .isbn-shelf-choice select {
+  width: min(100%, 240px);
   min-height: 42px;
   padding: 0 14px;
   border: 1px solid rgba(138, 106, 88, 0.16);
@@ -429,13 +438,13 @@
 .discovery-layout {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 34px;
+  gap: 18px;
   align-items: start;
 }
 
 .discovery-main {
   display: grid;
-  gap: 46px;
+  gap: 24px;
   min-width: 0;
 }
 
@@ -632,7 +641,8 @@
 }
 
 .themed-lists-section {
-  padding: 42px 0 8px;
+  padding: 20px 0 8px;
+  border-top: 1px solid rgba(138, 106, 88, 0.13);
 }
 
 .themed-list-grid {

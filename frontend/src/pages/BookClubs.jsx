@@ -1354,9 +1354,9 @@ const filteredClubs = clubs.filter((club) => {
       {!activeClub && !lockedClub && (
         <>
           <header className="clubs-hero">
-            <p className="eyebrow">Book Clubs</p>
+            <p className="eyebrow">Join or Create a Book Club</p>
             <h1>Circles</h1>
-            <p>Join or create a book club- it's all up to you.</p>
+            <p className="school-motto">Fortune favors the bold.</p>
           </header>
 
           <section className="club-toolbar" aria-label="Book club filters">

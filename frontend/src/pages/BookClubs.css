@@ -1,17 +1,20 @@
 .clubs-page {
-  width: min(1440px, 100%);
+  width: min(1380px, 100%);
+  margin: 0 auto;
+  padding: 32px;
   display: grid;
-  gap: 30px;
+  gap: 18px;
   background: transparent;
 }
 
 .clubs-hero {
   min-height: auto;
   display: grid;
+  gap: 8px;
   align-content: end;
-  padding: 42px 0 4px;
+  padding: 34px 0 24px;
   overflow: visible;
-  border-bottom: 0;
+  border-bottom: 1px solid rgba(138, 106, 88, 0.13);
   border-radius: 0;
   background: transparent;
   color: var(--warm-ink);
@@ -48,11 +51,19 @@
   transform: rotate(-0.35deg) skewX(-3deg);
 }
 
-.clubs-hero p:last-child {
-  max-width: 590px;
-  margin-top: 20px;
-  font-size: 18px;
-  line-height: 1.6;
+.clubs-hero .school-motto {
+  width: fit-content;
+  max-width: none;
+  margin-top: 4px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(255, 250, 241, 0.72);
+  color: var(--mocha);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: normal;
+  letter-spacing: 0.02em;
+  box-shadow: 0 10px 22px rgba(89, 67, 49, 0.07);
 }
 
 .club-toolbar {
@@ -60,7 +71,7 @@
   grid-template-columns: max-content minmax(0, 1fr) auto;
   gap: 14px 18px;
   align-items: end;
-  padding: 18px 0 8px;
+  padding: 8px 0 8px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -93,24 +104,23 @@
 
 .club-search-control input {
   width: 100%;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid rgba(138, 106, 88, 0.14);
+  min-height: 58px;
+  padding: 0 24px;
+  border: 1px solid rgba(138, 106, 88, 0.16);
   border-radius: 999px;
-  background: rgba(255, 250, 241, 0.9);
+  background: rgba(255, 250, 241, 0.94);
   color: var(--charcoal);
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 17px;
   outline: none;
-  box-shadow: inset 0 -2px 0 rgba(138, 106, 88, 0.06);
+  box-shadow: var(--pillow-shadow);
 }
 
 .club-search-control input:focus {
-  border-color: rgba(201, 122, 90, 0.34);
+  border-color: rgba(170, 182, 150, 0.82);
   box-shadow:
-    0 0 0 4px rgba(244, 220, 123, 0.2),
-    inset 0 -2px 0 rgba(138, 106, 88, 0.06);
+    var(--pillow-shadow),
+    0 0 0 5px rgba(244, 220, 123, 0.22);
 }
 
 .club-posts form,
@@ -151,7 +161,7 @@
     "search search";
   align-items: end;
   gap: 1rem 1.5rem;
-  margin-top: 26px;
+  margin-top: 0;
 }
 
 .club-toolbar > div:first-child {

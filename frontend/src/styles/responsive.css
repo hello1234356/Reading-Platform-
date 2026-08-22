@@ -628,15 +628,33 @@
   }
 
   .isbn-search-result,
-  .isbn-result-details-button,
   .discovery-featured-pick,
   .discovery-pick-card,
   .themed-list-card {
     grid-template-columns: 1fr;
   }
 
+  .isbn-result-details-button {
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .isbn-result-actions {
+    align-items: stretch;
+    padding-left: 0;
+  }
+
+  .isbn-result-actions > *,
+  .isbn-result-actions .primary-button,
+  .isbn-shelf-choice select {
+    width: 100%;
+  }
+
   .isbn-result-cover,
-  .isbn-result-cover img,
+  .isbn-result-cover img {
+    width: 86px;
+  }
+
   .discovery-book-cover,
   .discovery-book-cover.featured {
     width: 100%;
@@ -882,9 +900,17 @@
   }
 
   .isbn-search-result {
-    grid-template-columns: 100px minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 18px;
     padding: 18px;
+  }
+
+  .isbn-result-details-button {
+    grid-template-columns: 100px minmax(0, 1fr);
+  }
+
+  .isbn-result-actions {
+    padding-left: 118px;
   }
 
   .book-search-results {
@@ -1292,7 +1318,6 @@
   .club-message-form,
   .schedule-builder-row,
   .isbn-search-result,
-  .isbn-result-details-button,
   .discovery-featured-pick,
   .discovery-pick-card,
   .themed-list-card,
@@ -1301,6 +1326,27 @@
   .profile-book-card,
   .profile-club-link {
     grid-template-columns: 1fr;
+  }
+
+  .isbn-result-details-button {
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .isbn-result-actions {
+    align-items: stretch;
+    padding-left: 0;
+  }
+
+  .isbn-result-actions > *,
+  .isbn-result-actions .primary-button,
+  .isbn-shelf-choice select {
+    width: 100%;
+  }
+
+  .isbn-result-cover,
+  .isbn-result-cover img {
+    width: 86px;
   }
 
   .club-card-actions {
