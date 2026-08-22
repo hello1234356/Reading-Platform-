@@ -86,6 +86,7 @@
 }
 
 .admin-card {
+  position: relative;
   display: grid;
   gap: 14px;
   min-width: 0;
@@ -94,6 +95,10 @@
   border-radius: 24px;
   background: rgba(255, 250, 241, 0.82);
   box-shadow: var(--pillow-shadow);
+}
+
+.admin-owner-delete-card {
+  padding-bottom: 58px;
 }
 
 .admin-book-card {
@@ -253,6 +258,37 @@
   font-size: 13px;
   line-height: 1;
   white-space: nowrap;
+}
+
+.admin-trash-button {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(138, 106, 88, 0.14);
+  border-radius: 50%;
+  background: rgba(255, 253, 249, 0.88);
+  color: var(--soft-gray);
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(88, 61, 48, 0.08);
+}
+
+.admin-trash-button:hover {
+  border-color: rgba(201, 122, 90, 0.32);
+  color: var(--terracotta);
+}
+
+.admin-trash-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-trash-button svg {
+  width: 17px;
+  height: 17px;
 }
 
 .admin-status.concerning {

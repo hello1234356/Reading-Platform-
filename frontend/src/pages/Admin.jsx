@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import ProfileLink from "../components/ProfileLink";
 import {
   addAdmin,
+  deleteBookSubmission,
+  deleteModerationReport,
   getAdminRole,
   getBookSubmissions,
   getModerationReports,
@@ -153,7 +155,42 @@ function SubmissionCover({ submission }) {
   );
 }
 
-function ModerationTab() {
+function TrashIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
+  );
+}
+
+function OwnerDeleteButton({ label, disabled, onClick }) {
+  return (
+    <button
+      className="admin-trash-button"
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <TrashIcon />
+    </button>
+  );
+}
+
+function ModerationTab({ isOwner }) {
   const [filter, setFilter] = useState("pending");
   const [reports, setReports] = useState([]);
   const [status, setStatus] = useState("loading");
@@ -193,6 +230,27 @@ function ModerationTab() {
     }
   }
 
+  async function deleteReport(reportId) {
+    const confirmed = window.confirm(
+      "Are you sure you want to permanently delete this moderation report?",
+    );
+
+    if (!confirmed) return;
+
+    setSavingId(reportId);
+    setMessage("");
+
+    try {
+      await deleteModerationReport(reportId);
+      await loadReports(filter);
+    } catch (error) {
+      console.error("Failed to delete moderation report:", error);
+      setMessage(error.message || "Could not delete this moderation report.");
+    } finally {
+      setSavingId("");
+    }
+  }
+
   return (
     <section className="admin-panel" aria-label="Moderation reports">
       <FilterTabs filters={moderationFilters} activeFilter={filter} onChange={setFilter} />
@@ -203,7 +261,10 @@ function ModerationTab() {
       ) : null}
       <div className="admin-card-list">
         {reports.map((report) => (
-          <article className="admin-card" key={report.id}>
+          <article
+            className={isOwner ? "admin-card admin-owner-delete-card" : "admin-card"}
+            key={report.id}
+          >
             <div className="admin-card-heading">
               <ProfileLine profile={report.user} />
               <span className={`admin-status ${report.status}`}>
@@ -284,6 +345,13 @@ function ModerationTab() {
                 </>
               ) : null}
             </div>
+            {isOwner ? (
+              <OwnerDeleteButton
+                label="Delete moderation report"
+                disabled={savingId === report.id}
+                onClick={() => deleteReport(report.id)}
+              />
+            ) : null}
           </article>
         ))}
       </div>
@@ -291,7 +359,7 @@ function ModerationTab() {
   );
 }
 
-function BookVerificationTab() {
+function BookVerificationTab({ isOwner }) {
   const [filter, setFilter] = useState("pending");
   const [submissions, setSubmissions] = useState([]);
   const [status, setStatus] = useState("loading");
@@ -331,6 +399,27 @@ function BookVerificationTab() {
     }
   }
 
+  async function deleteSubmission(submissionId) {
+    const confirmed = window.confirm(
+      "Are you sure you want to permanently delete this book request?",
+    );
+
+    if (!confirmed) return;
+
+    setSavingId(submissionId);
+    setMessage("");
+
+    try {
+      await deleteBookSubmission(submissionId);
+      await loadSubmissions(filter);
+    } catch (error) {
+      console.error("Failed to delete book submission:", error);
+      setMessage(error.message || "Could not delete this book request.");
+    } finally {
+      setSavingId("");
+    }
+  }
+
   return (
     <section className="admin-panel" aria-label="Book verification">
       <FilterTabs filters={submissionFilters} activeFilter={filter} onChange={setFilter} />
@@ -341,7 +430,14 @@ function BookVerificationTab() {
       ) : null}
       <div className="admin-card-list">
         {submissions.map((submission) => (
-          <article className="admin-card admin-book-card" key={submission.id}>
+          <article
+            className={
+              isOwner
+                ? "admin-card admin-book-card admin-owner-delete-card"
+                : "admin-card admin-book-card"
+            }
+            key={submission.id}
+          >
             <SubmissionCover submission={submission} />
             <div className="admin-book-main">
               <div className="admin-book-info">
@@ -421,6 +517,13 @@ function BookVerificationTab() {
                 <ProfileLine profile={submission.submitter} fallback="Unknown submitter" />
               </aside>
             </div>
+            {isOwner ? (
+              <OwnerDeleteButton
+                label="Delete book request"
+                disabled={savingId === submission.id}
+                onClick={() => deleteSubmission(submission.id)}
+              />
+            ) : null}
           </article>
         ))}
       </div>
@@ -718,8 +821,8 @@ function Admin() {
 
       <AdminTabs activeTab={activeTab} onChange={setActiveTab} isOwner={isOwner} />
 
-      {activeTab === "moderation" ? <ModerationTab /> : null}
-      {activeTab === "books" ? <BookVerificationTab /> : null}
+      {activeTab === "moderation" ? <ModerationTab isOwner={isOwner} /> : null}
+      {activeTab === "books" ? <BookVerificationTab isOwner={isOwner} /> : null}
       {activeTab === "clubs" ? <ClubActivityTab /> : null}
       {activeTab === "admins" && isOwner ? <AdminManagementTab /> : null}
     </section>

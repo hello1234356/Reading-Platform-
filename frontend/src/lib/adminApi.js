@@ -143,6 +143,24 @@ export async function removeAdmin(email) {
   if (error) throw error;
 }
 
+export async function deleteBookSubmission(submissionId) {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc("delete_book_submission", {
+    p_submission_id: submissionId,
+  });
+
+  if (error) throw error;
+}
+
+export async function deleteModerationReport(reportId) {
+  const supabase = requireSupabase();
+  const { error } = await supabase.rpc("delete_moderation_report", {
+    p_report_id: reportId,
+  });
+
+  if (error) throw error;
+}
+
 export async function getBookSubmissions(status = "pending") {
   const supabase = requireSupabase();
   let query = supabase

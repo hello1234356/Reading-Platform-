@@ -1623,3 +1623,51 @@
     font-size: 12px;
   }
 }
+
+/* Keep the primary nav readable when a desktop browser is squeezed to phone width. */
+@media (max-width: 720px) {
+  .nav-center,
+  .site-nav-admin .nav-center {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 8px 10px;
+  }
+
+  .nav-links,
+  .site-nav-admin .nav-links {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .nav-search,
+  .site-nav-admin .nav-search {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .nav-login {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    justify-self: end;
+  }
+}
