@@ -6,8 +6,8 @@ import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
 import {
   getGoogleBooksBookDetails,
-  getGoogleBooksCoverUrl,
 } from "../lib/googleBooks";
+import { getOpenLibraryIsbnCoverUrl } from "../lib/openLibraryBooks";
 import {
   getUserLibrary,
   moveLibraryBook,
@@ -40,7 +40,7 @@ function countDisplayCharacters(value = "") {
 }
 
 function getCoverUrl(isbn) {
-  return getGoogleBooksCoverUrl(isbn);
+  return getOpenLibraryIsbnCoverUrl(isbn);
 }
 
 function TrophyIcon() {

@@ -50,6 +50,8 @@ const allowedShelves = [
 ];
 
 function mapLibraryRow(row) {
+  const bookSource = row.books.source || "";
+
   return {
     shelfEntryId: row.id,
     bookId: row.book_id,
@@ -63,10 +65,12 @@ function mapLibraryRow(row) {
     isbn: row.books.isbn,
     genre: row.books.genre,
     description: row.books.description,
-    coverUrl: getPreferredGoogleBooksCoverUrl(
-      row.books.cover_url,
-      row.books.isbn,
-    ),
+    source: bookSource,
+    externalId: row.books.external_id || "",
+    coverUrl:
+      bookSource === "google_books"
+        ? getPreferredGoogleBooksCoverUrl(row.books.cover_url, row.books.isbn)
+        : row.books.cover_url || "",
   };
 }
 
@@ -317,7 +321,9 @@ export async function getUserLibrary(userId) {
         isbn,
         genre,
         description,
-        cover_url
+        cover_url,
+        source,
+        external_id
       )
     `)
     .eq("user_id", userId)
@@ -373,7 +379,9 @@ export async function moveLibraryBook(shelfEntryId, nextShelf) {
         isbn,
         genre,
         description,
-        cover_url
+        cover_url,
+        source,
+        external_id
       )
     `)
     .single();
@@ -414,7 +422,9 @@ export async function updateLibraryBookProgress(shelfEntryId, progress) {
         isbn,
         genre,
         description,
-        cover_url
+        cover_url,
+        source,
+        external_id
       )
     `)
     .single();
