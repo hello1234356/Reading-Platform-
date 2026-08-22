@@ -1,6 +1,7 @@
-
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { getAdminRole } from "../lib/adminApi";
 import { requireSupabase } from "../lib/supabase";
 import tsinglanLogo from "../assets/tsinglan-logo-official-alt.png";
 
@@ -13,7 +14,39 @@ const navItems = [
 
 function Navbar() {
   const navigate = useNavigate();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, loading } = useAuth();
+  const [adminRole, setAdminRole] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAdminRole() {
+      if (loading) return;
+
+      if (!isLoggedIn) {
+        setAdminRole(null);
+        return;
+      }
+
+      try {
+        const role = await getAdminRole();
+        if (!cancelled) setAdminRole(role);
+      } catch (error) {
+        console.error("Failed to load admin role:", error);
+        if (!cancelled) setAdminRole(null);
+      }
+    }
+
+    loadAdminRole();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, loading]);
+
+  const visibleNavItems = adminRole
+    ? [...navItems, { to: "/admin", label: "Admin" }]
+    : navItems;
 
   function handleSearch(event) {
     event.preventDefault();
@@ -35,7 +68,10 @@ function Navbar() {
   }
 
   return (
-  <nav className="site-nav" aria-label="Primary navigation">
+  <nav
+    className={adminRole ? "site-nav site-nav-admin" : "site-nav"}
+    aria-label="Primary navigation"
+  >
     <NavLink
       className="nav-brand"
       to="/"
@@ -50,7 +86,7 @@ function Navbar() {
 
     <div className="nav-center">
       <div className="nav-links">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

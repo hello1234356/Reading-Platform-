@@ -1,0 +1,380 @@
+.admin-page {
+  display: grid;
+  gap: 24px;
+}
+
+.admin-hero {
+  display: grid;
+  gap: 8px;
+  padding: 34px 0 24px;
+  border-bottom: 1px solid rgba(138, 106, 88, 0.13);
+}
+
+.admin-hero h1 {
+  position: relative;
+  width: fit-content;
+  isolation: isolate;
+  color: var(--deep-mocha);
+  font-size: clamp(48px, 8vw, 96px);
+  line-height: 0.9;
+}
+
+.admin-hero h1::after {
+  content: "";
+  position: absolute;
+  right: 0.02em;
+  bottom: 0.04em;
+  left: 0.02em;
+  height: 0.18em;
+  z-index: -1;
+  border-radius: 8px 12px 10px 9px;
+  background: linear-gradient(90deg, rgba(244, 220, 123, 0.24), rgba(244, 220, 123, 0.52), rgba(239, 183, 165, 0.28));
+  transform: rotate(-0.35deg) skewX(-3deg);
+}
+
+.admin-tabs,
+.admin-filter-tabs,
+.admin-actions,
+.admin-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-tabs button,
+.admin-filter-tabs button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(138, 106, 88, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 250, 241, 0.74);
+  color: var(--mocha);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-filter-tabs button {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.admin-tabs button.active,
+.admin-filter-tabs button.active {
+  border-color: rgba(201, 122, 90, 0.26);
+  background: var(--butter);
+  color: var(--warm-ink);
+  box-shadow: var(--pillow-shadow);
+}
+
+.admin-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-card-list,
+.admin-card-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid rgba(138, 106, 88, 0.12);
+  border-radius: 24px;
+  background: rgba(255, 250, 241, 0.82);
+  box-shadow: var(--pillow-shadow);
+}
+
+.admin-book-card {
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.admin-card-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.admin-card h2 {
+  color: var(--mocha);
+  font-size: clamp(24px, 2.4vw, 34px);
+  line-height: 1.02;
+  overflow-wrap: anywhere;
+}
+
+.admin-book-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-book-info,
+.admin-book-title-block,
+.admin-book-submitter {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-book-title-block {
+  gap: 5px;
+}
+
+.admin-book-author {
+  color: var(--soft-gray);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.admin-book-description {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 253, 249, 0.56);
+}
+
+.admin-book-submitter {
+  padding: 14px;
+  border: 1px solid rgba(138, 106, 88, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 253, 249, 0.64);
+}
+
+.admin-profile-line {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-page .admin-profile-line {
+  display: flex;
+  align-items: center;
+}
+
+.admin-profile-line img {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.admin-profile-line span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-profile-line strong,
+.admin-row-card strong {
+  color: var(--mocha);
+  overflow-wrap: anywhere;
+}
+
+.admin-page .admin-profile-line strong {
+  color: var(--mocha);
+}
+
+.admin-profile-line:hover strong,
+.admin-entity-link:hover {
+  color: var(--warm-ink);
+}
+
+.admin-page .admin-profile-line:hover strong {
+  color: var(--warm-ink);
+}
+
+.admin-profile-line small,
+.admin-muted,
+.admin-empty {
+  color: var(--soft-gray);
+  font-weight: 700;
+}
+
+.admin-card-text {
+  color: var(--charcoal);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.admin-meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-meta-grid span,
+.admin-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(244, 220, 123, 0.34);
+  color: var(--mocha);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-actions .primary-button,
+.admin-actions .ghost-button,
+.admin-add-form .primary-button {
+  width: auto;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-status.concerning {
+  background: rgba(239, 183, 165, 0.42);
+}
+
+.admin-status.dismissed,
+.admin-status.resolved {
+  background: rgba(170, 182, 150, 0.32);
+}
+
+.admin-book-cover,
+.admin-book-cover img {
+  width: 132px;
+  aspect-ratio: 2 / 3;
+  border-radius: 12px 24px 24px 12px;
+}
+
+.admin-book-cover {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--linen);
+  color: var(--soft-gray);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.admin-book-cover img {
+  object-fit: cover;
+}
+
+.admin-book-cover.empty {
+  padding: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 250, 241, 0.92), rgba(244, 220, 123, 0.22));
+}
+
+.admin-search-control {
+  width: min(100%, 560px);
+}
+
+.admin-search-control input,
+.admin-add-form input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 18px;
+  border: 1px solid rgba(138, 106, 88, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 250, 241, 0.94);
+  color: var(--charcoal);
+  font: inherit;
+  outline: none;
+  box-shadow: var(--pillow-shadow);
+}
+
+.admin-add-form {
+  display: grid;
+  grid-template-columns: minmax(240px, 420px) max-content;
+  justify-content: start;
+  max-width: 620px;
+}
+
+.admin-row-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  width: min(100%, 680px);
+  padding-block: 18px;
+}
+
+.admin-entity-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.admin-clickable-card {
+  cursor: pointer;
+}
+
+.admin-clickable-card:focus-visible {
+  outline: 3px solid rgba(244, 220, 123, 0.62);
+  outline-offset: 4px;
+}
+
+.admin-error {
+  color: var(--terracotta);
+  font-weight: 900;
+}
+
+.admin-denied {
+  display: grid;
+  gap: 10px;
+  padding: 30px;
+  border: 1px solid rgba(138, 106, 88, 0.12);
+  border-radius: 28px;
+  background: rgba(255, 250, 241, 0.82);
+  box-shadow: var(--pillow-shadow);
+}
+
+.admin-denied h1 {
+  color: var(--mocha);
+  font-size: clamp(38px, 6vw, 72px);
+  line-height: 0.95;
+}
+
+@media (max-width: 760px) {
+  .admin-card-grid,
+  .admin-book-card,
+  .admin-book-main,
+  .admin-row-card,
+  .admin-add-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-book-cover,
+  .admin-book-cover img {
+    width: 96px;
+  }
+
+  .admin-book-submitter {
+    padding: 12px;
+  }
+}

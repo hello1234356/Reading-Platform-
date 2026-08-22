@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Discover from "./pages/Discover";
 import BookClubs from "./pages/BookClubs";
+import Admin from "./pages/Admin";
 import RecommendationPost from "./pages/RecommendationPost";
 import { useAuth } from "./hooks/useAuth";
 import { PublicProfileProvider } from "./context/PublicProfileContext";
@@ -120,6 +121,15 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <BookClubs />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <Admin />
                     </ProtectedRoute>
                   }
                 />
