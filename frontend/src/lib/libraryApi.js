@@ -3,9 +3,43 @@ import {
   enrichBooksWithGoogleBooks,
   getPreferredGoogleBooksCoverUrl,
 } from "./googleBooks";
+import { getIsbnWorkBookDetails } from "./isbnWorkBooks";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
+}
+
+function getInternalBookId(book) {
+  return book?.bookId || book?.id || "";
+}
+
+function getProviderIdentity(book, normalizedIsbn = "") {
+  if (book?.source === "google_books" && book.googleBooksId) {
+    return {
+      source: "google_books",
+      externalId: String(book.googleBooksId),
+    };
+  }
+
+  if (book?.source === "open_library") {
+    const externalId = book.openLibraryKey || book.editionKey || "";
+
+    if (externalId) {
+      return {
+        source: "open_library",
+        externalId: String(externalId),
+      };
+    }
+  }
+
+  if (book?.source === "isbn_work" && normalizedIsbn) {
+    return {
+      source: "isbn_work",
+      externalId: normalizedIsbn,
+    };
+  }
+
+  return null;
 }
 
 const allowedShelves = [
@@ -44,52 +78,106 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
   const supabase = requireSupabase();
   const normalizedIsbn = normalizeIsbn(book.isbn);
   const nextShelf = targetShelf || null;
+  const internalBookId = getInternalBookId(book);
+  let providerIdentity = getProviderIdentity(book, normalizedIsbn);
+  let bookToPersist = book;
 
   if (!allowedShelves.includes(nextShelf)) {
     throw new Error("That shelf is not valid.");
   }
 
-  if (!book.title?.trim()) {
-    throw new Error("This book is missing a title.");
+  let savedBook = null;
+
+  if (internalBookId) {
+    const { data: existingBookById, error: findBookByIdError } =
+      await supabase
+        .from("books")
+        .select("id, title, author, isbn, cover_url")
+        .eq("id", internalBookId)
+        .maybeSingle();
+
+    if (findBookByIdError) {
+      throw findBookByIdError;
+    }
+
+    savedBook = existingBookById;
   }
 
-  if (!normalizedIsbn) {
+  if (!savedBook && providerIdentity) {
+    const { data: existingBookByProvider, error: findBookByProviderError } =
+      await supabase
+        .from("books")
+        .select("id, title, author, isbn, cover_url, source, external_id")
+        .eq("source", providerIdentity.source)
+        .eq("external_id", providerIdentity.externalId)
+        .maybeSingle();
+
+    if (findBookByProviderError) {
+      throw findBookByProviderError;
+    }
+
+    savedBook = existingBookByProvider;
+  }
+
+  if (!savedBook && normalizedIsbn) {
+    /*
+     * ISBN remains a compatibility/import lookup for external results.
+     */
+    const { data: existingBook, error: findBookError } = await supabase
+      .from("books")
+      .select("id, title, author, isbn, cover_url")
+      .eq("isbn", normalizedIsbn)
+      .maybeSingle();
+
+    if (findBookError) {
+      throw findBookError;
+    }
+
+    savedBook = existingBook;
+  }
+
+  if (!savedBook && !providerIdentity && !normalizedIsbn) {
     throw new Error(
-      "This book result has no ISBN. Choose another edition for now.",
+      "This book is not in LitShelf yet and has no stable provider identity or ISBN. Choose another edition for now.",
     );
   }
 
-  /*
-   * First, find the shared book row by ISBN.
-   */
-  const { data: existingBook, error: findBookError } = await supabase
-    .from("books")
-    .select("id, title, author, isbn, cover_url")
-    .eq("isbn", normalizedIsbn)
-    .maybeSingle();
+  if (!savedBook && !providerIdentity) {
+    bookToPersist = await getIsbnWorkBookDetails({
+      ...book,
+      isbn: normalizedIsbn,
+    });
+    providerIdentity = getProviderIdentity(bookToPersist, normalizedIsbn);
 
-  if (findBookError) {
-    throw findBookError;
+    if (!providerIdentity) {
+      throw new Error(
+        "This ISBN-only book could not be resolved through ISBN.work. Search for it from a supported provider first.",
+      );
+    }
   }
-
-  let savedBook = existingBook;
 
   /*
    * If the book is not in the catalog yet, create it.
    */
   if (!savedBook) {
+    if (!bookToPersist.title?.trim()) {
+      throw new Error("This book is missing a title.");
+    }
+
     const { data: insertedBook, error: insertBookError } = await supabase
       .from("books")
       .insert({
-        title: book.title.trim(),
-        author: book.author?.trim() || "Unknown author",
-        isbn: normalizedIsbn,
-        cover_url: book.coverUrl || null,
-        description: book.description || null,
-        genre: book.genre || null,
+        title: bookToPersist.title.trim(),
+        author: bookToPersist.author?.trim() || "Unknown author",
+        isbn: normalizedIsbn || null,
+        source: providerIdentity.source,
+        external_id: providerIdentity.externalId,
+        cover_url: bookToPersist.coverUrl || null,
+        description: bookToPersist.description || null,
+        genre: bookToPersist.genre || null,
         shelf: null,
       })
-      .select("id, title, author, isbn, cover_url")
+      .select("id, title, author, isbn, cover_url, source, external_id")
       .single();
 
     if (insertBookError) {
@@ -101,15 +189,39 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
         throw insertBookError;
       }
 
-      const { data: concurrentBook, error: concurrentBookError } =
-        await supabase
-          .from("books")
-          .select("id, title, author, isbn, cover_url")
-          .eq("isbn", normalizedIsbn)
-          .single();
+      let concurrentBook = null;
 
-      if (concurrentBookError) {
-        throw concurrentBookError;
+      if (providerIdentity) {
+        const { data, error } = await supabase
+          .from("books")
+          .select("id, title, author, isbn, cover_url, source, external_id")
+          .eq("source", providerIdentity.source)
+          .eq("external_id", providerIdentity.externalId)
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        concurrentBook = data;
+      }
+
+      if (!concurrentBook && normalizedIsbn) {
+        const { data, error } = await supabase
+          .from("books")
+          .select("id, title, author, isbn, cover_url, source, external_id")
+          .eq("isbn", normalizedIsbn)
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        concurrentBook = data;
+      }
+
+      if (!concurrentBook) {
+        throw insertBookError;
       }
 
       savedBook = concurrentBook;

@@ -42,7 +42,9 @@ function BookDetailModal({
 
         <section className="book-detail-copy">
           <p className="eyebrow">
-            {book.source === "open_library"
+            {book.source === "community"
+              ? "Community"
+              : book.source === "open_library"
               ? "Open Library"
               : book.source === "isbn_work"
                 ? "Chinese ISBN database"

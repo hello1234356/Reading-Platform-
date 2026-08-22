@@ -14,6 +14,7 @@ import {
   isBlockedGoogleBooksCategoryText,
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
+import { submitBookSubmission } from "../lib/bookSubmissions";
 import { getIsbnWorkBookDetails } from "../lib/isbnWorkBooks";
 import { getOpenLibraryBookDetails } from "../lib/openLibraryBooks";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
@@ -35,6 +36,50 @@ function simplifySearchTerm(searchTerm) {
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getInternalBookId(book) {
+  return book?.bookId || book?.id || "";
+}
+
+function getSourceLabel(book) {
+  if (book?.source === "community") return "Community";
+  if (book?.source === "open_library") return "Open Library";
+  if (book?.source === "isbn_work") return "ISBN.work";
+  return "Google";
+}
+
+const initialSubmissionDraft = {
+  title: "",
+  author: "",
+  language: "en",
+  isbn: "",
+  publisher: "",
+  publicationYear: "",
+  description: "",
+  coverUrl: "",
+};
+
+function SubmitBookEntry({ hasResults, onSubmitBook }) {
+  return (
+    <div className="submit-book-entry">
+      <span>
+        {hasResults ? "Still can't find your book?" : "Can't find your book?"}
+      </span>
+      <button className="primary-button" type="button" onClick={onSubmitBook}>
+        Submit Book for Review
+      </button>
+    </div>
+  );
+}
+
+function isHttpUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function Discover() {
@@ -63,12 +108,33 @@ function Discover() {
   });
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewError, setReviewError] = useState("");
+  const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
+  const [submissionDraft, setSubmissionDraft] = useState(initialSubmissionDraft);
+  const [submissionSaving, setSubmissionSaving] = useState(false);
+  const [submissionError, setSubmissionError] = useState("");
+  const submissionSentinelRef = useRef(null);
+  const [floatingSubmissionUnlocked, setFloatingSubmissionUnlocked] =
+    useState(false);
   const [hydratedEditorPicks, setHydratedEditorPicks] = useState(editorPicks);
   const featuredPick = hydratedEditorPicks[0];
   const supportingPicks = hydratedEditorPicks.slice(1);
   const authoredRecommendationPosts = recommendationLists.filter(
     (list) => list.body,
   );
+  const shouldShowZeroResultSubmission =
+    query.trim() &&
+    searchStatus === "error" &&
+    bookResults.length === 0 &&
+    searchMessage.startsWith("No matching books found");
+  const shouldShowResultSubmission =
+    query.trim() && searchStatus === "success" && bookResults.length > 0;
+  const shouldUseFloatingSubmission =
+    shouldShowResultSubmission && bookResults.length > 12;
+  const shouldShowFloatingSubmission =
+    shouldUseFloatingSubmission &&
+    floatingSubmissionUnlocked &&
+    query.trim() &&
+    searchStatus === "success";
 
   useEffect(() => {
     let cancelled = false;
@@ -200,6 +266,32 @@ function Discover() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    setFloatingSubmissionUnlocked(false);
+  }, [query, bookResults.length, searchStatus]);
+
+  useEffect(() => {
+    if (!shouldUseFloatingSubmission || searchStatus !== "success") return;
+
+    const sentinel = submissionSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setFloatingSubmissionUnlocked(true);
+        }
+      },
+      { threshold: 0.35 },
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [shouldUseFloatingSubmission, searchStatus, bookResults]);
+
   async function searchBooks(event) {
     event.preventDefault();
     runBookSearch(query);
@@ -214,7 +306,7 @@ function Discover() {
     return;
   }
 
-	  const bookKey = book.isbn || book.googleBooksId;
+	  const bookKey = getBookKey(book);
     const targetShelf = selectedShelves[bookKey] || "to-be-read";
 
 	  setSavingBookKey(bookKey);
@@ -223,11 +315,21 @@ function Discover() {
 	  try {
 	    const savedLibraryBook = await addBookToLibrary(user.id, book, targetShelf);
 
-	    setSavedBookKeys((currentKeys) =>
-	      currentKeys.includes(bookKey)
-        ? currentKeys
-        : [...currentKeys, bookKey],
-	    );
+      const savedBookKey = getBookKey({
+        ...book,
+        bookId: savedLibraryBook.book.id,
+      });
+
+	    setSavedBookKeys((currentKeys) => {
+        const nextKeys = [bookKey, savedBookKey].filter(Boolean);
+        const missingKeys = nextKeys.filter(
+          (key) => !currentKeys.includes(key),
+        );
+
+        return missingKeys.length > 0
+          ? [...currentKeys, ...missingKeys]
+          : currentKeys;
+      });
 
 	    setSearchMessage(
 	      `${book.title} was added to ${
@@ -261,7 +363,13 @@ function Discover() {
   }
 }
 function getBookKey(book) {
-  return book.isbn || book.googleBooksId || book.openLibraryKey || book.editionKey;
+  return (
+    getInternalBookId(book) ||
+    book.isbn ||
+    book.googleBooksId ||
+    book.openLibraryKey ||
+    book.editionKey
+  );
 }
 
 function isBookSaved(book) {
@@ -317,7 +425,14 @@ async function openBookDetails(book) {
   setBookDetailError("");
 
   const details =
-    book.source === "open_library"
+    book.source === "community"
+      ? {
+          ...book,
+          description:
+            book.description ||
+            "LitShelf Community does not have a description for this book yet.",
+        }
+      : book.source === "open_library"
       ? await getOpenLibraryBookDetails(book)
       : book.source === "isbn_work"
         ? await getIsbnWorkBookDetails(book)
@@ -325,6 +440,120 @@ async function openBookDetails(book) {
   setSelectedBook(details);
   setBookDetailError(details.error || "");
   setBookDetailLoading(false);
+}
+
+function openSubmissionForm() {
+  if (!requireLogin()) return;
+
+  setSubmissionDraft({
+    ...initialSubmissionDraft,
+    title: query.trim(),
+  });
+  setSubmissionError("");
+  setIsSubmissionOpen(true);
+}
+
+function closeSubmissionForm() {
+  if (submissionSaving) return;
+
+  setIsSubmissionOpen(false);
+  setSubmissionError("");
+  setSubmissionDraft(initialSubmissionDraft);
+}
+
+function updateSubmissionDraft(field, value) {
+  setSubmissionDraft((currentDraft) => ({
+    ...currentDraft,
+    [field]: value,
+  }));
+}
+
+async function submitMissingBook(event) {
+  event.preventDefault();
+
+  if (!requireLogin()) return;
+
+  const title = submissionDraft.title.trim();
+  const author = submissionDraft.author.trim();
+  const language = submissionDraft.language.trim();
+  const publicationYearText = submissionDraft.publicationYear.trim();
+  const coverUrl = submissionDraft.coverUrl.trim();
+  const description = submissionDraft.description.trim();
+
+  if (!title) {
+    setSubmissionError("Enter the book title.");
+    return;
+  }
+
+  if (!author) {
+    setSubmissionError("Enter the author.");
+    return;
+  }
+
+  if (!language) {
+    setSubmissionError("Choose a language.");
+    return;
+  }
+
+  if (!coverUrl) {
+    setSubmissionError("Enter a cover image URL.");
+    return;
+  }
+
+  if (!isHttpUrl(coverUrl)) {
+    setSubmissionError("Enter a valid http:// or https:// cover image URL.");
+    return;
+  }
+
+  if (!publicationYearText) {
+    setSubmissionError("Enter the publication year.");
+    return;
+  }
+
+  const publicationYear = Number(publicationYearText);
+  const currentYear = new Date().getFullYear();
+
+  if (
+    !Number.isInteger(publicationYear) ||
+    publicationYear < 1 ||
+    publicationYear > currentYear
+  ) {
+    setSubmissionError("Enter a valid publication year.");
+    return;
+  }
+
+  if (!description) {
+    setSubmissionError("Enter a description.");
+    return;
+  }
+
+  setSubmissionSaving(true);
+  setSubmissionError("");
+
+  try {
+    await submitBookSubmission({
+      ...submissionDraft,
+      title,
+      author,
+      language,
+      coverUrl,
+      publicationYear: publicationYearText,
+      description,
+    });
+
+    setSearchMessage(
+      "Book submitted for review. It will become available after approval.",
+    );
+    setSubmissionDraft(initialSubmissionDraft);
+    setIsSubmissionOpen(false);
+  } catch (error) {
+    console.error("Failed to submit book:", error);
+    setSubmissionError(
+      error.message || "Could not submit this book. Please try again.",
+    );
+  } finally {
+    setSubmissionSaving(false);
+  }
 }
 
   return (
@@ -413,77 +642,115 @@ async function openBookDetails(book) {
           {searchMessage ? <p className="isbn-search-message">{searchMessage}</p> : null}
           {bookResults.length > 0 ? (
             <div className="book-search-results" aria-label="Book search results">
-              {bookResults.map((book) => {
+              {bookResults.map((book, index) => {
                 const isSaved = isBookSaved(book);
                 const isSaving = savingBookKey === getBookKey(book);
+                const shouldInsertInlineSubmissionEntry =
+                  shouldShowResultSubmission &&
+                  !shouldUseFloatingSubmission &&
+                  index === bookResults.length - 1;
+                const shouldInsertSubmissionSentinel =
+                  shouldUseFloatingSubmission && index === 11;
 
-                return (
+                const resultCard = (
 	                  <article className="isbn-search-result" key={getBookKey(book)}>
 	                    <button
-                        className="isbn-result-details-button"
-                        type="button"
-                        onClick={() => openBookDetails(book)}
-                        aria-label={`View details for ${book.title}`}
-                      >
-                        <div className="isbn-result-cover">
-                          {book.coverUrl ? (
-                            <img src={book.coverUrl} alt={`Cover of ${book.title}`} />
-                          ) : (
-                            <span>No cover available</span>
-                          )}
-                        </div>
-                        <div>
-                          <p className="eyebrow">
-                            {book.source === "open_library"
-                              ? "Open Library result"
-                              : book.source === "isbn_work"
-                                ? "Chinese ISBN database"
-                                : "Google Books result"}
-                          </p>
-                          <h2>{book.title}</h2>
-                          <p className="isbn-result-author">{book.author}</p>
-                          {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
-                          {book.isbn ? <small>ISBN {book.isbn}</small> : null}
-                        </div>
-                      </button>
-	                    <div className="isbn-result-actions">
-                        <label className="isbn-shelf-choice">
-                          <span>Add to</span>
-                          <select
-                            value={selectedShelves[getBookKey(book)] || "to-be-read"}
-                            onChange={(event) =>
-                              setSelectedShelves((currentShelves) => ({
-                                ...currentShelves,
-                                [getBookKey(book)]: event.target.value,
-                              }))
-                            }
-                            disabled={isSaving}
-                          >
-                            <option value="to-be-read">To Be Read</option>
-                            <option value="currently-reading">Currently Reading</option>
-                            <option value="read">Read</option>
-                          </select>
-                        </label>
-		                   <button
-	                      className="primary-button"
-	                      type="button"
-                      disabled={isSaved || isSaving}
-                      onClick={() => addToReadingList(book)}
-                    >
-                      {isSaving
-                        ? "Adding..."
-                        : isSaved
-                          ? "Added to Reading List"
-                          : "Add to My Shelf"}
-	                    </button>
+                          className="isbn-result-details-button"
+                          type="button"
+                          onClick={() => openBookDetails(book)}
+                          aria-label={`View details for ${book.title}`}
+                        >
+                          <div className="isbn-result-cover">
+                            {book.coverUrl ? (
+                              <img src={book.coverUrl} alt={`Cover of ${book.title}`} />
+                            ) : (
+                              <span>No cover available</span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="eyebrow">
+                              {getSourceLabel(book)}
+                            </p>
+                            <h2>{book.title}</h2>
+                            <p className="isbn-result-author">{book.author}</p>
+                            {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
+                            {book.isbn ? <small>ISBN {book.isbn}</small> : null}
+                          </div>
+                        </button>
+	                      <div className="isbn-result-actions">
+                          <label className="isbn-shelf-choice">
+                            <span>Add to</span>
+                            <select
+                              value={selectedShelves[getBookKey(book)] || "to-be-read"}
+                              onChange={(event) =>
+                                setSelectedShelves((currentShelves) => ({
+                                  ...currentShelves,
+                                  [getBookKey(book)]: event.target.value,
+                                }))
+                              }
+                              disabled={isSaving}
+                            >
+                              <option value="to-be-read">To Be Read</option>
+                              <option value="currently-reading">Currently Reading</option>
+                              <option value="read">Read</option>
+                            </select>
+                          </label>
+		                      <button
+	                        className="primary-button"
+	                        type="button"
+                          disabled={isSaved || isSaving}
+                          onClick={() => addToReadingList(book)}
+                        >
+                          {isSaving
+                            ? "Adding..."
+                            : isSaved
+                              ? "Added to Reading List"
+                              : "Add to My Shelf"}
+	                      </button>
 	                    </div>
 	                  </article>
                 );
+
+                if (!shouldInsertInlineSubmissionEntry && !shouldInsertSubmissionSentinel) {
+                  return resultCard;
+                }
+
+                if (shouldInsertSubmissionSentinel) {
+                  return [
+                    resultCard,
+                    <span
+                      className="submit-book-scroll-sentinel"
+                      key="submit-book-scroll-sentinel"
+                      ref={submissionSentinelRef}
+                      aria-hidden="true"
+                    />,
+                  ];
+                }
+
+                return [
+                  resultCard,
+                      <SubmitBookEntry
+                        key="submit-book-entry"
+                        hasResults
+                        onSubmitBook={openSubmissionForm}
+                      />,
+                ];
               })}
             </div>
           ) : null}
+          {shouldShowZeroResultSubmission ? (
+            <SubmitBookEntry hasResults={false} onSubmitBook={openSubmissionForm} />
+          ) : null}
         </div>
       </header>
+      {shouldShowFloatingSubmission ? (
+        <div className="submit-book-floating-cta">
+          <span>Still can't find your book?</span>
+          <button className="primary-button" type="button" onClick={openSubmissionForm}>
+            Submit Book for Review
+          </button>
+        </div>
+      ) : null}
 
       <div className="discovery-layout">
         <main className="discovery-main">
@@ -616,6 +883,125 @@ async function openBookDetails(book) {
         }}
         onSubmit={submitReview}
       />
+      {isSubmissionOpen ? (
+        <div
+          className="composer-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeSubmissionForm();
+            }
+          }}
+        >
+          <section className="composer-modal submit-book-modal" role="dialog" aria-modal="true">
+            <button
+              className="modal-close"
+              type="button"
+              aria-label="Close book submission"
+              onClick={closeSubmissionForm}
+              disabled={submissionSaving}
+            >
+              ×
+            </button>
+            <h2>Submit a book</h2>
+            <form onSubmit={submitMissingBook}>
+              <label>
+                <span>Title *</span>
+                <input
+                  type="text"
+                  value={submissionDraft.title}
+                  onChange={(event) => updateSubmissionDraft("title", event.target.value)}
+                  disabled={submissionSaving}
+                  required
+                />
+              </label>
+              <label>
+                <span>Author *</span>
+                <input
+                  type="text"
+                  value={submissionDraft.author}
+                  onChange={(event) => updateSubmissionDraft("author", event.target.value)}
+                  disabled={submissionSaving}
+                  required
+                />
+              </label>
+              <label>
+                <span>Language *</span>
+                <select
+                  value={submissionDraft.language}
+                  onChange={(event) => updateSubmissionDraft("language", event.target.value)}
+                  disabled={submissionSaving}
+                  required
+                >
+                  <option value="en">English</option>
+                  <option value="zh">Chinese</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label>
+                <span>ISBN</span>
+                <input
+                  type="text"
+                  value={submissionDraft.isbn}
+                  onChange={(event) => updateSubmissionDraft("isbn", event.target.value)}
+                  disabled={submissionSaving}
+                />
+              </label>
+              <label>
+                <span>Publisher</span>
+                <input
+                  type="text"
+                  value={submissionDraft.publisher}
+                  onChange={(event) => updateSubmissionDraft("publisher", event.target.value)}
+                  disabled={submissionSaving}
+                />
+              </label>
+              <label>
+                <span>Publication year *</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  max={new Date().getFullYear()}
+                  value={submissionDraft.publicationYear}
+                  onChange={(event) => updateSubmissionDraft("publicationYear", event.target.value)}
+                  disabled={submissionSaving}
+                  required
+                />
+              </label>
+              <label>
+                <span>Cover image URL *</span>
+                <input
+                  type="url"
+                  value={submissionDraft.coverUrl}
+                  onChange={(event) => updateSubmissionDraft("coverUrl", event.target.value)}
+                  disabled={submissionSaving}
+                  required
+                />
+                <small className="submit-book-field-help">
+                  Find the book cover online, right-click the image and choose "Copy Image Address," then paste the link here. Please use a direct, publicly accessible image link.
+                </small>
+              </label>
+              <label>
+                <span>Description *</span>
+                <textarea
+                  value={submissionDraft.description}
+                  onChange={(event) => updateSubmissionDraft("description", event.target.value)}
+                  disabled={submissionSaving}
+                  rows={4}
+                  required
+                />
+              </label>
+              {submissionError ? (
+                <p className="profile-save-error" role="alert">{submissionError}</p>
+              ) : null}
+              <button className="primary-button full" type="submit" disabled={submissionSaving}>
+                {submissionSaving ? "Submitting..." : "Submit for Review"}
+              </button>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -43,6 +43,11 @@ begin
       'alter table public.%I alter column rating type numeric(2,1) using rating::numeric',
       target_table
     );
+    
+    execute format(
+      'update public.%I set rating = null where rating = 0',
+      target_table
+    );
 
     execute format(
       'alter table public.%I add constraint %I check (

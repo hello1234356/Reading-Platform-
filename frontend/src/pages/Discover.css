@@ -247,6 +247,68 @@
   font-weight: 800;
 }
 
+.submit-book-entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  grid-column: 1 / -1;
+  padding: 6px;
+  color: var(--soft-gray);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.submit-book-entry .primary-button {
+  min-height: 44px;
+}
+
+.submit-book-scroll-sentinel {
+  display: block;
+  grid-column: 1 / -1;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.submit-book-floating-cta {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 30;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: min(calc(100vw - 32px), 320px);
+  padding: 10px;
+  border-radius: 22px;
+  background: rgba(255, 250, 241, 0.84);
+  box-shadow: 0 16px 42px rgba(89, 67, 49, 0.16);
+  backdrop-filter: blur(10px);
+}
+
+.submit-book-floating-cta span {
+  color: var(--soft-gray);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.submit-book-floating-cta .primary-button {
+  width: 100%;
+  min-height: 44px;
+  padding-inline: 18px;
+}
+
+.submit-book-field-help {
+  display: block;
+  color: var(--soft-gray);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .book-search-results {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -2,6 +2,8 @@ import { isBlockedGoogleBooksCategoryText } from "./googleBooks";
 
 const OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json";
 const OPEN_LIBRARY_BASE_URL = "https://openlibrary.org";
+const OPEN_LIBRARY_SEARCH_FIELDS =
+  "key,title,author_name,first_publish_year,cover_i,isbn,edition_key,publisher,subject";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
@@ -78,6 +80,48 @@ function filterBlockedBooks(books) {
   return { results, blockedCount };
 }
 
+function hasCjkText(value) {
+  return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(value);
+}
+
+function getOpenLibrarySearchParam(query) {
+  return hasCjkText(query) && Array.from(query).length < 3 ? "title" : "q";
+}
+
+function parseResponseBody(body) {
+  if (!body) return null;
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
+
+function buildOpenLibrarySearchUrl(query, limit) {
+  const url = new URL(OPEN_LIBRARY_SEARCH_URL);
+  url.searchParams.set(getOpenLibrarySearchParam(query), query);
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("fields", OPEN_LIBRARY_SEARCH_FIELDS);
+
+  return url;
+}
+
+async function fetchOpenLibrarySearch(url) {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    const body = parseResponseBody(await response.text());
+    const error = new Error("Open Library search is unavailable right now.");
+    error.status = response.status;
+    error.url = url.toString();
+    error.body = body;
+    throw error;
+  }
+
+  return response.json();
+}
+
 export async function searchOpenLibraryBooks(searchTerm, limit = 20) {
   const query = String(searchTerm || "").trim();
 
@@ -85,23 +129,20 @@ export async function searchOpenLibraryBooks(searchTerm, limit = 20) {
     throw new Error("Enter a Chinese title, author, or ISBN to search.");
   }
 
-  const url = new URL(OPEN_LIBRARY_SEARCH_URL);
-  url.searchParams.set("q", query);
-  url.searchParams.set("limit", String(limit));
-  url.searchParams.set(
-    "fields",
-    "key,title,author_name,first_publish_year,cover_i,isbn,edition_key,publisher,subject",
-  );
+  const primaryUrl = buildOpenLibrarySearchUrl(query, limit);
 
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error("Open Library search is unavailable right now.");
+  try {
+    const data = await fetchOpenLibrarySearch(primaryUrl);
+    const books = (data.docs || []).map(mapOpenLibraryDoc);
+    return filterBlockedBooks(books);
+  } catch (error) {
+    console.error("Open Library search failed.", {
+      status: error.status,
+      url: error.url,
+      body: error.body,
+    });
+    throw error;
   }
-
-  const data = await response.json();
-  const books = (data.docs || []).map(mapOpenLibraryDoc);
-  return filterBlockedBooks(books);
 }
 
 export async function getOpenLibraryBookDetails(book) {

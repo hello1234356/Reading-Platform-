@@ -20,6 +20,43 @@ function cleanTags(tags) {
   ].slice(0, 10);
 }
 
+function getInternalBookId(book) {
+  return book?.bookId || book?.id || "";
+}
+
+function normalizeIsbn(isbn) {
+  return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
+}
+
+function getProviderIdentity(book, normalizedIsbn = "") {
+  if (book?.source === "google_books" && book.googleBooksId) {
+    return {
+      source: "google_books",
+      externalId: String(book.googleBooksId),
+    };
+  }
+
+  if (book?.source === "open_library") {
+    const externalId = book.openLibraryKey || book.editionKey || "";
+
+    if (externalId) {
+      return {
+        source: "open_library",
+        externalId: String(externalId),
+      };
+    }
+  }
+
+  if (book?.source === "isbn_work" && normalizedIsbn) {
+    return {
+      source: "isbn_work",
+      externalId: normalizedIsbn,
+    };
+  }
+
+  return null;
+}
+
 function mapMember(row) {
   return {
     userId: row.user_id,
@@ -259,25 +296,72 @@ export async function getBookClubById({
 }
 
 async function findOrCreateBook(selectedBook) {
-  if (!selectedBook?.isbn) {
-    throw new Error("Please select an ISBN-backed book.");
-  }
-
   const supabase = requireSupabase();
-  const isbn = String(selectedBook.isbn).trim();
+  const internalBookId = getInternalBookId(selectedBook);
+  const isbn = normalizeIsbn(selectedBook?.isbn);
+  const providerIdentity = getProviderIdentity(selectedBook, isbn);
 
-  const { data: existingBook, error: searchError } = await supabase
-    .from("books")
-    .select("id, title, author, isbn, cover_url")
-    .eq("isbn", isbn)
-    .maybeSingle();
+  if (internalBookId) {
+    const { data: existingBookById, error: searchByIdError } =
+      await supabase
+        .from("books")
+        .select("id, title, author, isbn, cover_url")
+        .eq("id", internalBookId)
+        .maybeSingle();
 
-  if (searchError) {
-    throw searchError;
+    if (searchByIdError) {
+      throw searchByIdError;
+    }
+
+    if (existingBookById) {
+      return existingBookById;
+    }
   }
 
-  if (existingBook) {
-    return existingBook;
+  if (providerIdentity) {
+    const { data: existingBookByProvider, error: searchByProviderError } =
+      await supabase
+        .from("books")
+        .select("id, title, author, isbn, cover_url, source, external_id")
+        .eq("source", providerIdentity.source)
+        .eq("external_id", providerIdentity.externalId)
+        .maybeSingle();
+
+    if (searchByProviderError) {
+      throw searchByProviderError;
+    }
+
+    if (existingBookByProvider) {
+      return existingBookByProvider;
+    }
+  }
+
+  if (isbn) {
+    const { data: existingBook, error: searchError } = await supabase
+      .from("books")
+      .select("id, title, author, isbn, cover_url")
+      .eq("isbn", isbn)
+      .maybeSingle();
+
+    if (searchError) {
+      throw searchError;
+    }
+
+    if (existingBook) {
+      return existingBook;
+    }
+  }
+
+  if (!providerIdentity && !isbn) {
+    throw new Error(
+      "This book is not in LitShelf yet and has no stable provider identity or ISBN. Choose another edition for now.",
+    );
+  }
+
+  if (!providerIdentity) {
+    throw new Error(
+      "This ISBN-only book is not in LitShelf yet. Add it from a supported provider result first.",
+    );
   }
 
   const { data: createdBook, error: insertError } = await supabase
@@ -285,15 +369,56 @@ async function findOrCreateBook(selectedBook) {
     .insert({
       title: selectedBook.title?.trim() || "Untitled",
       author: selectedBook.author?.trim() || "Unknown author",
-      isbn,
+      isbn: isbn || null,
+      source: providerIdentity.source,
+      external_id: providerIdentity.externalId,
       cover_url: selectedBook.coverUrl || null,
       description: selectedBook.description || null,
       genre: selectedBook.genre || null,
     })
-    .select("id, title, author, isbn, cover_url")
+    .select("id, title, author, isbn, cover_url, source, external_id")
     .single();
 
   if (insertError) {
+    if (insertError.code !== "23505") {
+      throw insertError;
+    }
+
+    if (providerIdentity) {
+      const { data: concurrentBook, error: concurrentBookError } =
+        await supabase
+          .from("books")
+          .select("id, title, author, isbn, cover_url, source, external_id")
+          .eq("source", providerIdentity.source)
+          .eq("external_id", providerIdentity.externalId)
+          .maybeSingle();
+
+      if (concurrentBookError) {
+        throw concurrentBookError;
+      }
+
+      if (concurrentBook) {
+        return concurrentBook;
+      }
+    }
+
+    if (isbn) {
+      const { data: concurrentBook, error: concurrentBookError } =
+        await supabase
+          .from("books")
+          .select("id, title, author, isbn, cover_url, source, external_id")
+          .eq("isbn", isbn)
+          .maybeSingle();
+
+      if (concurrentBookError) {
+        throw concurrentBookError;
+      }
+
+      if (concurrentBook) {
+        return concurrentBook;
+      }
+    }
+
     throw insertError;
   }
 

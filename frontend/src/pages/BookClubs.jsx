@@ -100,9 +100,38 @@ function simplifySearchTerm(searchTerm) {
     .trim();
 }
 
+function getInternalBookId(book) {
+  return book?.bookId || book?.id || "";
+}
+
+function hasProviderIdentity(book) {
+  return Boolean(
+    (book?.source === "google_books" && book.googleBooksId) ||
+      (
+        book?.source === "open_library" &&
+        (book.openLibraryKey || book.editionKey)
+      ),
+  );
+}
+
+function canPersistBook(book) {
+  return Boolean(getInternalBookId(book) || book?.isbn || hasProviderIdentity(book));
+}
+
+function getBookSelectionKey(book) {
+  return (
+    getInternalBookId(book) ||
+    book?.isbn ||
+    book?.googleBooksId ||
+    book?.openLibraryKey ||
+    book?.editionKey ||
+    book?.title
+  );
+}
+
 async function fetchGoogleBooks(searchTerm) {
   const { results } = await searchBooksByQueryLanguage(searchTerm);
-  return results.filter((book) => book.isbn);
+  return results.filter(canPersistBook);
 }
 
 function getTypingLabel(names) {
@@ -1251,10 +1280,10 @@ const filteredClubs = clubs.filter((club) => {
       return;
     }
 
-    if (!selectedClubBook?.isbn) {
+    if (!canPersistBook(selectedClubBook)) {
       setBookSearchStatus("error");
       setBookSearchMessage(
-        "Choose a book from the ISBN search results before creating a club.",
+        "Choose a LitShelf book, ISBN-backed result, or provider-backed result before creating a club.",
       );
       return;
     }
@@ -2073,12 +2102,11 @@ const filteredClubs = clubs.filter((club) => {
                       <button
                         type="button"
                         className={
-                          (selectedClubBook?.isbn && selectedClubBook?.isbn === book.isbn) ||
-                          (selectedClubBook?.openLibraryKey && selectedClubBook?.openLibraryKey === book.openLibraryKey)
+                          getBookSelectionKey(selectedClubBook) === getBookSelectionKey(book)
                             ? "selected"
                             : ""
                         }
-                        key={`${book.source || "book"}-${book.googleBooksId || book.isbn || book.openLibraryKey || book.editionKey}`}
+                        key={`${book.source || "book"}-${getBookSelectionKey(book)}`}
                         onClick={() =>
                           {
                             setSelectedClubBook(book);
@@ -2096,6 +2124,7 @@ const filteredClubs = clubs.filter((club) => {
                         <small>
                           {book.author}
                           {book.firstPublished ? ` / ${book.firstPublished}` : ""}
+                          {book.source === "community" ? " / Community" : ""}
                           {book.source === "open_library" ? " / Open Library" : ""}
                           {book.source === "isbn_work" ? " / Chinese ISBN database" : ""}
                           {" "}
