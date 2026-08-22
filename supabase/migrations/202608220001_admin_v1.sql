@@ -14,9 +14,7 @@ create table if not exists public.admins (
     check (role in ('owner', 'admin'))
 );
 
-create unique index if not exists admins_single_owner_unique
-on public.admins(role)
-where role = 'owner';
+drop index if exists public.admins_single_owner_unique;
 
 alter table public.admins enable row level security;
 
@@ -119,7 +117,7 @@ begin
 
   if found then
     if admin_row.role = 'owner' then
-      raise exception 'The owner is already configured.';
+      raise exception 'That email is already an owner.';
     end if;
 
     return admin_row;

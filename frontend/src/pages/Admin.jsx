@@ -533,8 +533,8 @@ function AdminManagementTab() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const owner = useMemo(
-    () => admins.find((admin) => admin.role === "owner"),
+  const owners = useMemo(
+    () => admins.filter((admin) => admin.role === "owner"),
     [admins],
   );
   const normalAdmins = useMemo(
@@ -594,14 +594,16 @@ function AdminManagementTab() {
     <section className="admin-panel" aria-label="Admin management">
       {message ? <p className="admin-error" role="alert">{message}</p> : null}
       {status === "loading" ? <p className="admin-empty">Loading admins...</p> : null}
-      {owner ? (
-        <article className="admin-card admin-row-card">
-          <div>
-            <p className="eyebrow">Owner</p>
-            <strong>{owner.email}</strong>
-          </div>
-        </article>
-      ) : null}
+      <div className="admin-card-list">
+        {owners.map((owner) => (
+          <article className="admin-card admin-row-card" key={owner.email}>
+            <div>
+              <p className="eyebrow">Owner</p>
+              <strong>{owner.email}</strong>
+            </div>
+          </article>
+        ))}
+      </div>
       <div className="admin-card-list">
         {normalAdmins.map((admin) => (
           <article className="admin-card admin-row-card" key={admin.email}>
