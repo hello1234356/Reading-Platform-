@@ -53,7 +53,7 @@ function getInternalBookId(book) {
 }
 
 function getSourceLabel(book) {
-  if (book?.source === "community") return "Community";
+  if (book?.source === "community") return "LitShelf";
   if (book?.source === "open_library") return "Open Library";
   if (book?.source === "isbn_work") return "ISBN.work";
   return "Google";
@@ -428,7 +428,7 @@ async function openBookDetails(book) {
           ...book,
           description:
             book.description ||
-            "LitShelf Community does not have a description for this book yet.",
+            "LitShelf does not have a description for this book yet.",
         }
       : book.source === "open_library"
       ? await getOpenLibraryBookDetails(book)

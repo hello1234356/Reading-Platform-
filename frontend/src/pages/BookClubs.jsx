@@ -2157,7 +2157,7 @@ const filteredClubs = clubs.filter((club) => {
                         <small>
                           {book.author}
                           {book.firstPublished ? ` / ${book.firstPublished}` : ""}
-                          {book.source === "community" ? " / Community" : ""}
+                          {book.source === "community" ? " / LitShelf" : ""}
                           {book.source === "open_library" ? " / Open Library" : ""}
                           {book.source === "isbn_work" ? " / Chinese ISBN database" : ""}
                           {" "}

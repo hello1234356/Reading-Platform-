@@ -127,7 +127,7 @@ async function searchChineseBooks(searchTerm, limit) {
   }
 
   return {
-    results: mergeBookResults(communityResults, openLibraryResults, limit),
+    results: mergeBookResults(openLibraryResults, communityResults, limit),
     blockedCount: openLibrarySearch.status === "fulfilled"
       ? openLibrarySearch.value.blockedCount || 0
       : 0,
@@ -159,8 +159,8 @@ export async function searchBooksByQueryLanguage(searchTerm, limit = 20) {
     const externalSearch = await searchNonChineseExternalBooks(searchTerm, limit);
     return {
       results: mergeBookResults(
-        catalogSearch.results,
         externalSearch.results,
+        catalogSearch.results,
         limit,
       ),
       blockedCount: externalSearch.blockedCount || 0,

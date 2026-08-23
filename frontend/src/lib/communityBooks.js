@@ -1,4 +1,4 @@
-import { requireSupabase } from "./supabase";
+import { requireSupabase } from "./supabase.js";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
@@ -63,6 +63,24 @@ function scoreCatalogBook(book, searchTerm) {
   }
 
   return combinedMatches ? 100 + combinedMatches : 0;
+}
+
+function isRelevantCatalogScore(score, searchTerm) {
+  const tokenCount = normalizeSearchText(searchTerm).split(" ").filter(Boolean).length;
+
+  // A single broad word can match a large part of the catalog. Only exact
+  // title/author/ISBN matches are safe to show without more context.
+  if (tokenCount <= 1) return score >= 750;
+  return score >= 550;
+}
+
+export function filterRelevantCatalogBooks(books, searchTerm, limit = 20) {
+  return books
+    .map((book) => ({ book, score: scoreCatalogBook(book, searchTerm) }))
+    .filter(({ score }) => isRelevantCatalogScore(score, searchTerm))
+    .sort((first, second) => second.score - first.score)
+    .slice(0, Math.max(1, Math.min(Number(limit) || 20, 50)))
+    .map(({ book }) => book);
 }
 
 export function areCatalogResultsSufficient(results, searchTerm, limit = 20) {
@@ -137,13 +155,11 @@ async function searchBooksTable(searchTerm, limit, { communityOnly = false } = {
   const { data, error } = await request;
   if (error) throw error;
 
-  return (data || [])
-    .map(mapCatalogBook)
-    .map((book) => ({ book, score: scoreCatalogBook(book, query) }))
-    .filter(({ score }) => score > 0)
-    .sort((first, second) => second.score - first.score)
-    .slice(0, Math.max(1, Math.min(Number(limit) || 20, 50)))
-    .map(({ book }) => book);
+  return filterRelevantCatalogBooks(
+    (data || []).map(mapCatalogBook),
+    query,
+    limit,
+  );
 }
 
 export async function searchCatalogBooks(searchTerm, limit = 20) {

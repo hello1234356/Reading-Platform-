@@ -43,7 +43,7 @@ function BookDetailModal({
         <section className="book-detail-copy">
           <p className="eyebrow">
             {book.source === "community"
-              ? "Community"
+              ? "LitShelf"
               : book.source === "open_library"
               ? "Open Library"
               : book.source === "isbn_work"

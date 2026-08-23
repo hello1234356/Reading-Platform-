@@ -7,6 +7,7 @@ import {
   searchWithSharedCache,
 } from "../src/lib/bookSearchCache.js";
 import { searchGoogleWithQuotaFallback } from "../src/lib/bookSearchPolicy.js";
+import { filterRelevantCatalogBooks } from "../src/lib/communityBooks.js";
 
 function createSharedStore() {
   const rows = new Map();
@@ -228,4 +229,18 @@ test("migration validates authentication, shape, result count, and payload size"
   assert.match(migration, /result_count > 20/);
   assert.match(migration, /pg_column_size\(p_result_json\) > 200000/);
   assert.match(migration, /revoke execute[\s\S]+from public, anon/);
+});
+
+test("local catalog filtering hides weak database matches", () => {
+  const books = [
+    { title: "Harry Potter and the Goblet of Fire", author: "J. K. Rowling" },
+    { title: "The Art of Pottering Around", author: "Someone Else" },
+    { title: "A History of Magic", author: "Unrelated Author" },
+  ];
+
+  assert.deepEqual(
+    filterRelevantCatalogBooks(books, "Harry Potter"),
+    [books[0]],
+  );
+  assert.deepEqual(filterRelevantCatalogBooks(books, "Potter"), []);
 });
