@@ -1841,6 +1841,84 @@
   }
 }
 
+/* Phone-only readability pass for the homepage feed and shelf/profile pages. */
+@media (max-width: 480px) {
+  .feed-card {
+    overflow: hidden;
+  }
+
+  .feed-card::before {
+    top: 66px;
+    bottom: 10px;
+    left: 21px;
+  }
+
+  .feed-card-header {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .feed-card-header > div:last-child,
+  .feed-title,
+  .feed-title strong,
+  .feed-title span,
+  .feed-note-bubble p,
+  .book-details,
+  .book-details strong,
+  .book-details small {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .feed-note-bubble,
+  .book-strip,
+  .feed-actions,
+  .comment-list,
+  .comment-form {
+    width: calc(100% - 52px);
+    margin-left: 52px;
+  }
+
+  .profile-page,
+  .profile-page[aria-label$="shelf"],
+  .profile-banner,
+  .profile-identity,
+  .profile-identity > div,
+  .profile-shelf-page-header,
+  .profile-book-grid,
+  .profile-book-card {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .profile-identity {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .profile-identity h1,
+  .profile-identity span,
+  .profile-shelf-page-header h1 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  .profile-identity h1 {
+    font-size: clamp(32px, 11.5vw, 48px);
+    line-height: 1;
+  }
+
+  .profile-shelf-page-header h1 {
+    font-size: clamp(38px, 13vw, 56px);
+    line-height: 0.98;
+  }
+}
+
 /* Keep the primary nav readable when a desktop browser is squeezed to phone width. */
 @media (max-width: 720px) {
   .nav-center,
