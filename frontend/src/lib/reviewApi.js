@@ -1,8 +1,5 @@
 import { requireSupabase } from "./supabase";
-import {
-  enrichBooksWithGoogleBooks,
-  getPreferredGoogleBooksCoverUrl,
-} from "./googleBooks";
+import { getPreferredGoogleBooksCoverUrl } from "./googleBooks";
 
 function mapReview(row) {
   return {
@@ -15,8 +12,14 @@ function mapReview(row) {
     updatedAt: row.updated_at,
 
     book: row.books?.title || "Untitled",
+    title: row.books?.title || "Untitled",
     author: row.books?.author || "Unknown author",
     isbn: row.books?.isbn || "",
+    description: row.books?.description || "",
+    source: row.books?.source || "",
+    externalId: row.books?.external_id || "",
+    googleBooksId:
+      row.books?.source === "google_books" ? row.books.external_id || "" : "",
     coverUrl: getPreferredGoogleBooksCoverUrl(
       row.books?.cover_url,
       row.books?.isbn,
@@ -65,6 +68,7 @@ async function getRecentFinishedBooksFallback(supabase, safeLimit) {
         author,
         isbn,
         cover_url,
+        description,
         source,
         external_id
       )
@@ -102,11 +106,9 @@ export async function getRecentFinishedBooks(limit = 10) {
     throw error;
   }
 
-  const books = error
+  return error
     ? await getRecentFinishedBooksFallback(supabase, safeLimit)
     : (data || []).map(mapFinishedBook);
-
-  return enrichBooksWithGoogleBooks(books);
 }
 
 export async function getUserReviews(userId) {
@@ -131,7 +133,10 @@ export async function getUserReviews(userId) {
         title,
         author,
         isbn,
-        cover_url
+        cover_url,
+        description,
+        source,
+        external_id
       )
     `)
     .eq("user_id", userId)
@@ -141,8 +146,7 @@ export async function getUserReviews(userId) {
     throw error;
   }
 
-  const reviews = (data || []).map(mapReview);
-  return enrichBooksWithGoogleBooks(reviews);
+  return (data || []).map(mapReview);
 }
 
 export async function saveReview({
@@ -199,7 +203,10 @@ export async function saveReview({
         title,
         author,
         isbn,
-        cover_url
+        cover_url,
+        description,
+        source,
+        external_id
       )
     `)
     .single();
@@ -218,8 +225,7 @@ export async function saveReview({
     throw shelfRatingError;
   }
 
-  const [review] = await enrichBooksWithGoogleBooks([mapReview(data)]);
-  return review;
+  return mapReview(data);
 }
 
 export async function deleteReview(reviewId) {

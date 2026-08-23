@@ -1,8 +1,5 @@
 import { requireSupabase } from "./supabase";
-import {
-  enrichBooksWithGoogleBooks,
-  getPreferredGoogleBooksCoverUrl,
-} from "./googleBooks";
+import { getPreferredGoogleBooksCoverUrl } from "./googleBooks";
 import { getIsbnWorkBookDetails } from "./isbnWorkBooks";
 
 function normalizeIsbn(isbn) {
@@ -74,6 +71,8 @@ function mapLibraryRow(row) {
     description: row.books.description,
     source: bookSource,
     externalId: row.books.external_id || "",
+    googleBooksId:
+      bookSource === "google_books" ? row.books.external_id || "" : "",
     skipGoogleBooksEnrichment: bookSource !== "google_books",
     coverUrl:
       bookSource === "google_books"
@@ -341,8 +340,7 @@ export async function getUserLibrary(userId) {
     throw error;
   }
 
-  const books = (data || []).filter((row) => row.books).map(mapLibraryRow);
-  return enrichBooksWithGoogleBooks(books);
+  return (data || []).filter((row) => row.books).map(mapLibraryRow);
 }
 export async function moveLibraryBook(shelfEntryId, nextShelf) {
   if (!shelfEntryId) {

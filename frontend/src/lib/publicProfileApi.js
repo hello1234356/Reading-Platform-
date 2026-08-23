@@ -1,6 +1,5 @@
 import { requireSupabase } from "./supabase";
 import {
-  enrichBooksWithGoogleBooks,
   getGoogleBooksCoverUrl,
   getPreferredGoogleBooksCoverUrl,
 } from "./googleBooks";
@@ -105,6 +104,6 @@ export async function getPublicProfile(userId) {
 
   return {
     ...profile,
-    favoriteBooks: await enrichBooksWithGoogleBooks(favoriteBooks),
+    favoriteBooks,
   };
 }

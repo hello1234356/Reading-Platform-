@@ -7,7 +7,6 @@ import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
 import {
   BLOCKED_BOOK_CATEGORY_MESSAGE,
-  enrichBooksWithGoogleBooks,
   getGoogleBooksBookDetails,
   getGoogleBooksCoverUrl,
   getPreferredGoogleBooksCoverUrl,
@@ -126,9 +125,8 @@ function Discover() {
   const submissionSentinelRef = useRef(null);
   const [floatingSubmissionUnlocked, setFloatingSubmissionUnlocked] =
     useState(false);
-  const [hydratedEditorPicks, setHydratedEditorPicks] = useState(editorPicks);
-  const featuredPick = hydratedEditorPicks[0];
-  const supportingPicks = hydratedEditorPicks.slice(1);
+  const featuredPick = editorPicks[0];
+  const supportingPicks = editorPicks.slice(1);
   const authoredRecommendationPosts = recommendationLists.filter(
     (list) => list.body,
   );
@@ -146,18 +144,6 @@ function Discover() {
     floatingSubmissionUnlocked &&
     query.trim() &&
     searchStatus === "success";
-
-  useEffect(() => {
-    let cancelled = false;
-
-    enrichBooksWithGoogleBooks(editorPicks).then((books) => {
-      if (!cancelled) setHydratedEditorPicks(books);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function refreshRecentFinishes({ showLoading = false } = {}) {
     if (showLoading) {

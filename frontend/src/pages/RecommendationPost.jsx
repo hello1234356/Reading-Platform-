@@ -1,10 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { recommendationLists } from "../data/recommendationLists";
-import {
-  enrichBooksWithGoogleBooks,
-  getGoogleBooksCoverUrl,
-} from "../lib/googleBooks";
+import { getGoogleBooksCoverUrl } from "../lib/googleBooks";
 
 function getCoverUrl(isbn) {
   return getGoogleBooksCoverUrl(isbn);
@@ -98,23 +95,6 @@ function renderPostBody(post) {
 function RecommendationPost() {
   const { listSlug } = useParams();
   const post = recommendationLists.find((list) => list.slug === listSlug);
-  const [hydratedPost, setHydratedPost] = useState(post);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!post?.sectionMeta?.length) {
-      return undefined;
-    }
-
-    enrichBooksWithGoogleBooks(post.sectionMeta).then((sectionMeta) => {
-      if (!cancelled) setHydratedPost({ ...post, sectionMeta });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [post]);
 
   if (!post) {
     return (
@@ -157,7 +137,7 @@ function RecommendationPost() {
             <span>{post.count} books</span>
           </div>
         </header>
-        {renderPostBody(hydratedPost || post)}
+      {renderPostBody(post)}
       </article>
     </section>
   );

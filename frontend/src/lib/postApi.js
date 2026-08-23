@@ -1,10 +1,7 @@
 import { requireSupabase } from "./supabase";
 import { getPublicDisplayName } from "./identity";
 import { requireModeratedContent } from "./moderationApi";
-import {
-  getGoogleBooksBookDetails,
-  getPreferredGoogleBooksCoverUrl,
-} from "./googleBooks";
+import { getPreferredGoogleBooksCoverUrl } from "./googleBooks";
 
 function getPostAction(postType, hasBook) {
   switch (postType) {
@@ -115,8 +112,14 @@ function mapPost(row, currentUserId = null) {
     hasBook: Boolean(book),
 
     book: book?.title || "Untitled",
+    title: book?.title || "Untitled",
     author: book?.author || "Unknown author",
     isbn: book?.isbn || "",
+    description: book?.description || "",
+    source: book?.source || "",
+    externalId: book?.external_id || "",
+    googleBooksId:
+      book?.source === "google_books" ? book.external_id || "" : "",
     coverUrl: getPreferredGoogleBooksCoverUrl(
       book?.cover_url,
       book?.isbn,
@@ -163,7 +166,10 @@ const FEED_SELECT = `
     author,
     isbn,
     cover_url,
-    genre
+    genre,
+    description,
+    source,
+    external_id
   ),
 
   comments (
@@ -206,21 +212,8 @@ export async function getFeedPosts(currentUserId = null) {
     throw error;
   }
 
-  const posts = (data || []).map((row) =>
+  return (data || []).map((row) =>
     mapPost(row, currentUserId),
-  );
-
-  return Promise.all(
-    posts.map(async (post) => {
-      if (!post.isbn) return post;
-      const details = await getGoogleBooksBookDetails({
-        title: post.book,
-        author: post.author,
-        isbn: post.isbn,
-        coverUrl: post.coverUrl,
-      });
-      return { ...post, coverUrl: details.coverUrl || post.coverUrl };
-    }),
   );
 }
 

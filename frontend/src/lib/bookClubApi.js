@@ -1,10 +1,7 @@
 import { requireSupabase } from "./supabase";
 import { getPublicDisplayName } from "./identity";
 import { requireModeratedContent } from "./moderationApi";
-import {
-  getGoogleBooksBookDetails,
-  getPreferredGoogleBooksCoverUrl,
-} from "./googleBooks";
+import { getPreferredGoogleBooksCoverUrl } from "./googleBooks";
 
 function cleanTags(tags) {
   if (!Array.isArray(tags)) {
@@ -126,28 +123,6 @@ function mapClub(row, currentUserId = null) {
   };
 }
 
-async function enrichClubCover(club) {
-  if (!club?.isbn) return club;
-
-  const hasCreatorCover =
-    club.customCoverUrl &&
-    !/^https?:\/\/(?:covers\.)?openlibrary\.org\//i.test(club.customCoverUrl);
-
-  if (hasCreatorCover) return club;
-
-  const details = await getGoogleBooksBookDetails({
-    title: club.bookTitle,
-    author: club.author,
-    isbn: club.isbn,
-    coverUrl: club.coverUrl,
-  });
-
-  return {
-    ...club,
-    coverUrl: details.coverUrl || club.coverUrl,
-  };
-}
-
 function mapScheduleStage(row) {
   return {
     id: row.id,
@@ -260,11 +235,9 @@ export async function getBookClubs(
     throw error;
   }
 
-  const clubs = (data || []).map((row) =>
+  return (data || []).map((row) =>
     mapClub(row, currentUserId),
   );
-
-  return Promise.all(clubs.map(enrichClubCover));
 }
 
 export async function getBookClubById({
@@ -292,7 +265,7 @@ export async function getBookClubById({
     return null;
   }
 
-  return enrichClubCover(mapClub(data, currentUserId));
+  return mapClub(data, currentUserId);
 }
 
 async function findOrCreateBook(selectedBook) {

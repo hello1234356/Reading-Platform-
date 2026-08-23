@@ -58,34 +58,109 @@ function withApiKey(url) {
 
 async function throwGoogleBooksError(response) {
   let apiMessage = "";
+  let body = null;
 
   try {
-    const body = await response.json();
+    body = await response.json();
     apiMessage = body?.error?.message || "";
   } catch {
     // The status code still gives us enough information for a useful error.
   }
 
-  if (response.status === 429) {
-    throw new Error(
+  const reasons = (body?.error?.errors || [])
+    .map((error) => error?.reason)
+    .filter(Boolean);
+  const googleStatus = body?.error?.status || "";
+  const hasQuotaDetails = (body?.error?.details || []).some((detail) =>
+    String(detail?.["@type"] || "").includes("QuotaFailure"),
+  );
+  const quotaReasons = new Set([
+    "rateLimitExceeded",
+    "userRateLimitExceeded",
+    "dailyLimitExceeded",
+    "quotaExceeded",
+  ]);
+  const isQuotaExceeded = response.status === 429 ||
+    googleStatus === "RESOURCE_EXHAUSTED" ||
+    hasQuotaDetails ||
+    (response.status === 403 && reasons.some((reason) => quotaReasons.has(reason)));
+  let error;
+
+  if (isQuotaExceeded) {
+    error = new Error(
       "Google Books search quota is unavailable. Add a Google Books API key to VITE_GOOGLE_BOOKS_API_KEY or check that key's quota.",
     );
-  }
-
-  if (response.status === 400 || response.status === 403) {
-    throw new Error(
+  } else if (response.status === 400 || response.status === 403) {
+    error = new Error(
       apiMessage || "Google Books rejected the API key. Check its API and website restrictions.",
     );
+  } else {
+    error = new Error(apiMessage || "Google Books could not complete the request.");
   }
 
-  throw new Error(apiMessage || "Google Books could not complete the request.");
+  error.status = response.status;
+  error.body = body;
+  error.googleStatus = googleStatus;
+  error.reasons = reasons;
+  error.isQuotaExceeded = isQuotaExceeded;
+  throw error;
+}
+
+export function isGoogleBooksQuotaError(error) {
+  return Boolean(error?.isQuotaExceeded);
 }
 
 function secureImageUrl(url = "") {
   return url.replace(/^http:/, "https:");
 }
 
+const SEARCH_CACHE_TTL_MS = 15 * 60 * 1000;
+const LOOKUP_CACHE_TTL_MS = 30 * 60 * 1000;
+const FAILURE_CACHE_TTL_MS = 30 * 1000;
+const googleBooksSearchCache = new Map();
 const bookLookupCache = new Map();
+
+function getCachedPromise(cache, key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+
+  return entry.promise;
+}
+
+function getGoogleBookLookupKeys(book) {
+  const keys = [];
+
+  if (book?.googleBooksId) {
+    keys.push(`volume:${book.googleBooksId}`);
+  }
+
+  const isbn = normalizeIsbn(book?.isbn);
+  if (isbn) keys.push(`isbn:${isbn}`);
+
+  return keys;
+}
+
+function cacheGoogleBookResult(result, promise = Promise.resolve(result)) {
+  const keys = getGoogleBookLookupKeys({
+    googleBooksId: result?.id,
+    isbn: (result?.volumeInfo?.industryIdentifiers || []).find(
+      ({ type }) => type === "ISBN_13",
+    )?.identifier || (result?.volumeInfo?.industryIdentifiers || []).find(
+      ({ type }) => type === "ISBN_10",
+    )?.identifier,
+  });
+  const entry = {
+    promise,
+    expiresAt: Date.now() + LOOKUP_CACHE_TTL_MS,
+  };
+
+  keys.forEach((key) => bookLookupCache.set(key, entry));
+}
 
 function normalizeDescription(description = "") {
   const value = String(description).trim();
@@ -186,35 +261,71 @@ export async function searchGoogleBooks(searchTerm, maxResults = 20) {
     );
   }
 
-  const url = withApiKey(new URL("https://www.googleapis.com/books/v1/volumes"));
   const searchLanguage = detectSearchLanguage(searchTerm);
-  url.searchParams.set("q", searchTerm);
-  url.searchParams.set("printType", "books");
-  if (searchLanguage) url.searchParams.set("langRestrict", searchLanguage);
-  url.searchParams.set("maxResults", String(maxResults));
+  const normalizedSearchTerm = String(searchTerm || "").trim();
+  const cacheKey = JSON.stringify([
+    normalizedSearchTerm.toLocaleLowerCase(),
+    Number(maxResults),
+    searchLanguage,
+  ]);
+  const cachedSearch = getCachedPromise(googleBooksSearchCache, cacheKey);
+  if (cachedSearch) return cachedSearch;
 
-  const response = await fetch(url);
-  if (!response.ok) await throwGoogleBooksError(response);
-  const data = await response.json();
-  return data.items || [];
+  const request = (async () => {
+    const url = withApiKey(new URL("https://www.googleapis.com/books/v1/volumes"));
+    url.searchParams.set("q", normalizedSearchTerm);
+    url.searchParams.set("printType", "books");
+    if (searchLanguage) url.searchParams.set("langRestrict", searchLanguage);
+    url.searchParams.set("maxResults", String(maxResults));
+
+    const response = await fetch(url);
+    if (!response.ok) await throwGoogleBooksError(response);
+    const data = await response.json();
+    const results = data.items || [];
+    results.forEach((result) => cacheGoogleBookResult(result));
+    return results;
+  })();
+  const cacheEntry = {
+    promise: request,
+    expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
+  };
+  googleBooksSearchCache.set(cacheKey, cacheEntry);
+  void request.then(
+    () => {},
+    () => {
+      cacheEntry.expiresAt = Date.now() + FAILURE_CACHE_TTL_MS;
+    },
+  );
+
+  return request;
 }
 
 async function fetchGoogleBook(book) {
-  const lookupKey = book?.googleBooksId
-    ? `volume:${book.googleBooksId}`
-    : book?.isbn
-      ? `isbn:${normalizeIsbn(book.isbn)}`
-      : "";
+  const lookupKeys = getGoogleBookLookupKeys(book);
 
-  if (lookupKey && bookLookupCache.has(lookupKey)) {
-    return bookLookupCache.get(lookupKey);
+  for (const lookupKey of lookupKeys) {
+    const cachedLookup = getCachedPromise(bookLookupCache, lookupKey);
+    if (cachedLookup) return cachedLookup;
   }
 
   const lookup = fetchGoogleBookWithoutCache(book);
+  const cacheEntry = {
+    promise: lookup,
+    expiresAt: Date.now() + LOOKUP_CACHE_TTL_MS,
+  };
 
-  if (lookupKey) {
-    bookLookupCache.set(lookupKey, lookup);
-    lookup.catch(() => bookLookupCache.delete(lookupKey));
+  lookupKeys.forEach((key) => bookLookupCache.set(key, cacheEntry));
+  void lookup.then(
+    (result) => {
+      if (result) cacheGoogleBookResult(result, lookup);
+    },
+    () => {
+      cacheEntry.expiresAt = Date.now() + FAILURE_CACHE_TTL_MS;
+    },
+  );
+
+  if (lookupKeys.length === 0) {
+    return lookup;
   }
 
   return lookup;
@@ -240,7 +351,7 @@ async function fetchGoogleBookWithoutCache(book) {
 
 export async function getGoogleBooksBookDetails(book) {
   const baseDetails = {
-    title: book?.title || "Untitled",
+    title: book?.title || book?.book || "Untitled",
     author: book?.author || "Unknown author",
     isbn: book?.isbn || "",
     coverUrl: getPreferredGoogleBooksCoverUrl(
@@ -250,6 +361,12 @@ export async function getGoogleBooksBookDetails(book) {
     description: book?.description || "",
     googleBooksId: book?.googleBooksId || "",
   };
+
+  // Stored descriptions and search-result metadata are authoritative enough
+  // for display. Only consult Google when a user opens an incomplete record.
+  if (String(baseDetails.description).trim()) {
+    return baseDetails;
+  }
 
   try {
     const result = await fetchGoogleBook(book);

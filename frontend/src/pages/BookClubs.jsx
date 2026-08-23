@@ -129,9 +129,36 @@ function getBookSelectionKey(book) {
   );
 }
 
-async function fetchGoogleBooks(searchTerm) {
-  const { results } = await searchBooksByQueryLanguage(searchTerm);
-  return results.filter(canPersistBook);
+const BOOK_CLUB_QUERY_CACHE_TTL_MS = 15 * 60 * 1000;
+const BOOK_CLUB_QUERY_FAILURE_TTL_MS = 30 * 1000;
+const bookClubQueryCache = new Map();
+
+function fetchGoogleBooks(searchTerm) {
+  const cacheKey = String(searchTerm || "").trim().toLocaleLowerCase();
+  const cached = bookClubQueryCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.promise;
+  }
+
+  if (cached) bookClubQueryCache.delete(cacheKey);
+
+  const request = searchBooksByQueryLanguage(searchTerm).then(
+    ({ results }) => results.filter(canPersistBook),
+  );
+  const cacheEntry = {
+    promise: request,
+    expiresAt: Date.now() + BOOK_CLUB_QUERY_CACHE_TTL_MS,
+  };
+  bookClubQueryCache.set(cacheKey, cacheEntry);
+  void request.then(
+    () => {},
+    () => {
+      cacheEntry.expiresAt = Date.now() + BOOK_CLUB_QUERY_FAILURE_TTL_MS;
+    },
+  );
+
+  return request;
 }
 
 function getTypingLabel(names) {
@@ -187,6 +214,7 @@ function BookClubs() {
 
   const typingSentRef =
     useRef(false);
+  const bookSearchRequestRef = useRef(0);
   const [
     clubModerationWarning,
     setClubModerationWarning,
@@ -369,6 +397,7 @@ const filteredClubs = clubs.filter((club) => {
   }, [routeClub?.id, routeClub?.isJoined, user?.id]);
 
   useEffect(() => {
+    const requestId = ++bookSearchRequestRef.current;
     if (!isCreateOpen) return undefined;
 
     const searchTerm = newClub.bookTitle.trim();
@@ -400,6 +429,8 @@ const filteredClubs = clubs.filter((club) => {
           results = await fetchGoogleBooks(simplifiedSearchTerm);
         }
 
+        if (requestId !== bookSearchRequestRef.current) return;
+
         setBookSearchResults(results);
         setBookSearchStatus(results.length ? "success" : "error");
         setBookSearchMessage(
@@ -408,13 +439,15 @@ const filteredClubs = clubs.filter((club) => {
             : "No ISBN-backed results found. Check the spelling or try the author name.",
         );
       } catch (error) {
+        if (requestId !== bookSearchRequestRef.current) return;
+
         console.error("Failed to search Google Books:", error);
         setBookSearchStatus("error");
         setBookSearchMessage(
           error.message || "Book search is unavailable right now. Please try again.",
         );
       }
-    }, 350);
+    }, 750);
 
     return () => window.clearTimeout(timeout);
   }, [isCreateOpen, newClub.bookTitle, selectedClubBook]);
