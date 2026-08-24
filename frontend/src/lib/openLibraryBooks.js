@@ -2,6 +2,7 @@ import { isBlockedGoogleBooksCategoryText } from "./googleBooks";
 import { persistMissingBookMetadataSafely } from "./bookMetadataApi";
 
 const OPEN_LIBRARY_BASE_PATH = "/open-library-api";
+const OPEN_LIBRARY_ORIGIN = "https://openlibrary.org";
 const OPEN_LIBRARY_SEARCH_FIELDS =
   "key,title,author_name,first_publish_year,cover_i,isbn,edition_key,publisher,subject";
 
@@ -90,7 +91,13 @@ function hasCjkText(value) {
   return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(value);
 }
 
+function isLikelyIsbnQuery(value) {
+  const normalizedValue = normalizeIsbn(value);
+  return normalizedValue.length === 10 || normalizedValue.length === 13;
+}
+
 function getOpenLibrarySearchParam(query) {
+  if (isLikelyIsbnQuery(query)) return "isbn";
   return hasCjkText(query) && Array.from(query).length < 3 ? "title" : "q";
 }
 
@@ -104,8 +111,10 @@ function parseResponseBody(body) {
   }
 }
 
-function buildOpenLibrarySearchUrl(query, limit) {
-  const url = new URL(`${OPEN_LIBRARY_BASE_PATH}/search.json`, window.location.origin);
+function buildOpenLibrarySearchUrl(query, limit, baseUrl = OPEN_LIBRARY_BASE_PATH) {
+  const url = baseUrl.startsWith("http")
+    ? new URL(`${baseUrl}/search.json`)
+    : new URL(`${baseUrl}/search.json`, window.location.origin);
   url.searchParams.set(getOpenLibrarySearchParam(query), query);
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("fields", OPEN_LIBRARY_SEARCH_FIELDS);
@@ -114,7 +123,16 @@ function buildOpenLibrarySearchUrl(query, limit) {
 }
 
 async function fetchOpenLibrarySearch(url) {
-  const response = await fetch(url);
+  let response;
+
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    const wrappedError = new Error("Open Library search is unavailable right now.");
+    wrappedError.url = url.toString();
+    wrappedError.cause = error;
+    throw wrappedError;
+  }
 
   if (!response.ok) {
     const body = parseResponseBody(await response.text());
@@ -128,6 +146,27 @@ async function fetchOpenLibrarySearch(url) {
   return response.json();
 }
 
+async function fetchOpenLibrarySearchWithFallback(primaryUrl, fallbackUrl) {
+  try {
+    return await fetchOpenLibrarySearch(primaryUrl);
+  } catch (primaryError) {
+    const shouldTryFallback =
+      fallbackUrl &&
+      primaryUrl.toString() !== fallbackUrl.toString();
+
+    if (!shouldTryFallback) {
+      throw primaryError;
+    }
+
+    try {
+      return await fetchOpenLibrarySearch(fallbackUrl);
+    } catch (fallbackError) {
+      fallbackError.primaryError = primaryError;
+      throw fallbackError;
+    }
+  }
+}
+
 export async function searchOpenLibraryBooks(searchTerm, limit = 20) {
   const query = String(searchTerm || "").trim();
 
@@ -136,9 +175,17 @@ export async function searchOpenLibraryBooks(searchTerm, limit = 20) {
   }
 
   const primaryUrl = buildOpenLibrarySearchUrl(query, limit);
+  const fallbackUrl = buildOpenLibrarySearchUrl(
+    query,
+    limit,
+    OPEN_LIBRARY_ORIGIN,
+  );
 
   try {
-    const data = await fetchOpenLibrarySearch(primaryUrl);
+    const data = await fetchOpenLibrarySearchWithFallback(
+      primaryUrl,
+      fallbackUrl,
+    );
     const books = (data.docs || []).map(mapOpenLibraryDoc);
     return filterBlockedBooks(books);
   } catch (error) {
@@ -168,14 +215,28 @@ export async function getOpenLibraryBookDetails(book) {
   }
 
   try {
+    const detailPath = `${book.openLibraryKey}.json`;
     const detailUrl = new URL(
-      `${OPEN_LIBRARY_BASE_PATH}${book.openLibraryKey}.json`,
+      `${OPEN_LIBRARY_BASE_PATH}${detailPath}`,
       window.location.origin,
     );
-    const response = await fetch(detailUrl);
+    const fallbackDetailUrl = new URL(
+      `${OPEN_LIBRARY_ORIGIN}${detailPath}`,
+    );
+    let response;
+
+    try {
+      response = await fetch(detailUrl);
+    } catch {
+      response = await fetch(fallbackDetailUrl);
+    }
 
     if (!response.ok) {
-      throw new Error("Open Library could not load this book.");
+      response = await fetch(fallbackDetailUrl);
+
+      if (!response.ok) {
+        throw new Error("Open Library could not load this book.");
+      }
     }
 
     const data = await response.json();

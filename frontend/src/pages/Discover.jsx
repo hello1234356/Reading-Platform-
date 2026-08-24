@@ -30,7 +30,11 @@ function getCoverUrl(isbn, size = "L") {
 }
 
 function getEditorPickCoverUrl(book) {
-  return String(book?.coverUrl || "").trim() || getCoverUrl(book?.isbn);
+  return (
+    String(book?.coverUrl || "").trim() ||
+    getOpenLibraryIsbnCoverUrl(book?.isbn) ||
+    getCoverUrl(book?.isbn)
+  );
 }
 
 function hideBrokenCover(event, isbn) {
@@ -42,6 +46,49 @@ function hideBrokenCover(event, isbn) {
   }
 
   event.currentTarget.hidden = true;
+}
+
+function EditorPickCover({ book, featured = false }) {
+  const [coverSrc, setCoverSrc] = useState(getEditorPickCoverUrl(book));
+  const [hasImage, setHasImage] = useState(Boolean(coverSrc));
+
+  useEffect(() => {
+    const nextCoverSrc = getEditorPickCoverUrl(book);
+    setCoverSrc(nextCoverSrc);
+    setHasImage(Boolean(nextCoverSrc));
+  }, [book]);
+
+  function handleCoverError() {
+    const openLibraryCoverUrl = getOpenLibraryIsbnCoverUrl(book?.isbn);
+
+    if (openLibraryCoverUrl && coverSrc !== openLibraryCoverUrl) {
+      setCoverSrc(openLibraryCoverUrl);
+      return;
+    }
+
+    const googleCoverUrl = getCoverUrl(book?.isbn);
+
+    if (googleCoverUrl && coverSrc !== googleCoverUrl) {
+      setCoverSrc(googleCoverUrl);
+      return;
+    }
+
+    setHasImage(false);
+  }
+
+  return (
+    <div className={featured ? "discovery-book-cover featured" : "discovery-book-cover"} aria-hidden="true">
+      {hasImage ? (
+        <img
+          src={coverSrc}
+          alt=""
+          loading="lazy"
+          onError={handleCoverError}
+        />
+      ) : null}
+      {!hasImage ? <span>{book.title}</span> : null}
+    </div>
+  );
 }
 
 function simplifySearchTerm(searchTerm) {
@@ -769,17 +816,7 @@ async function submitMissingBook(event) {
                 onClick={() => openBookDetails(featuredPick)}
                 aria-label={`View details for ${featuredPick.title}`}
               >
-                <div className="discovery-book-cover featured" aria-hidden="true">
-                  {getEditorPickCoverUrl(featuredPick) ? (
-                    <img
-                      src={getEditorPickCoverUrl(featuredPick)}
-                      alt=""
-                      loading="lazy"
-                      onError={(event) => hideBrokenCover(event, featuredPick.isbn)}
-                    />
-                  ) : null}
-                  <span>{featuredPick.title}</span>
-                </div>
+                <EditorPickCover book={featuredPick} featured />
                 <div>
                   <p>Recommended by the editors</p>
                   <h3>{featuredPick.title}</h3>
@@ -797,17 +834,7 @@ async function submitMissingBook(event) {
                     onClick={() => openBookDetails(book)}
                     aria-label={`View details for ${book.title}`}
                   >
-                    <div className="discovery-book-cover" aria-hidden="true">
-                      {getEditorPickCoverUrl(book) ? (
-                        <img
-                          src={getEditorPickCoverUrl(book)}
-                          alt=""
-                          loading="lazy"
-                          onError={(event) => hideBrokenCover(event, book.isbn)}
-                        />
-                      ) : null}
-                      <span>{book.title}</span>
-                    </div>
+                    <EditorPickCover book={book} />
                     <div>
                       <p>{book.author}</p>
                       <h3>{book.title}</h3>

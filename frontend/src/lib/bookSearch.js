@@ -4,7 +4,7 @@ import {
   mapGoogleBooksResult,
   searchGoogleBooks,
 } from "./googleBooks";
-import { isLikelyIsbn, searchIsbnWorkBooks } from "./isbnWorkBooks";
+import { isLikelyIsbn } from "./isbnWorkBooks";
 import { searchOpenLibraryBooks } from "./openLibraryBooks";
 import {
   normalizeCommunityBookIsbn,
@@ -51,11 +51,6 @@ async function searchOpenLibraryProvider(searchTerm, limit) {
 }
 
 async function searchNonChineseExternalBooks(searchTerm, limit) {
-  if (isLikelyIsbn(searchTerm)) {
-    const isbnWorkResults = await searchIsbnWorkBooks(searchTerm, limit);
-    if (isbnWorkResults.results.length > 0) return isbnWorkResults;
-  }
-
   return searchGoogleWithQuotaFallback({
     searchGoogle: () => searchGoogleProvider(searchTerm, limit),
     searchOpenLibrary: () => searchOpenLibraryProvider(searchTerm, limit),
@@ -135,6 +130,35 @@ async function searchChineseBooks(searchTerm, limit) {
 }
 
 export async function searchBooksByQueryLanguage(searchTerm, limit = 20) {
+  if (isLikelyIsbn(searchTerm)) {
+    const [openLibrarySearch, communitySearch] = await Promise.allSettled([
+      searchOpenLibraryProvider(searchTerm, limit),
+      searchCommunityBooks(searchTerm, limit),
+    ]);
+    const openLibraryResults = openLibrarySearch.status === "fulfilled"
+      ? openLibrarySearch.value.results
+      : [];
+    const communityResults = communitySearch.status === "fulfilled"
+      ? communitySearch.value.results
+      : [];
+
+    if (communitySearch.status === "rejected") {
+      console.error("Community book search failed:", communitySearch.reason);
+    }
+
+    if (openLibrarySearch.status === "rejected") {
+      console.error("Open Library ISBN search failed:", openLibrarySearch.reason);
+      if (communityResults.length === 0) throw openLibrarySearch.reason;
+    }
+
+    return {
+      results: mergeBookResults(openLibraryResults, communityResults, limit),
+      blockedCount: openLibrarySearch.status === "fulfilled"
+        ? openLibrarySearch.value.blockedCount || 0
+        : 0,
+    };
+  }
+
   if (isChineseBookSearch(searchTerm)) {
     return searchChineseBooks(searchTerm, limit);
   }
