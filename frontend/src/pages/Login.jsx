@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { requireSupabase } from "../lib/supabase";
-import loginBackground from "../assets/login-background.png"
+import loginBackground from "../assets/login-background.png";
+import loginBackgroundPortrait from "../assets/login-background-portrait.png";
+
 export default function Login() {
   const navigate = useNavigate();
 
@@ -66,7 +68,10 @@ export default function Login() {
   return (
     <main
       className="login-showcase-page"
-       style={{ backgroundImage: `url(${loginBackground})` }}
+      style={{
+        "--login-bg-desktop": `url(${loginBackground})`,
+        "--login-bg-portrait": `url(${loginBackgroundPortrait})`,
+      }}
     >
       <section className="login-illustration-panel">
         <div className="login-left-copy">

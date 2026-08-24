@@ -12,6 +12,7 @@ import {
   getGoogleBooksCoverUrl,
   isBlockedGoogleBooksCategoryText,
 } from "../lib/googleBooks";
+import { getOpenLibraryIsbnCoverUrl } from "../lib/openLibraryBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import {
   archiveInactiveBookClubs,
@@ -46,7 +47,14 @@ function getCoverUrl(isbn, size = "L") {
   return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
 }
 
-function hideBrokenCover(event) {
+function hideBrokenCover(event, isbn) {
+  const fallbackUrl = getOpenLibraryIsbnCoverUrl(isbn);
+
+  if (fallbackUrl && event.currentTarget.src !== fallbackUrl) {
+    event.currentTarget.src = fallbackUrl;
+    return;
+  }
+
   event.currentTarget.hidden = true;
 }
 
@@ -1432,7 +1440,7 @@ const filteredClubs = clubs.filter((club) => {
                   src={lockedClub.coverUrl || getCoverUrl(lockedClub.isbn)}
                   alt=""
                   loading="lazy"
-                  onError={hideBrokenCover}
+                  onError={(event) => hideBrokenCover(event, lockedClub.isbn)}
                 />
               )}
               <span>{lockedClub.bookTitle}</span>
@@ -1464,7 +1472,7 @@ const filteredClubs = clubs.filter((club) => {
                   src={activeClub.coverUrl || getCoverUrl(activeClub.isbn)}
                   alt=""
                   loading="lazy"
-                  onError={hideBrokenCover}
+                  onError={(event) => hideBrokenCover(event, activeClub.isbn)}
                 />
               )}
             </div>
@@ -1743,7 +1751,7 @@ const filteredClubs = clubs.filter((club) => {
                       src={club.coverUrl || getCoverUrl(club.isbn)}
                       alt=""
                       loading="lazy"
-                      onError={hideBrokenCover}
+                      onError={(event) => hideBrokenCover(event, club.isbn)}
                     />
                   )}
                 </div>
@@ -1858,7 +1866,7 @@ const filteredClubs = clubs.filter((club) => {
                   src={detailClub.coverUrl || getCoverUrl(detailClub.isbn)}
                   alt=""
                   loading="lazy"
-                  onError={hideBrokenCover}
+                  onError={(event) => hideBrokenCover(event, detailClub.isbn)}
                 />
               )}
               <span>{detailClub.bookTitle}</span>
@@ -2151,7 +2159,7 @@ const filteredClubs = clubs.filter((club) => {
                         }
                       >
                         {book.coverUrl ? (
-                          <img src={book.coverUrl} alt="" loading="lazy" onError={hideBrokenCover} />
+                          <img src={book.coverUrl} alt="" loading="lazy" onError={(event) => hideBrokenCover(event, book.isbn)} />
                         ) : null}
                         <strong>{book.title}</strong>
                         <small>
@@ -2285,7 +2293,7 @@ const filteredClubs = clubs.filter((club) => {
                       src={previewBook.coverUrl || getCoverUrl(previewBook.isbn)}
                       alt=""
                       loading="lazy"
-                      onError={hideBrokenCover}
+                      onError={(event) => hideBrokenCover(event, previewBook.isbn)}
                     />
                   )}
                   <span>{previewBook.title}</span>

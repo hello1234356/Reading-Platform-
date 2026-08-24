@@ -218,19 +218,84 @@
   align-items: center;
   padding: clamp(34px, 5vw, 70px);
   overflow: hidden;
+  background-image: var(--login-bg-desktop);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
 
-@media (max-width: 900px) {
+@media (orientation: portrait), (max-width: 900px) {
   .login-showcase-page {
+    min-height: calc(100dvh - 88px);
     grid-template-columns: 1fr;
-    padding: 28px 18px;
+    align-content: start;
+    gap: 18px;
+    padding: clamp(18px, 4.8vw, 34px);
+    overflow-y: auto;
+    background-image: var(--login-bg-portrait);
+    background-position: center top;
   }
 
   .login-illustration-panel {
-    min-height: 360px;
+    min-height: clamp(150px, 28dvh, 270px);
+    align-content: end;
+    padding-left: 0;
+  }
+
+  .login-left-copy {
+    max-width: min(420px, 100%);
+    transform: none;
+  }
+
+  .login-left-copy h1 {
+    font-size: clamp(38px, 10vw, 58px);
+  }
+
+  .login-left-copy p {
+    max-width: 330px;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .login-squiggle {
+    margin: 14px 0;
+  }
+
+  .login-card-beautiful {
+    width: min(100%, 440px);
+    justify-self: center;
+    gap: 18px;
+    padding: clamp(24px, 6vw, 36px);
+    border-radius: 28px;
+    transform: none;
+  }
+
+  .login-card-header h2 {
+    font-size: clamp(34px, 9vw, 48px);
+  }
+
+  .beautiful-login-form {
+    gap: 16px;
+  }
+
+  .pretty-input-wrap input,
+  .beautiful-login-button {
+    height: 52px;
+    min-height: 52px;
+  }
+}
+
+@media (max-width: 900px) {
+  .login-showcase-page {
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 18px;
+    padding: clamp(18px, 4.8vw, 28px);
+    overflow-y: auto;
+  }
+
+  .login-illustration-panel {
+    min-height: clamp(150px, 28dvh, 270px);
     padding-left: 0;
   }
 
@@ -239,6 +304,55 @@
   }
 
   .login-card-beautiful {
-    justify-self: stretch;
+    justify-self: center;
+    transform: none;
+  }
+}
+
+@media (max-width: 520px) and (orientation: portrait) {
+  .login-showcase-page {
+    min-height: calc(100dvh - 72px);
+    padding: 16px 14px 22px;
+    background-position: center top;
+  }
+
+  .login-illustration-panel {
+    min-height: 118px;
+  }
+
+  .login-left-copy p,
+  .login-squiggle {
+    display: none;
+  }
+
+  .login-card-beautiful {
+    width: 100%;
+    max-width: 390px;
+    justify-self: center;
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .book-stack-icon {
+    width: 62px;
+    height: 48px;
+  }
+
+  .book-stack-icon span {
+    width: 46px;
+    height: 12px;
+  }
+
+  .book-stack-icon span:nth-child(2) {
+    top: 20px;
+  }
+
+  .book-stack-icon span:nth-child(3) {
+    top: 34px;
+  }
+
+  .leaf-icon {
+    font-size: 46px;
+    transform: translate(48px, -48px) rotate(-20deg);
   }
 }

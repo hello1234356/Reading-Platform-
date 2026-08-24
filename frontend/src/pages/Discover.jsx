@@ -15,7 +15,10 @@ import {
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import { submitBookSubmission } from "../lib/bookSubmissions";
 import { getIsbnWorkBookDetails } from "../lib/isbnWorkBooks";
-import { getOpenLibraryBookDetails } from "../lib/openLibraryBooks";
+import {
+  getOpenLibraryBookDetails,
+  getOpenLibraryIsbnCoverUrl,
+} from "../lib/openLibraryBooks";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
@@ -26,18 +29,18 @@ function getCoverUrl(isbn, size = "L") {
   return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
 }
 
-function isGeneratedGoogleIsbnCoverUrl(coverUrl) {
-  const url = String(coverUrl || "");
-  return /^https?:\/\/books\.google\.com\/books\/content\?/i.test(url)
-    && /[?&]id=ISBN/i.test(url);
-}
-
 function getEditorPickCoverUrl(book) {
-  const coverUrl = String(book?.coverUrl || "").trim();
-  return isGeneratedGoogleIsbnCoverUrl(coverUrl) ? "" : coverUrl;
+  return String(book?.coverUrl || "").trim() || getCoverUrl(book?.isbn);
 }
 
-function hideBrokenCover(event) {
+function hideBrokenCover(event, isbn) {
+  const fallbackUrl = getOpenLibraryIsbnCoverUrl(isbn);
+
+  if (fallbackUrl && event.currentTarget.src !== fallbackUrl) {
+    event.currentTarget.src = fallbackUrl;
+    return;
+  }
+
   event.currentTarget.hidden = true;
 }
 
@@ -610,7 +613,7 @@ async function submitMissingBook(event) {
                         src={book.coverUrl || getCoverUrl(book.isbn, "M")}
                         alt=""
                         loading="lazy"
-                        onError={hideBrokenCover}
+                        onError={(event) => hideBrokenCover(event, book.isbn)}
                       />
                     ) : (
                       <span>{book.title}</span>
@@ -772,7 +775,7 @@ async function submitMissingBook(event) {
                       src={getEditorPickCoverUrl(featuredPick)}
                       alt=""
                       loading="lazy"
-                      onError={hideBrokenCover}
+                      onError={(event) => hideBrokenCover(event, featuredPick.isbn)}
                     />
                   ) : null}
                   <span>{featuredPick.title}</span>
@@ -800,7 +803,7 @@ async function submitMissingBook(event) {
                           src={getEditorPickCoverUrl(book)}
                           alt=""
                           loading="lazy"
-                          onError={hideBrokenCover}
+                          onError={(event) => hideBrokenCover(event, book.isbn)}
                         />
                       ) : null}
                       <span>{book.title}</span>
