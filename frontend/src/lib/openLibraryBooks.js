@@ -1,4 +1,5 @@
 import { isBlockedGoogleBooksCategoryText } from "./googleBooks";
+import { persistMissingBookMetadataSafely } from "./bookMetadataApi";
 
 const OPEN_LIBRARY_BASE_PATH = "/open-library-api";
 const OPEN_LIBRARY_SEARCH_FIELDS =
@@ -180,7 +181,7 @@ export async function getOpenLibraryBookDetails(book) {
     const data = await response.json();
     const coverId = firstValue(data.covers);
 
-    return {
+    const resolvedDetails = {
       ...baseDetails,
       title: data.title || baseDetails.title,
       coverUrl:
@@ -193,6 +194,14 @@ export async function getOpenLibraryBookDetails(book) {
         baseDetails.description ||
         "Open Library does not have an official description for this edition yet.",
     };
+    await persistMissingBookMetadataSafely(book, {
+      ...resolvedDetails,
+      description: normalizeDescription(data.description),
+      publisher: firstValue(data.publishers) || book?.publisher || "",
+      genre: firstValue(data.subjects) || book?.genre || "",
+      firstPublished: data.first_publish_date?.slice(0, 4) || book?.firstPublished,
+    });
+    return resolvedDetails;
   } catch (error) {
     return {
       ...baseDetails,

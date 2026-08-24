@@ -244,3 +244,16 @@ test("local catalog filtering hides weak database matches", () => {
   );
   assert.deepEqual(filterRelevantCatalogBooks(books, "Potter"), []);
 });
+
+test("metadata RPC is authenticated and only fills missing fields", async () => {
+  const migration = await readFile(
+    new URL("../../supabase/migrations/202608240001_fill_missing_book_metadata.sql", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(migration, /auth\.uid\(\) is null/);
+  assert.match(migration, /when nullif\(btrim\(coalesce\(description, ''\)\), ''\) is null/);
+  assert.match(migration, /when nullif\(btrim\(coalesce\(cover_url, ''\)\), ''\) is null/);
+  assert.match(migration, /coalesce\(publication_year, p_publication_year\)/);
+  assert.match(migration, /Book provider identity does not match/);
+});

@@ -1,3 +1,5 @@
+import { persistMissingBookMetadataSafely } from "./bookMetadataApi";
+
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
 }
@@ -223,6 +225,9 @@ export function mapGoogleBooksResult(result) {
       getGoogleBooksCoverUrl(isbn),
     ),
     description: normalizeDescription(info.description),
+    publisher: info.publisher || "",
+    genre: info.categories?.[0] || "",
+    language: info.language || "",
   };
 }
 
@@ -372,7 +377,7 @@ export async function getGoogleBooksBookDetails(book) {
     const result = await fetchGoogleBook(book);
     if (!result) return baseDetails;
     const details = mapGoogleBooksResult(result);
-    return {
+    const resolvedDetails = {
       ...baseDetails,
       title: details.title || baseDetails.title,
       author: details.author || baseDetails.author,
@@ -381,7 +386,15 @@ export async function getGoogleBooksBookDetails(book) {
       coverUrl: details.coverUrl || baseDetails.coverUrl,
       description: details.description || baseDetails.description ||
         "Google Books does not have an official description for this edition yet.",
+      publisher: details.publisher || book?.publisher || "",
+      genre: details.genre || book?.genre || "",
+      firstPublished: details.firstPublished || book?.firstPublished || null,
     };
+    await persistMissingBookMetadataSafely(book, {
+      ...resolvedDetails,
+      description: details.description,
+    });
+    return resolvedDetails;
   } catch (error) {
     return {
       ...baseDetails,
