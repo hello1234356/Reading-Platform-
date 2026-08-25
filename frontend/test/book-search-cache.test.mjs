@@ -7,7 +7,13 @@ import {
   searchWithSharedCache,
 } from "../src/lib/bookSearchCache.js";
 import { searchGoogleWithQuotaFallback } from "../src/lib/bookSearchPolicy.js";
+import { searchCatalogAndExternal } from "../src/lib/bookSearchPolicy.js";
 import { filterRelevantCatalogBooks } from "../src/lib/communityBooks.js";
+import {
+  searchGoogleBooks,
+  shouldFallbackFromGoogleBooks,
+} from "../src/lib/googleBooks.js";
+import { rankBookSearchResults } from "../src/lib/bookSearchRelevance.js";
 
 function createSharedStore() {
   const rows = new Map();
@@ -92,6 +98,148 @@ test("same English search in a new session uses shared cache with zero Google ca
   assert.equal(googleCalls, 0);
   assert.equal(response.cacheHit, true);
   assert.deepEqual(response.results, [googleResult]);
+});
+
+test("cache bypass calls the provider despite a valid shared cache hit", async () => {
+  clearBookSearchMemoryCache();
+  const store = createSharedStore();
+  await store.write("google_books", "harry potter", {
+    results: [{ ...googleResult, title: "Stale irrelevant cached result" }], blockedCount: 0,
+  });
+  let providerCalls = 0;
+  const response = await searchWithSharedCache({
+    provider: "google_books", searchTerm: "harry potter",
+    readCache: store.read, writeCache: store.write, bypassProviderCache: true,
+    fetchResults: async () => {
+      providerCalls += 1;
+      return { results: [{ ...googleResult, title: "Harry Potter and the Philosopher's Stone" }] };
+    },
+  });
+  assert.equal(providerCalls, 1);
+  assert.equal(response.cacheHit, false);
+  assert.equal(response.actualProviderFetchPerformed, true);
+  assert.equal(response.results[0].title, "Harry Potter and the Philosopher's Stone");
+});
+
+test("failed provider responses are never written as successful cache payloads", async () => {
+  clearBookSearchMemoryCache();
+  let cacheWrites = 0;
+  const providerError = Object.assign(new Error("Google unavailable"), { status: 503 });
+  await assert.rejects(searchWithSharedCache({
+    provider: "google_books",
+    searchTerm: "harry potter",
+    readCache: async () => null,
+    writeCache: async () => { cacheWrites += 1; },
+    fetchResults: async () => { throw providerError; },
+  }), providerError);
+  assert.equal(cacheWrites, 0);
+});
+
+test("missing Google key skips fetch and falls back to Open Library exactly once", async () => {
+  let googleFetchCalls = 0;
+  let openLibraryCalls = 0;
+  const diagnostics = [];
+  const response = await searchGoogleWithQuotaFallback({
+    searchGoogle: () => searchWithSharedCache({
+      provider: "google_books", searchTerm: "harry potter",
+      readCache: async () => null, writeCache: async () => null,
+      onCacheDiagnostic: (details) => diagnostics.push(details),
+      fetchResults: () => searchGoogleBooks("harry potter", 10, {
+        apiKey: "", fetchImpl: async () => { googleFetchCalls += 1; }, debug: false,
+      }),
+    }),
+    searchOpenLibrary: async () => {
+      openLibraryCalls += 1;
+      return { results: [openLibraryResult] };
+    },
+    isQuotaError: shouldFallbackFromGoogleBooks,
+  });
+  assert.equal(googleFetchCalls, 0);
+  assert.equal(openLibraryCalls, 1);
+  assert.equal(diagnostics[0].actualProviderFetchPerformed, false);
+  assert.deepEqual(response.results, [openLibraryResult]);
+});
+
+test("Google 503 is fallback eligible", async () => {
+  let openLibraryCalls = 0;
+  const error = Object.assign(new Error("unavailable"), { status: 503 });
+  const result = await searchGoogleWithQuotaFallback({
+    searchGoogle: async () => { throw error; },
+    searchOpenLibrary: async () => { openLibraryCalls += 1; return { results: [openLibraryResult] }; },
+    isQuotaError: shouldFallbackFromGoogleBooks,
+  });
+  assert.equal(openLibraryCalls, 1);
+  assert.deepEqual(result.results, [openLibraryResult]);
+});
+
+test("arbitrary programming errors are not silently sent to fallback", async () => {
+  let openLibraryCalls = 0;
+  const error = new TypeError("bug in result mapper");
+  await assert.rejects(searchGoogleWithQuotaFallback({
+    searchGoogle: async () => { throw error; },
+    searchOpenLibrary: async () => { openLibraryCalls += 1; return { results: [] }; },
+    isQuotaError: shouldFallbackFromGoogleBooks,
+  }), error);
+  assert.equal(openLibraryCalls, 0);
+});
+
+test("actual Google response logging occurs only when fetch really executes", async () => {
+  const messages = [];
+  const originalDebug = console.debug;
+  console.debug = (label, details) => messages.push({ label, details });
+  try {
+    await searchGoogleBooks("provider log fixture", 1, {
+      apiKey: "configured", bypassProviderCache: true, debug: true,
+      fetchImpl: async () => new Response(JSON.stringify({ items: [{
+        id: "logged", volumeInfo: { title: "Actually fetched", authors: ["Author"] },
+      }] }), { status: 200 }),
+    });
+  } finally {
+    console.debug = originalDebug;
+  }
+  const actual = messages.filter(({ label }) => label.includes("GOOGLE ACTUAL RESPONSE"));
+  assert.equal(actual.length, 1);
+  assert.equal(actual[0].details.itemCount, 1);
+});
+
+test("Google search sends the exact historical request with no fetch overrides", async () => {
+  const calls = [];
+  const results = await searchGoogleBooks("harry potter", 20, {
+    apiKey: "test-key",
+    debug: false,
+    fetchImpl: async (...args) => {
+      calls.push(args);
+      return new Response(JSON.stringify({ items: [{
+        id: "hp-1",
+        volumeInfo: { title: "Harry Potter", authors: ["J. K. Rowling"] },
+      }] }), { status: 200 });
+    },
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].length, 1);
+  const url = new URL(calls[0][0]);
+  assert.equal(url.href,
+    "https://www.googleapis.com/books/v1/volumes?key=test-key&q=harry+potter&printType=books&langRestrict=en&maxResults=20");
+  assert.equal(url.searchParams.has("orderBy"), false);
+  assert.equal(results.length, 1);
+});
+
+test("catalog sufficiency never suppresses canonical external title results", async () => {
+  let externalCalls = 0;
+  const weakCatalog = { results: [{ source: "community", externalId: "weak",
+    title: "A commentary mentioning Harry Potter", author: "Unknown" }], sufficient: true };
+  const canonical = [{ ...googleResult, googleBooksId: "hp-1",
+    title: "Harry Potter and the Philosopher's Stone", author: "J. K. Rowling" }];
+  const merged = await searchCatalogAndExternal({
+    searchCatalog: async () => weakCatalog,
+    searchExternal: async () => { externalCalls += 1; return { results: canonical }; },
+    mergeResults: (external, catalog) => external.concat(catalog),
+  });
+  const ranked = rankBookSearchResults("harry potter", merged.results);
+  assert.equal(externalCalls, 1);
+  assert.equal(ranked[0].title, canonical[0].title);
+  assert.ok(ranked.some((book) => book.title === weakCatalog.results[0].title));
 });
 
 test("Google quota errors fall back to Open Library and repeated fallback searches hit cache", async () => {

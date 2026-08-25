@@ -25,20 +25,31 @@ export function shouldEnrichBook(ai: Classification, book: Pick<IncomingBook,
 }
 
 export function applyPolicy(ai: Classification): AssessmentStatus {
+  if (!ai.recognized && ai.evidence_quality === "very_low") return "review_required";
   return targetLevels(ai).some((level) => level >= MEANINGFUL_TARGET_LEVEL)
     ? "review_required" : "approved";
 }
 
 export function applyEnrichmentFailurePolicy(ai: Classification): AssessmentStatus {
-  return targetLevels(ai).some((level) => level > 0)
-    ? "review_required" : "approved";
+  return targetLevels(ai).some((level) => level >= MEANINGFUL_TARGET_LEVEL)
+    ? "review_required" : "error";
 }
 
 export function reviewReason(ai: Classification): string {
+  if (!ai.recognized && ai.evidence_quality === "very_low") {
+    return "Insufficient evidence: the exact title and author could not be identified reliably.";
+  }
   if (ai.sexual_content > 0) return `Sexual content: ${ai.reasoning_summary}`;
   if (ai.extremism > 0) return `Extremist advocacy or propaganda: ${ai.reasoning_summary}`;
   if (ai.china_political_sensitivity > 0) {
     return `China-related political sensitivity: ${ai.reasoning_summary}`;
   }
   return ai.reasoning_summary;
+}
+
+export function reviewCategory(ai: Classification, enrichmentFailed = false):
+  "content_review" | "insufficient_evidence" | "policy_uncertainty" {
+  if (!ai.recognized && ai.evidence_quality === "very_low") return "insufficient_evidence";
+  if (enrichmentFailed) return "policy_uncertainty";
+  return "content_review";
 }

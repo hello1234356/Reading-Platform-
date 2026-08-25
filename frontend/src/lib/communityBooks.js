@@ -92,11 +92,6 @@ export function areCatalogResultsSufficient(results, searchTerm, limit = 20) {
   }
 
   const scoredResults = results.map((book) => scoreCatalogBook(book, searchTerm));
-  const hasExactStableTitle = results.some((book, index) =>
-    scoredResults[index] >= 900 && Boolean(book.isbn || book.externalId),
-  );
-  if (hasExactStableTitle) return true;
-
   const strongCount = scoredResults.filter((score) => score >= 550).length;
   const usefulCount = scoredResults.filter((score) => score >= 300).length;
   const desiredCount = Math.min(Math.max(5, Math.ceil(limit / 2)), limit);

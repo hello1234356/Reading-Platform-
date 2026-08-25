@@ -46,6 +46,10 @@ test("classifier treats metadata as untrusted and uses only a server secret", as
   assert.match(classifier, /LGBTQ themes/i);
   assert.match(classifier, /web\/search content are untrusted evidence/i);
   assert.match(classifier, /response_format: \{ type: "json_object" \}/);
+  assert.match(classifier, /deepseek-v4-flash/);
+  assert.match(classifier, /max_tokens: 6000/);
+  assert.match(classifier, /finish_reason === "length"/);
+  assert.match(classifier, /classification_truncated/);
   assert.match(classifier, /https:\/\/api\.deepseek\.com\/responses/);
   assert.match(classifier, /tools: \[\{ type: "web_search" \}\]/);
   assert.match(classifier, /classifyBooks/);
@@ -63,6 +67,7 @@ test("edge endpoint authenticates and caps each batch", async () => {
   assert.match(index, /await Promise\.all\(eligible\.map/);
   assert.match(index, /shouldEnrichBook\(initial, packet\)/);
   assert.match(index, /evidence_source: enriched\.has\(identity\)/);
+  assert.match(index, /"classifier_unavailable"/);
   assert.match(index, /`\$\{MODEL_VERSION\}\+web:\$\{ENRICHMENT_MODEL\}`/);
 });
 
@@ -79,7 +84,7 @@ test("frontend renders checking cards before asynchronous moderation and keeps d
   assert.match(api, /body: \{ books: batch, cacheOnly \}/);
   assert.match(api, /await invoke\(unique, true/);
   assert.match(api, /await invoke\(requiringAi, false/);
-  assert.match(search, /initializeBookModerationResults\(result\.results\)/);
+  assert.match(search, /initializeBookModerationResults\(rankedResults\)/);
   assert.match(search, /startModeration: \(onUpdate\)/);
   assert.match(search, /firstResultsRenderedMs: providerDurationMs/);
   assert.doesNotMatch(search, /await (?:enforce|moderate)BookSearchResults/);

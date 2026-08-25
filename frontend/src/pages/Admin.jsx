@@ -611,6 +611,9 @@ function BookAiModerationTab() {
                 <span>Moderation: {formatConfidence(assessment.moderationConfidence)}</span>
                 <span>Knowledge: {titleCase(assessment.knowledgeSource)}</span>
                 <span>Evidence: {titleCase(assessment.evidenceQuality)}</span>
+                {assessment.reviewCategory ? (
+                  <span>Review category: {titleCase(assessment.reviewCategory)}</span>
+                ) : null}
                 <span>Policy: {assessment.policyVersion}</span>
                 <span>Model: {assessment.modelVersion}</span>
                 {assessment.manuallyReviewed ? <span>Human reviewed</span> : null}

@@ -1,15 +1,21 @@
-import { persistMissingBookMetadataSafely } from "./bookMetadataApi";
+import { persistMissingBookMetadataSafely } from "./bookMetadataApi.js";
+import { buildGoogleBooksSearchUrl } from "./googleBooksSearchConfig.js";
+export { buildGoogleBooksSearchUrl, detectSearchLanguage } from "./googleBooksSearchConfig.js";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
 }
 
 function getApiKey() {
-  return import.meta.env.VITE_GOOGLE_BOOKS_API_KEY?.trim() || "";
+  return import.meta.env?.VITE_GOOGLE_BOOKS_API_KEY?.trim() || "";
 }
 
-function withApiKey(url) {
-  const key = getApiKey();
+export function isGoogleBooksApiKeyConfigured() {
+  return Boolean(getApiKey());
+}
+
+function withApiKey(url, configuredKey = getApiKey()) {
+  const key = String(configuredKey || "").trim();
   if (key) url.searchParams.set("key", key);
   return url;
 }
@@ -68,14 +74,17 @@ export function isGoogleBooksQuotaError(error) {
   return Boolean(error?.isQuotaExceeded);
 }
 
+export function shouldFallbackFromGoogleBooks(error) {
+  return Boolean(error?.shouldFallback) || isGoogleBooksQuotaError(error) ||
+    Number(error?.status) >= 500;
+}
+
 function secureImageUrl(url = "") {
   return url.replace(/^http:/, "https:");
 }
 
-const SEARCH_CACHE_TTL_MS = 15 * 60 * 1000;
 const LOOKUP_CACHE_TTL_MS = 30 * 60 * 1000;
 const FAILURE_CACHE_TTL_MS = 30 * 1000;
-const googleBooksSearchCache = new Map();
 const bookLookupCache = new Map();
 
 function getCachedPromise(cache, key) {
@@ -195,77 +204,66 @@ export function mapGoogleBooksResult(result) {
   };
 }
 
-function detectSearchLanguage(searchTerm) {
-  const query = String(searchTerm || "").trim();
-
-  // An ISBN identifies an edition, so a language restriction could hide the
-  // exact book the user selected.
-  if (!query || /^isbn:/i.test(query)) return "";
-
-  if (/[぀-ヿ]/u.test(query)) return "ja";
-  if (/[가-힯]/u.test(query)) return "ko";
-  if (/[一-鿿]/u.test(query)) return "zh";
-  if (/[Ѐ-ӿ]/u.test(query)) return "ru";
-  if (/[؀-ۿ]/u.test(query)) return "ar";
-  if (/[֐-׿]/u.test(query)) return "he";
-  if (/[Ͱ-Ͽ]/u.test(query)) return "el";
-  if (/[฀-๿]/u.test(query)) return "th";
-  if (/[ऀ-ॿ]/u.test(query)) return "hi";
-  if (/[äöüß]/iu.test(query)) return "de";
-  if (/[ñ¿¡]/iu.test(query)) return "es";
-  if (/[ãõ]/iu.test(query)) return "pt";
-  if (/[àâæçéèêëîïôœùûüÿ]/iu.test(query)) return "fr";
-
-  // Plain Latin book searches in this app are usually English. Queries with
-  // clear markers for another language are handled above.
-  if (/^[\p{Script=Latin}\p{N}\p{P}\p{Zs}]+$/u.test(query)) return "en";
-
-  return "";
-}
-
-export async function searchGoogleBooks(searchTerm, maxResults = 20) {
-  if (!getApiKey()) {
-    throw new Error(
+export async function searchGoogleBooks(searchTerm, maxResults = 20, options = {}) {
+  const apiKey = options.apiKey ?? getApiKey();
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const debug = options.debug ?? Boolean(import.meta.env?.DEV);
+  if (debug) console.debug("[book-search] google configuration", {
+    googleBooksApiKeyConfigured: Boolean(apiKey),
+  });
+  if (!apiKey) {
+    const error = new Error(
       "Google Books search needs an API key. Add VITE_GOOGLE_BOOKS_API_KEY to frontend/.env.local, then restart the app.",
     );
+    error.code = "google_api_key_missing";
+    error.shouldFallback = true;
+    error.actualProviderFetchPerformed = false;
+    if (debug) console.debug("[book-search] google skipped: missing_api_key", {
+      googleBooksApiKeyConfigured: false,
+    });
+    throw error;
   }
 
-  const searchLanguage = detectSearchLanguage(searchTerm);
   const normalizedSearchTerm = String(searchTerm || "").trim();
-  const cacheKey = JSON.stringify([
-    normalizedSearchTerm.toLocaleLowerCase(),
-    Number(maxResults),
-    searchLanguage,
-  ]);
-  const cachedSearch = getCachedPromise(googleBooksSearchCache, cacheKey);
-  if (cachedSearch) return cachedSearch;
-
   const request = (async () => {
-    const url = withApiKey(new URL("https://www.googleapis.com/books/v1/volumes"));
-    url.searchParams.set("q", normalizedSearchTerm);
-    url.searchParams.set("printType", "books");
-    if (searchLanguage) url.searchParams.set("langRestrict", searchLanguage);
-    url.searchParams.set("maxResults", String(maxResults));
-
-    const response = await fetch(url);
-    if (!response.ok) await throwGoogleBooksError(response);
+    const url = buildGoogleBooksSearchUrl(normalizedSearchTerm, maxResults, apiKey);
+    let response;
+    try {
+      response = await fetchImpl(url);
+    } catch (cause) {
+      const error = new Error("Google Books could not be reached.");
+      error.code = "google_network_error";
+      error.shouldFallback = true;
+      error.actualProviderFetchPerformed = true;
+      error.cause = cause;
+      if (debug) console.debug("[book-search] GOOGLE FAILED", {
+        status: null, code: error.code, fallbackEligible: true,
+      });
+      throw error;
+    }
+    if (!response.ok) {
+      try {
+        await throwGoogleBooksError(response);
+      } catch (error) {
+        if (debug) console.debug("[book-search] GOOGLE FAILED", {
+          status: error.status || response.status, code: error.googleStatus || error.code || "google_http_error",
+          fallbackEligible: shouldFallbackFromGoogleBooks(error),
+        });
+        throw error;
+      }
+    }
     const data = await response.json();
     const results = data.items || [];
+    if (debug) console.debug("[book-search] GOOGLE ACTUAL RESPONSE", {
+      status: response.status, itemCount: results.length,
+      titles: results.slice(0, 10).map((result) => ({
+        title: result?.volumeInfo?.title || "",
+        author: result?.volumeInfo?.authors?.join(", ") || "",
+      })),
+    });
     results.forEach((result) => cacheGoogleBookResult(result));
     return results;
   })();
-  const cacheEntry = {
-    promise: request,
-    expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
-  };
-  googleBooksSearchCache.set(cacheKey, cacheEntry);
-  void request.then(
-    () => {},
-    () => {
-      cacheEntry.expiresAt = Date.now() + FAILURE_CACHE_TTL_MS;
-    },
-  );
-
   return request;
 }
 

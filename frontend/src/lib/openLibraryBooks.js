@@ -3,7 +3,7 @@ import { persistMissingBookMetadataSafely } from "./bookMetadataApi";
 const OPEN_LIBRARY_BASE_PATH = "/open-library-api";
 const OPEN_LIBRARY_ORIGIN = "https://openlibrary.org";
 const OPEN_LIBRARY_SEARCH_FIELDS =
-  "key,title,author_name,first_publish_year,cover_i,isbn,edition_key,publisher,subject";
+  "key,title,author_name,first_publish_year,cover_i,isbn,edition_key,publisher,subject,language";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
@@ -64,7 +64,7 @@ function mapOpenLibraryDoc(doc) {
     genre: firstValue(doc.subject) || "",
     categories: [],
     subjects: Array.isArray(doc.subject) ? doc.subject : [],
-    language: "chi",
+    language: firstValue(doc.language) || "",
     providerMetadata: {
       editionCount: doc.edition_count || null,
       firstPublishYear: doc.first_publish_year || null,
@@ -152,7 +152,7 @@ async function fetchOpenLibrarySearchWithFallback(primaryUrl, fallbackUrl) {
   }
 }
 
-export async function searchOpenLibraryBooks(searchTerm, limit = 20) {
+export async function searchOpenLibraryBooks(searchTerm, limit = 20, options = {}) {
   const query = String(searchTerm || "").trim();
 
   if (!query) {
@@ -172,6 +172,12 @@ export async function searchOpenLibraryBooks(searchTerm, limit = 20) {
       fallbackUrl,
     );
     const books = (data.docs || []).map(mapOpenLibraryDoc);
+    if (options.debug ?? Boolean(import.meta.env?.DEV)) {
+      console.debug("[book-search] OPEN LIBRARY ACTUAL RESPONSE", {
+        docCount: Array.isArray(data.docs) ? data.docs.length : 0,
+        titles: books.slice(0, 10).map((book) => ({ title: book.title, author: book.author })),
+      });
+    }
     return { results: books, blockedCount: 0 };
   } catch (error) {
     console.error("Open Library search failed.", {

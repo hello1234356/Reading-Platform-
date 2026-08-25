@@ -77,6 +77,8 @@ function mapModerationReport(row, profilesById) {
 
 function mapBookAssessment(row) {
   const evidence = row.evidence && typeof row.evidence === "object" ? row.evidence : {};
+  const flags = Array.isArray(row.flags) ? row.flags : [];
+  const reviewCategoryFlag = flags.find((flag) => flag.startsWith("review_category:"));
   return {
     id: row.id,
     bookId: row.book_id || null,
@@ -89,7 +91,8 @@ function mapBookAssessment(row) {
     knowledgeSource: row.knowledge_source || "provider_evidence",
     evidenceQuality: row.evidence_quality || "insufficient",
     riskScores: row.risk_scores && typeof row.risk_scores === "object" ? row.risk_scores : {},
-    flags: Array.isArray(row.flags) ? row.flags : [],
+    flags,
+    reviewCategory: reviewCategoryFlag?.slice("review_category:".length) || "",
     summary: row.summary || "",
     synopsis: row.synopsis || "",
     themes: Array.isArray(row.themes) ? row.themes : [],

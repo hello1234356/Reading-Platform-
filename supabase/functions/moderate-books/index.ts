@@ -3,9 +3,10 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { classifyBooks, enrichBook, ENRICHMENT_MODEL, MODEL_VERSION } from "./classifier.ts";
 import { planBookAssessments, safeEvidenceForStorage, type EvidencePacket } from "./evidence.ts";
 import { applyEnrichmentFailurePolicy, applyPolicy, MODERATION_MODE,
-  POLICY_VERSION, reviewReason, shouldEnrichBook } from "./policy.ts";
+  POLICY_VERSION, reviewCategory, reviewReason, shouldEnrichBook } from "./policy.ts";
 
-import { moderationIdentity, validateRequestBody, type Classification } from "./schema.ts";
+import { moderationIdentity, validateRequestBody, type BatchClassificationValidation,
+  type Classification, type IncomingBook } from "./schema.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -20,6 +21,9 @@ const publicResult = (row: Record<string, unknown>, cached: boolean) => ({
   moderationConfidence: row.moderation_confidence ?? row.confidence,
   knowledgeSource: row.knowledge_source,
   evidenceQuality: row.evidence_quality,
+  failureCode: row.status === "error"
+    ? (Array.isArray(row.flags) && row.flags[0] ? row.flags[0] : "classifier_unavailable")
+    : undefined,
   policyVersion: row.policy_version, cached,
 });
 
@@ -82,7 +86,7 @@ Deno.serve(async (request) => {
   const { data: authData } = await userClient.auth.getUser(authorization.replace(/^Bearer\s+/i, ""));
   if (!authData.user) return json({ error: "Sign in to assess books." }, 401);
 
-  let books;
+  let books: IncomingBook[];
   let cacheOnly = false;
   try {
     const body = await request.json();
@@ -101,9 +105,12 @@ Deno.serve(async (request) => {
     .select("*").eq("policy_version", POLICY_VERSION).in("source", sources).in("external_id", externalIds);
   if (cacheError) return json({ error: "Moderation cache is unavailable." }, 500);
   const cache = new Map((cachedRows || []).map((row) => [moderationIdentity(row.source, row.external_id), row]));
-  const { data: storedRows } = await service.from("books").select(
+  const { data: storedRows, error: storedError } = await service.from("books").select(
     "id,title,author,isbn,genre,description,cover_url,language,publisher,publication_year,source,external_id"
   ).in("source", sources).in("external_id", externalIds);
+  if (storedError) console.error("Stored book evidence lookup failed", {
+    failureCode: "evidence_lookup_failed", message: storedError.message,
+  });
   const stored = new Map((storedRows || []).map((row) => [moderationIdentity(row.source, row.external_id), row]));
 
   const resultByIdentity = new Map<string, Record<string, unknown>>();
@@ -128,7 +135,9 @@ Deno.serve(async (request) => {
 
   // Sparse packets still reach the classifier so reliable prior knowledge can identify exact works.
   const eligible = unknownPackets;
-  let batch = { valid: new Map(), errors: new Map<string, string>(), rejectedIdentities: [] as string[] };
+  let batch: BatchClassificationValidation = {
+    valid: new Map(), errors: new Map(), rejectedIdentities: [],
+  };
   let providerFailure = "";
   if (eligible.length) {
     try {
@@ -160,10 +169,13 @@ Deno.serve(async (request) => {
     const initial = batch.valid.get(identity) as Classification | undefined;
     const classification = enriched.get(identity) || initial;
     try {
+      const enrichmentFailed = enrichmentErrors.has(identity);
+      const decision = classification && initial
+        ? (enrichmentFailed ? applyEnrichmentFailurePolicy(initial) : applyPolicy(classification))
+        : "error";
       const saved = classification && initial
         ? await saveAssessment(service, packet, cache.get(identity), {
-          status: enrichmentErrors.has(identity)
-            ? applyEnrichmentFailurePolicy(initial) : applyPolicy(classification),
+          status: decision,
           confidence: classification.moderation_confidence,
           model_version: enriched.has(identity)
             ? `${MODEL_VERSION}+web:${ENRICHMENT_MODEL}` : MODEL_VERSION,
@@ -172,10 +184,16 @@ Deno.serve(async (request) => {
           knowledge_source: classification.knowledge_source,
           synopsis: classification.synopsis,
           themes: classification.themes,
-          risk_scores: riskScores(classification), flags: classification.flags,
-          summary: classification.reasoning_summary,
-          reason_for_review: (enrichmentErrors.has(identity)
-            ? applyEnrichmentFailurePolicy(initial) : applyPolicy(classification)) === "review_required"
+          risk_scores: riskScores(classification),
+          flags: decision === "error"
+            ? ["enrichment_failed", ...classification.flags]
+            : decision === "review_required"
+            ? [...classification.flags, `review_category:${reviewCategory(classification, enrichmentFailed)}`]
+            : classification.flags,
+          summary: decision === "error"
+            ? "Evidence enrichment hit a technical error and will be retried; this is not a content-review decision."
+            : classification.reasoning_summary,
+          reason_for_review: decision === "review_required"
             ? reviewReason(classification) : "",
         }, "ai_assessed", { recommendation: classification.recommendation,
           recognized: classification.recognized, knowledge_source: classification.knowledge_source,
@@ -184,7 +202,8 @@ Deno.serve(async (request) => {
         : await saveAssessment(service, packet, cache.get(identity), {
           status: "error", confidence: 0, risk_scores: {},
           flags: [providerFailure ? "classifier_unavailable" : batch.errors.get(identity) || "invalid_classification"],
-          summary: "Automated assessment was unavailable or invalid and requires retry or review.",
+          summary: "Automated assessment hit a technical error and will be retried; this is not a content-review decision.",
+          reason_for_review: "",
         });
       resultByIdentity.set(identity, publicResult(saved, false));
     } catch (error) {
@@ -192,7 +211,7 @@ Deno.serve(async (request) => {
         message: error instanceof Error ? error.message : "unknown" });
       resultByIdentity.set(identity, { source: packet.source, externalId: packet.externalId,
         status: "error", confidence: 0, evidenceQuality: packet.evidenceQuality,
-        policyVersion: POLICY_VERSION, cached: false });
+        failureCode: "persistence_error", policyVersion: POLICY_VERSION, cached: false });
     }
   }
 

@@ -21,10 +21,11 @@ test("famous sparse book can proceed using reliable prior knowledge", () => {
   assert.equal(applyPolicy({ ...base, knowledge_source: "model_prior_knowledge" }, evidence), "approved");
 });
 
-test("unrecognized sparse book with no target signal is approved", () => {
+test("unrecognized sparse book becomes an evidence review, not a technical error", () => {
   const result = { ...base, recognized: false, identity_confidence: 0.2,
-    knowledge_source: "model_prior_knowledge", recommendation: "approve", synopsis: "" };
-  assert.equal(applyPolicy(result), "approved");
+    knowledge_source: "model_prior_knowledge", evidence_quality: "very_low",
+    recommendation: "approve", synopsis: "" };
+  assert.equal(applyPolicy(result), "review_required");
   assert.equal(result.synopsis, "");
 });
 
@@ -77,21 +78,20 @@ test("only the three target dimensions can cause review", () => {
     "drug-addiction memoir", "war memoir", "dark literary fiction", "romance with kissing",
     "LGBTQ romance", "pregnancy and puberty", "1911 encyclopedia", "Tang dynasty history",
     "Li Bai biography", "Chinese mythology", "Ming historical fiction"];
-  harmlessFixtures.forEach((synopsis) => assert.equal(applyPolicy({ ...base, synopsis,
-    recognized: false, identity_confidence: 0.1, moderation_confidence: 0.2,
-    evidence_quality: "very_low" }), "approved", synopsis));
+  harmlessFixtures.forEach((synopsis) => assert.equal(applyPolicy({ ...base, synopsis }),
+    "approved", synopsis));
   assert.equal(applyPolicy({ ...base, sexual_content: 2 }), "review_required");
   assert.equal(applyPolicy({ ...base, extremism: 2 }), "review_required");
   assert.equal(applyPolicy({ ...base, china_political_sensitivity: 2 }), "review_required");
 });
 
-test("weak target signals enrich and failure depends on an existing signal", () => {
+test("weak target signals enrich and an enrichment crash stays a technical error", () => {
   const weak = { ...base, sexual_content: 1, recommendation: "enrich",
     needs_web_enrichment: true };
   assert.equal(needsWebEnrichment(weak), true);
-  assert.equal(applyEnrichmentFailurePolicy(weak), "review_required");
+  assert.equal(applyEnrichmentFailurePolicy(weak), "error");
   const noSignal = { ...base, recommendation: "enrich", needs_web_enrichment: true };
-  assert.equal(applyEnrichmentFailurePolicy(noSignal), "approved");
+  assert.equal(applyEnrichmentFailurePolicy(noSignal), "error");
   assert.equal(shouldEnrichBook(noSignal, { title: "Encyclopaedia Britannica 1911",
     description: "A general reference work", categories: ["Reference"], subjects: [] }), false);
   assert.equal(shouldEnrichBook(weak, { title: "Ambiguous adult romance",

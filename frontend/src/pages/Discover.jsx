@@ -11,6 +11,7 @@ import {
   getPreferredGoogleBooksCoverUrl,
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
+import { createLatestRequestGate } from "../lib/bookSearchRelevance";
 import { submitBookSubmission } from "../lib/bookSubmissions";
 import { getIsbnWorkBookDetails } from "../lib/isbnWorkBooks";
 import {
@@ -146,7 +147,7 @@ function Discover() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const bookDeepLinkHandledRef = useRef("");
-  const bookSearchRequestRef = useRef(0);
+  const bookSearchGateRef = useRef(createLatestRequestGate());
   const searchHeroRef = useRef(null);
   const [query, setQuery] = useState(searchParams.get("search") || "");
   const [bookResults, setBookResults] = useState([]);
@@ -234,7 +235,7 @@ function Discover() {
   }
 
   async function runBookSearch(searchTerm) {
-    const requestId = ++bookSearchRequestRef.current;
+    const requestId = bookSearchGateRef.current.begin();
     const normalizedSearchTerm = searchTerm.trim();
 
     if (!normalizedSearchTerm) {
@@ -251,10 +252,12 @@ function Discover() {
     try {
       const simplifiedSearchTerm = simplifySearchTerm(normalizedSearchTerm);
       let searchResult = await searchBooksByQueryLanguage(normalizedSearchTerm);
+      if (!bookSearchGateRef.current.isCurrent(requestId)) return;
       let { results } = searchResult;
 
       if (!results.length && simplifiedSearchTerm !== normalizedSearchTerm) {
         searchResult = await searchBooksByQueryLanguage(simplifiedSearchTerm);
+        if (!bookSearchGateRef.current.isCurrent(requestId)) return;
         ({ results } = searchResult);
       }
 
@@ -269,13 +272,14 @@ function Discover() {
       setSearchStatus("success");
       setSearchMessage("");
       void searchResult.startModeration((key, moderationStatus) => {
-        if (requestId !== bookSearchRequestRef.current) return;
+        if (!bookSearchGateRef.current.isCurrent(requestId)) return;
         setBookResults((current) => moderationStatus === "blocked"
           ? current.filter((book) => book.moderationKey !== key)
           : current.map((book) => book.moderationKey === key
             ? { ...book, moderationStatus } : book));
       });
     } catch (error) {
+      if (!bookSearchGateRef.current.isCurrent(requestId)) return;
       setSearchStatus("error");
       setSearchMessage(error.message || "The book search is unavailable right now. Please try again.");
     }

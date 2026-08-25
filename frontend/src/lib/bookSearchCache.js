@@ -123,20 +123,38 @@ export async function searchWithSharedCache({
   fetchResults,
   readCache = readSharedBookSearchCache,
   writeCache = writeSharedBookSearchCache,
+  bypassProviderCache = false,
+  onCacheDiagnostic = () => {},
 }) {
-  return getOrCreateProviderSearch(provider, searchTerm, async () => {
-    try {
-      const cached = await readCache(
-        provider,
-        searchTerm,
-        limit,
-      );
-      if (cached) return { ...cached, cacheHit: true };
-    } catch (error) {
-      console.error("Shared book search cache read failed:", error);
+  const executeSearch = async () => {
+    if (!bypassProviderCache) {
+      try {
+        const cached = await readCache(provider, searchTerm, limit);
+        if (cached) {
+          onCacheDiagnostic({ provider, query: normalizeBookSearchQuery(searchTerm),
+            cacheHit: true, resultCount: cached.results.length,
+            actualProviderFetchPerformed: false });
+          return { ...cached, cacheHit: true, actualProviderFetchPerformed: false };
+        }
+      } catch (error) {
+        console.error("Shared book search cache read failed:", error);
+      }
     }
 
-    const payload = normalizeCachedPayload(await fetchResults(), limit);
+    let fetched;
+    try {
+      fetched = await fetchResults();
+    } catch (error) {
+      onCacheDiagnostic({ provider, query: normalizeBookSearchQuery(searchTerm),
+        cacheHit: false, resultCount: 0,
+        actualProviderFetchPerformed: error?.actualProviderFetchPerformed !== false,
+        bypassProviderCache });
+      throw error;
+    }
+    const payload = normalizeCachedPayload(fetched, limit);
+    onCacheDiagnostic({ provider, query: normalizeBookSearchQuery(searchTerm),
+      cacheHit: false, resultCount: payload.results.length,
+      actualProviderFetchPerformed: true, bypassProviderCache });
 
     try {
       await writeCache(provider, searchTerm, payload);
@@ -145,6 +163,10 @@ export async function searchWithSharedCache({
       console.error("Shared book search cache write failed:", error);
     }
 
-    return { ...payload, cacheHit: false };
-  });
+    return { ...payload, cacheHit: false, actualProviderFetchPerformed: true };
+  };
+
+  return bypassProviderCache
+    ? executeSearch()
+    : getOrCreateProviderSearch(provider, searchTerm, executeSearch);
 }

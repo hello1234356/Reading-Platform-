@@ -46,8 +46,8 @@ export function uniqueModerationBooks(books) {
 }
 
 export function initializeBookModerationResults(books) {
-  return books.map((book) => ({ ...book, moderationStatus: "checking",
-    moderationKey: moderationIdentityForBook(book).key }));
+  return books.map((book, index) => ({ ...book, moderationStatus: "checking",
+    moderationKey: moderationIdentityForBook(book).key || `invalid:${index}` }));
 }
 
 async function invokeBatches(books, cacheOnly, onBatch) {
@@ -75,6 +75,9 @@ export async function moderateBookSearchResults(
 ) {
   const startedAt = now();
   const unique = uniqueModerationBooks(books);
+  books.filter((book) => !toModerationBook(book)).forEach((book) => onUpdate(
+    book.moderationKey, "failed", { failureCode: "invalid_identity" },
+  ));
   const unknown = new Map(unique.map((book) => [
     `${book.source}\u0000${book.externalId}`, book,
   ]));
@@ -88,13 +91,14 @@ export async function moderateBookSearchResults(
         if (result.cached) {
           cachedCount += 1;
           unknown.delete(key);
-          onUpdate(key, result.status, result);
+          onUpdate(key, result.status === "error" ? "failed" : result.status, result);
         }
       });
     });
   } catch (error) {
-    unique.forEach((book) => onUpdate(`${book.source}\u0000${book.externalId}`, "failed"));
-    debugTiming("cache lookup failed", { error });
+    unique.forEach((book) => onUpdate(`${book.source}\u0000${book.externalId}`, "failed",
+      { failureCode: "cache_request_failed" }));
+    debugTiming("cache lookup failed", { failureCode: "cache_request_failed", error });
     return;
   }
 
@@ -107,17 +111,20 @@ export async function moderateBookSearchResults(
   const aiStartedAt = now();
   try {
     await invoke(requiringAi, false, (results) => {
-      results.forEach((result) => onUpdate(
-        `${result.source}\u0000${result.externalId}`,
-        result.status === "error" ? "failed" : result.status,
-        result,
-      ));
+      results.forEach((result) => {
+        if (result.status === "error") {
+          debugTiming("moderation result failed", { source: result.source,
+            externalId: result.externalId, failureCode: result.failureCode || "moderation_error" });
+        }
+        onUpdate(`${result.source}\u0000${result.externalId}`,
+          result.status === "error" ? "failed" : result.status, result);
+      });
     });
   } catch (error) {
     requiringAi.forEach((book) => onUpdate(
-      `${book.source}\u0000${book.externalId}`, "failed",
+      `${book.source}\u0000${book.externalId}`, "failed", { failureCode: "edge_request_failed" },
     ));
-    debugTiming("AI batch failed", { error });
+    debugTiming("AI batch failed", { failureCode: "edge_request_failed", error });
   } finally {
     debugTiming("AI", { aiBatchDurationMs: now() - aiStartedAt,
       totalBackgroundDurationMs: now() - startedAt, requiringAi: requiringAi.length });

@@ -1,6 +1,7 @@
 import { moderationIdentity, type EvidenceQuality, type IncomingBook } from "./schema.ts";
 
 export type EvidencePacket = IncomingBook & { evidenceQuality: EvidenceQuality };
+export const MODERATION_ERROR_RETRY_BACKOFF_MS = 60_000;
 
 export function assessEvidenceQuality(book: IncomingBook): EvidenceQuality {
   const rawDescription = book.description || "";
@@ -48,6 +49,7 @@ export function planBookAssessments(
   books: IncomingBook[],
   cachedByIdentity: Map<string, Record<string, unknown>>,
   storedByIdentity: Map<string, Record<string, unknown>>,
+  now = Date.now(),
 ) {
   const cached = new Map<string, Record<string, unknown>>();
   const unknown: EvidencePacket[] = [];
@@ -60,7 +62,13 @@ export function planBookAssessments(
     };
     const evidenceImproved = assessment && !assessment.manually_reviewed &&
       qualityRank[packet.evidenceQuality] > qualityRank[String(assessment.evidence_quality || "very_low")];
-    if (assessment && !evidenceImproved && (assessment.status !== "error" || assessment.manually_reviewed)) {
+    const updatedAt = Date.parse(String(assessment?.updated_at || ""));
+    const retryBackoffActive = assessment?.status === "error" &&
+      !assessment.manually_reviewed && Number.isFinite(updatedAt) &&
+      now - updatedAt < MODERATION_ERROR_RETRY_BACKOFF_MS;
+    const durableDecision = assessment && assessment.status !== "error";
+    if (assessment && !evidenceImproved &&
+      (durableDecision || assessment.manually_reviewed || retryBackoffActive)) {
       cached.set(identity, assessment);
     } else {
       unknown.push(packet);
