@@ -435,10 +435,15 @@ const filteredClubs = clubs.filter((club) => {
         setBookSearchResults(results);
         setBookSearchStatus(results.length ? "success" : "error");
         setBookSearchMessage(
-          searchResult.moderationMessage || (results.length
-            ? ""
-            : "No ISBN-backed results found. Check the spelling or try the author name."),
+          results.length ? "" : "No ISBN-backed results found. Check the spelling or try the author name.",
         );
+        void searchResult.startModeration((key, moderationStatus) => {
+          if (requestId !== bookSearchRequestRef.current) return;
+          setBookSearchResults((current) => moderationStatus === "blocked"
+            ? current.filter((book) => book.moderationKey !== key)
+            : current.map((book) => book.moderationKey === key
+              ? { ...book, moderationStatus } : book));
+        });
       } catch (error) {
         if (requestId !== bookSearchRequestRef.current) return;
 
@@ -2135,6 +2140,7 @@ const filteredClubs = clubs.filter((club) => {
                     {bookSearchResults.map((book) => (
                       <button
                         type="button"
+                        disabled={book.moderationStatus !== "approved"}
                         className={
                           getBookSelectionKey(selectedClubBook) === getBookSelectionKey(book)
                             ? "selected"
@@ -2164,6 +2170,15 @@ const filteredClubs = clubs.filter((club) => {
                           {" "}
                           {book.isbn ? `/ ISBN ${book.isbn}` : ""}
                         </small>
+                        {book.moderationStatus !== "approved" ? (
+                          <small className={`book-moderation-state ${book.moderationStatus}`}>
+                            {book.moderationStatus === "review_required"
+                              ? "Pending school review"
+                              : book.moderationStatus === "failed"
+                                ? "Availability check failed"
+                                : "Checking availability…"}
+                          </small>
+                        ) : null}
                       </button>
                     ))}
                   </div>

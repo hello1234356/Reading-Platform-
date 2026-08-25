@@ -83,7 +83,13 @@ Deno.serve(async (request) => {
   if (!authData.user) return json({ error: "Sign in to assess books." }, 401);
 
   let books;
-  try { books = validateRequestBody(await request.json()); }
+  let cacheOnly = false;
+  try {
+    const body = await request.json();
+    books = validateRequestBody(body);
+    cacheOnly = Boolean(body && typeof body === "object"
+      && (body as { cacheOnly?: unknown }).cacheOnly === true);
+  }
   catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid request." }, 400); }
 
   const service = createClient(url, serviceRole, {
@@ -106,6 +112,19 @@ Deno.serve(async (request) => {
     resultByIdentity.set(identity, publicResult(assessment, true));
   });
   const unknownPackets = plan.unknown;
+
+  if (cacheOnly) {
+    unknownPackets.forEach((packet) => resultByIdentity.set(
+      moderationIdentity(packet.source, packet.externalId),
+      { source: packet.source, externalId: packet.externalId, status: "checking", cached: false,
+        policyVersion: POLICY_VERSION },
+    ));
+    return json({ mode: MODERATION_MODE, policyVersion: POLICY_VERSION, cacheOnly: true,
+      cachedCount: plan.cached.size, unknownCount: unknownPackets.length,
+      results: books.map((book) => resultByIdentity.get(
+        moderationIdentity(book.source, book.externalId),
+      )) });
+  }
 
   // Sparse packets still reach the classifier so reliable prior knowledge can identify exact works.
   const eligible = unknownPackets;

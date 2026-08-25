@@ -66,21 +66,28 @@ test("edge endpoint authenticates and caps each batch", async () => {
   assert.match(index, /`\$\{MODEL_VERSION\}\+web:\$\{ENRICHMENT_MODEL\}`/);
 });
 
-test("frontend enforcement awaits every displayed result and uses the friendly review message", async () => {
-  const [api, search, discover, clubs, admin] = await Promise.all([
+test("frontend renders checking cards before asynchronous moderation and keeps durable states distinct", async () => {
+  const [api, search, discover, clubs, admin, adminApi] = await Promise.all([
     readFile(new URL("../../frontend/src/lib/bookModerationApi.js", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/lib/bookSearch.js", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/pages/Discover.jsx", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/pages/BookClubs.jsx", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/pages/Admin.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../../frontend/src/lib/adminApi.js", import.meta.url), "utf8"),
   ]);
-  assert.match(api, /ENFORCE_SEARCH_BATCH_SIZE = 10/);
-  assert.match(api, /This book’s having a quick chat with our bookish gatekeepers 📚 Check back soon!/);
-  assert.match(api, /statusByIdentity[\s\S]*=== "approved"/);
-  assert.match(api, /for \(let index = 0; index < candidates\.length/);
-  assert.match(search, /await enforceBookSearchResults\(result\.results\)/);
-  assert.doesNotMatch(search, /void assessBooksInObserveMode/);
-  assert.match(discover, /setSearchMessage\(searchResult\.moderationMessage/);
-  assert.match(clubs, /searchResult\.moderationMessage/);
+  assert.match(api, /MODERATION_BATCH_SIZE = 10/);
+  assert.match(api, /body: \{ books: batch, cacheOnly \}/);
+  assert.match(api, /await invoke\(unique, true/);
+  assert.match(api, /await invoke\(requiringAi, false/);
+  assert.match(search, /initializeBookModerationResults\(result\.results\)/);
+  assert.match(search, /startModeration: \(onUpdate\)/);
+  assert.match(search, /firstResultsRenderedMs: providerDurationMs/);
+  assert.doesNotMatch(search, /await (?:enforce|moderate)BookSearchResults/);
+  assert.match(discover, /Checking availability…/);
+  assert.match(discover, /Pending school review/);
+  assert.match(clubs, /Checking availability…/);
+  assert.match(clubs, /Pending school review/);
   assert.match(admin, /Enforcement mode: only approved search results/);
+  assert.doesNotMatch(adminApi, /\.eq\("policy_version", "school-books-2026-08-v2"\)/);
+  assert.match(adminApi, /latestByIdentity/);
 });

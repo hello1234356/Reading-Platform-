@@ -12,7 +12,7 @@ import {
 } from "./communityBooks";
 import { searchWithSharedCache } from "./bookSearchCache";
 import { searchGoogleWithQuotaFallback } from "./bookSearchPolicy";
-import { enforceBookSearchResults } from "./bookModerationApi";
+import { initializeBookModerationResults, moderateBookSearchResults } from "./bookModerationApi";
 
 export function isChineseBookSearch(searchTerm) {
   return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(
@@ -199,9 +199,14 @@ async function searchBooksByQueryLanguageRaw(searchTerm, limit = 20) {
 }
 
 export async function searchBooksByQueryLanguage(searchTerm, limit = 20) {
+  const startedAt = globalThis.performance?.now?.() ?? Date.now();
   const result = await searchBooksByQueryLanguageRaw(searchTerm, limit);
-  const moderated = await enforceBookSearchResults(result.results);
-  return { ...result, results: moderated.results,
-    blockedCount: (result.blockedCount || 0) + moderated.withheldCount,
-    moderationMessage: moderated.message };
+  const providerDurationMs = (globalThis.performance?.now?.() ?? Date.now()) - startedAt;
+  if (import.meta.env?.DEV) {
+    console.debug("[book-search] provider", { providerDurationMs,
+      firstResultsRenderedMs: providerDurationMs, resultCount: result.results.length });
+  }
+  const results = initializeBookModerationResults(result.results);
+  return { ...result, results, providerDurationMs,
+    startModeration: (onUpdate) => moderateBookSearchResults(results, onUpdate, providerDurationMs) };
 }

@@ -6,6 +6,11 @@ import {
 } from "../../supabase/functions/moderate-books/schema.ts";
 import { planBookAssessments } from "../../supabase/functions/moderate-books/evidence.ts";
 import { applyPolicy } from "../../supabase/functions/moderate-books/policy.ts";
+import {
+  initializeBookModerationResults,
+  moderateBookSearchResults,
+  uniqueModerationBooks,
+} from "../src/lib/bookModerationApi.js";
 
 const dimensions = {
   sexual_content: 0, extremism: 0, china_political_sensitivity: 0,
@@ -155,4 +160,66 @@ test("one of five books can use one targeted web enrichment request", async () =
   assert.match(requests[1].body.input, /Fourth Wing/);
   assert.doesNotMatch(requests[1].body.input, /Book 1/);
   assert.equal(applyPolicy(enriched), "review_required");
+});
+
+test("provider cards enter checking synchronously and exact identities deduplicate", () => {
+  const harryPotter = { ...book(7), title: "Harry Potter" };
+  const cards = initializeBookModerationResults([harryPotter, { ...harryPotter }]);
+  assert.equal(cards.length, 2);
+  assert.ok(cards.every((card) => card.moderationStatus === "checking"));
+  assert.equal(uniqueModerationBooks(cards).length, 1);
+});
+
+test("cached decisions update without an AI call", async () => {
+  const books = initializeBookModerationResults([book(1), book(2), book(3)]);
+  const updates = [];
+  const calls = [];
+  await moderateBookSearchResults(books, (...args) => updates.push(args), 12,
+    async (batch, cacheOnly, onBatch) => {
+      calls.push({ count: batch.length, cacheOnly });
+      onBatch(batch.map((item, index) => ({ source: item.source,
+        externalId: item.externalId, cached: true,
+        status: index === 0 ? "approved" : index === 1 ? "review_required" : "blocked" })));
+    });
+  assert.deepEqual(calls, [{ count: 3, cacheOnly: true }]);
+  assert.deepEqual(updates.map(([, status]) => status), ["approved", "review_required", "blocked"]);
+});
+
+test("slow AI does not delay initial cards and updates each unknown result", async () => {
+  const books = initializeBookModerationResults([book(1), book(2)]);
+  const updates = [];
+  let releaseAi;
+  const aiGate = new Promise((resolve) => { releaseAi = resolve; });
+  const pipeline = moderateBookSearchResults(books, (...args) => updates.push(args), 9,
+    async (batch, cacheOnly, onBatch) => {
+      if (cacheOnly) {
+        onBatch(batch.map((item, index) => ({ source: item.source,
+          externalId: item.externalId, cached: index === 0,
+          status: index === 0 ? "approved" : "checking" })));
+        return;
+      }
+      await aiGate;
+      onBatch(batch.map((item) => ({ source: item.source, externalId: item.externalId,
+        cached: false, status: "review_required" })));
+    });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(books.map((item) => item.moderationStatus), ["checking", "checking"]);
+  assert.deepEqual(updates.map(([, status]) => status), ["approved"]);
+  releaseAi();
+  await pipeline;
+  assert.deepEqual(updates.map(([, status]) => status), ["approved", "review_required"]);
+});
+
+test("moderation failure preserves cached approvals and fails only unknown cards", async () => {
+  const books = initializeBookModerationResults([book(1), book(2)]);
+  const updates = [];
+  await moderateBookSearchResults(books, (...args) => updates.push(args), 4,
+    async (batch, cacheOnly, onBatch) => {
+      if (cacheOnly) {
+        onBatch(batch.map((item, index) => ({ source: item.source,
+          externalId: item.externalId, cached: index === 0,
+          status: index === 0 ? "approved" : "checking" })));
+      } else throw new Error("temporary outage");
+    });
+  assert.deepEqual(updates.map(([, status]) => status), ["approved", "failed"]);
 });

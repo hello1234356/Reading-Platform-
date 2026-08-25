@@ -146,6 +146,7 @@ function Discover() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const bookDeepLinkHandledRef = useRef("");
+  const bookSearchRequestRef = useRef(0);
   const searchHeroRef = useRef(null);
   const [query, setQuery] = useState(searchParams.get("search") || "");
   const [bookResults, setBookResults] = useState([]);
@@ -233,6 +234,7 @@ function Discover() {
   }
 
   async function runBookSearch(searchTerm) {
+    const requestId = ++bookSearchRequestRef.current;
     const normalizedSearchTerm = searchTerm.trim();
 
     if (!normalizedSearchTerm) {
@@ -265,7 +267,14 @@ function Discover() {
 
       setBookResults(results);
       setSearchStatus("success");
-      setSearchMessage(searchResult.moderationMessage || "");
+      setSearchMessage("");
+      void searchResult.startModeration((key, moderationStatus) => {
+        if (requestId !== bookSearchRequestRef.current) return;
+        setBookResults((current) => moderationStatus === "blocked"
+          ? current.filter((book) => book.moderationKey !== key)
+          : current.map((book) => book.moderationKey === key
+            ? { ...book, moderationStatus } : book));
+      });
     } catch (error) {
       setSearchStatus("error");
       setSearchMessage(error.message || "The book search is unavailable right now. Please try again.");
@@ -698,6 +707,7 @@ async function submitMissingBook(event) {
               {bookResults.map((book, index) => {
                 const isSaved = isBookSaved(book);
                 const isSaving = savingBookKey === getBookKey(book);
+                const isAvailable = book.moderationStatus === "approved";
                 const shouldInsertInlineSubmissionEntry =
                   shouldShowResultSubmission &&
                   !shouldUseFloatingSubmission &&
@@ -710,6 +720,7 @@ async function submitMissingBook(event) {
 	                    <button
                           className="isbn-result-details-button"
                           type="button"
+                          disabled={!isAvailable}
                           onClick={() => openBookDetails(book)}
                           aria-label={`View details for ${book.title}`}
                         >
@@ -728,6 +739,13 @@ async function submitMissingBook(event) {
                             <p className="isbn-result-author">{book.author}</p>
                             {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
                             {book.isbn ? <small>ISBN {book.isbn}</small> : null}
+                            {!isAvailable ? <small className={`book-moderation-state ${book.moderationStatus}`}>
+                              {book.moderationStatus === "review_required"
+                                ? "Pending school review"
+                                : book.moderationStatus === "failed"
+                                  ? "Availability check failed — retry with another search"
+                                  : "Checking availability…"}
+                            </small> : null}
                           </div>
                         </button>
 	                      <div className="isbn-result-actions">
@@ -741,7 +759,7 @@ async function submitMissingBook(event) {
                                   [getBookKey(book)]: event.target.value,
                                 }))
                               }
-                              disabled={isSaving}
+                              disabled={isSaving || !isAvailable}
                             >
                               <option value="to-be-read">To Be Read</option>
                               <option value="currently-reading">Currently Reading</option>
@@ -751,7 +769,7 @@ async function submitMissingBook(event) {
 		                      <button
 	                        className="primary-button"
 	                        type="button"
-                          disabled={isSaved || isSaving}
+                          disabled={isSaved || isSaving || !isAvailable}
                           onClick={() => addToReadingList(book)}
                         >
                           {isSaving

@@ -302,13 +302,19 @@ export async function getBookModerationAssessments(status = "review_required") {
       manually_reviewed, reviewed_at, updated_at,
       books (title, author, cover_url)
     `)
-    .eq("policy_version", "school-books-2026-08-v2")
     .order("updated_at", { ascending: false })
-    .limit(100);
-  if (status && status !== "all") query = query.eq("status", status);
+    .limit(500);
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map(mapBookAssessment);
+  const latestByIdentity = new Map();
+  (data || []).forEach((row) => {
+    const identity = `${row.source}\u0000${row.external_id}`;
+    if (!latestByIdentity.has(identity)) latestByIdentity.set(identity, row);
+  });
+  return [...latestByIdentity.values()]
+    .filter((row) => !status || status === "all" || row.status === status)
+    .slice(0, 100)
+    .map(mapBookAssessment);
 }
 
 export async function reviewBookModerationAssessment({ assessmentId, decision }) {
