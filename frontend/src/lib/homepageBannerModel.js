@@ -9,6 +9,12 @@ export function mapHomepageBanner(row) {
     imagePositionX: Number(row.image_position_x ?? 50),
     imagePositionY: Number(row.image_position_y ?? 50),
     imageZoom: Number(row.image_zoom ?? 1),
+    mobileImageUrl: row.mobile_image_url || "",
+    mobileImagePath: row.mobile_image_path || "",
+    mobileImagePositionX: row.mobile_image_position_x == null
+      ? null : Number(row.mobile_image_position_x),
+    mobileImagePositionY: row.mobile_image_position_y == null
+      ? null : Number(row.mobile_image_position_y),
     textAlignment: row.text_alignment || "left",
     textVerticalPosition: row.text_vertical_position || "center",
     fontFamily: row.font_family || "lit_serif",
@@ -37,6 +43,12 @@ export function toHomepageBannerRow(banner) {
     image_position_x: Number(banner.imagePositionX),
     image_position_y: Number(banner.imagePositionY),
     image_zoom: Number(banner.imageZoom ?? 1),
+    mobile_image_url: banner.mobileImageUrl || null,
+    mobile_image_path: banner.mobileImagePath || null,
+    mobile_image_position_x: banner.mobileImagePositionX == null
+      ? null : Number(banner.mobileImagePositionX),
+    mobile_image_position_y: banner.mobileImagePositionY == null
+      ? null : Number(banner.mobileImagePositionY),
     text_alignment: banner.textAlignment,
     text_vertical_position: banner.textVerticalPosition,
     font_family: banner.fontFamily,

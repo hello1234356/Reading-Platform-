@@ -1,8 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { classifyBooks, MODEL_VERSION } from "./classifier.ts";
+import { classifyBooks, enrichBook, ENRICHMENT_MODEL, MODEL_VERSION } from "./classifier.ts";
 import { planBookAssessments, safeEvidenceForStorage, type EvidencePacket } from "./evidence.ts";
-import { applyPolicy, MODERATION_MODE, POLICY_VERSION } from "./policy.ts";
+import { applyEnrichmentFailurePolicy, applyPolicy, MODERATION_MODE,
+  POLICY_VERSION, reviewReason, shouldEnrichBook } from "./policy.ts";
+
 import { moderationIdentity, validateRequestBody, type Classification } from "./schema.ts";
 
 const corsHeaders = { "Access-Control-Allow-Origin": "*",
@@ -61,11 +63,9 @@ async function saveAssessment(
 }
 
 function riskScores(classification: Classification) {
-  return { sexual_content: classification.sexual_content, violence: classification.violence,
-    self_harm: classification.self_harm, drugs_or_gambling: classification.drugs_or_gambling,
-    hate_or_extremism: classification.hate_or_extremism,
-    political_or_regulatory_sensitivity: classification.political_or_regulatory_sensitivity,
-    age_suitability: classification.age_suitability };
+  return { sexual_content: classification.sexual_content,
+    extremism: classification.extremism,
+    china_political_sensitivity: classification.china_political_sensitivity };
 }
 
 Deno.serve(async (request) => {
@@ -121,14 +121,33 @@ Deno.serve(async (request) => {
     }
   }
 
+  const enriched = new Map<string, Classification>();
+  const enrichmentErrors = new Map<string, string>();
+  await Promise.all(eligible.map(async (packet) => {
+    const identity = moderationIdentity(packet.source, packet.externalId);
+    const initial = batch.valid.get(identity) as Classification | undefined;
+    if (!initial || !shouldEnrichBook(initial, packet)) return;
+    try {
+      enriched.set(identity, await enrichBook(packet, initial));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Web enrichment failed.";
+      enrichmentErrors.set(identity, message);
+      console.error("Book web enrichment failed", { identity, message });
+    }
+  }));
+
   for (const packet of eligible) {
     const identity = moderationIdentity(packet.source, packet.externalId);
-    const classification = batch.valid.get(identity) as Classification | undefined;
+    const initial = batch.valid.get(identity) as Classification | undefined;
+    const classification = enriched.get(identity) || initial;
     try {
-      const saved = classification
+      const saved = classification && initial
         ? await saveAssessment(service, packet, cache.get(identity), {
-          status: applyPolicy(classification, packet.evidenceQuality),
+          status: enrichmentErrors.has(identity)
+            ? applyEnrichmentFailurePolicy(initial) : applyPolicy(classification),
           confidence: classification.moderation_confidence,
+          model_version: enriched.has(identity)
+            ? `${MODEL_VERSION}+web:${ENRICHMENT_MODEL}` : MODEL_VERSION,
           identity_confidence: classification.identity_confidence,
           moderation_confidence: classification.moderation_confidence,
           knowledge_source: classification.knowledge_source,
@@ -136,11 +155,13 @@ Deno.serve(async (request) => {
           themes: classification.themes,
           risk_scores: riskScores(classification), flags: classification.flags,
           summary: classification.reasoning_summary,
-          reason_for_review: applyPolicy(classification, packet.evidenceQuality) === "review_required"
-            ? classification.reasoning_summary : "",
+          reason_for_review: (enrichmentErrors.has(identity)
+            ? applyEnrichmentFailurePolicy(initial) : applyPolicy(classification)) === "review_required"
+            ? reviewReason(classification) : "",
         }, "ai_assessed", { recommendation: classification.recommendation,
           recognized: classification.recognized, knowledge_source: classification.knowledge_source,
-          mode: MODERATION_MODE })
+          evidence_source: enriched.has(identity) ? "provider_metadata+web_enrichment" : "provider_metadata",
+          enrichment_error: enrichmentErrors.get(identity) || null, mode: MODERATION_MODE })
         : await saveAssessment(service, packet, cache.get(identity), {
           status: "error", confidence: 0, risk_scores: {},
           flags: [providerFailure ? "classifier_unavailable" : batch.errors.get(identity) || "invalid_classification"],

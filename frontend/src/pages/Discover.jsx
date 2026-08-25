@@ -248,24 +248,24 @@ function Discover() {
 
     try {
       const simplifiedSearchTerm = simplifySearchTerm(normalizedSearchTerm);
-      let { results } =
-        await searchBooksByQueryLanguage(normalizedSearchTerm);
+      let searchResult = await searchBooksByQueryLanguage(normalizedSearchTerm);
+      let { results } = searchResult;
 
       if (!results.length && simplifiedSearchTerm !== normalizedSearchTerm) {
-        ({ results } =
-          await searchBooksByQueryLanguage(simplifiedSearchTerm));
+        searchResult = await searchBooksByQueryLanguage(simplifiedSearchTerm);
+        ({ results } = searchResult);
       }
 
       if (!results.length) {
         setSearchStatus("error");
-        setSearchMessage(
-          "No matching books found. Check the spelling, try fewer words, or search by author, title, or ISBN.",
-        );
+        setSearchMessage(searchResult.moderationMessage ||
+          "No matching books found. Check the spelling, try fewer words, or search by author, title, or ISBN.");
         return;
       }
 
       setBookResults(results);
       setSearchStatus("success");
+      setSearchMessage(searchResult.moderationMessage || "");
     } catch (error) {
       setSearchStatus("error");
       setSearchMessage(error.message || "The book search is unavailable right now. Please try again.");

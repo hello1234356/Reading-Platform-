@@ -4,6 +4,9 @@
   padding: 0;
   isolation: isolate;
   touch-action: pan-y;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 3 / 1;
 }
 
 .homepage-spotlight-track {
@@ -26,7 +29,7 @@
   padding: clamp(38px, 6vw, 76px);
   overflow: hidden;
   color: var(--spotlight-text-color);
-  background: linear-gradient(135deg, var(--mocha), var(--forest));
+  background: #161616;
 }
 
 .homepage-spotlight-slide.homepage-quote-slide {
@@ -34,6 +37,7 @@
   background: transparent;
 }
 
+.homepage-spotlight-picture,
 .homepage-spotlight-image,
 .homepage-spotlight-overlay {
   position: absolute;
@@ -42,9 +46,22 @@
   height: 100%;
 }
 
+.homepage-spotlight-picture {
+  display: block;
+  overflow: hidden;
+}
+
 .homepage-spotlight-image {
   object-fit: cover;
+  object-position: var(--spotlight-preview-position, var(--spotlight-desktop-position, 50% 50%));
+  opacity: 1;
+  filter: none;
+  mix-blend-mode: normal;
   will-change: transform;
+}
+
+@media (max-width: 1024px) {
+  .reading-room-hero.homepage-spotlight-carousel { aspect-ratio: 2 / 1; }
 }
 
 .homepage-spotlight-overlay {
@@ -53,30 +70,15 @@
 }
 
 .homepage-spotlight-slide.align-left .homepage-spotlight-overlay {
-  background: linear-gradient(90deg, rgb(20 17 15 / var(--spotlight-overlay, 0.5)) 0%, transparent 76%);
+  background: linear-gradient(90deg, rgb(0 0 0 / var(--spotlight-overlay, 0.5)) 0%, transparent 76%);
 }
 
 .homepage-spotlight-slide.align-right .homepage-spotlight-overlay {
-  background: linear-gradient(270deg, rgb(20 17 15 / var(--spotlight-overlay, 0.5)) 0%, transparent 76%);
+  background: linear-gradient(270deg, rgb(0 0 0 / var(--spotlight-overlay, 0.5)) 0%, transparent 76%);
 }
 
 .homepage-spotlight-slide.align-center .homepage-spotlight-overlay {
-  background: radial-gradient(ellipse at center, rgb(20 17 15 / var(--spotlight-overlay, 0.5)), transparent 82%);
-}
-
-.homepage-spotlight-slide.text-brown.align-left .homepage-spotlight-overlay,
-.homepage-spotlight-slide.text-black.align-left .homepage-spotlight-overlay {
-  background: linear-gradient(90deg, rgb(255 250 241 / var(--spotlight-overlay, 0.5)) 0%, transparent 76%);
-}
-
-.homepage-spotlight-slide.text-brown.align-right .homepage-spotlight-overlay,
-.homepage-spotlight-slide.text-black.align-right .homepage-spotlight-overlay {
-  background: linear-gradient(270deg, rgb(255 250 241 / var(--spotlight-overlay, 0.5)) 0%, transparent 76%);
-}
-
-.homepage-spotlight-slide.text-brown.align-center .homepage-spotlight-overlay,
-.homepage-spotlight-slide.text-black.align-center .homepage-spotlight-overlay {
-  background: radial-gradient(ellipse at center, rgb(255 250 241 / var(--spotlight-overlay, 0.5)), transparent 82%);
+  background: radial-gradient(ellipse at center, rgb(0 0 0 / var(--spotlight-overlay, 0.5)), transparent 82%);
 }
 
 .homepage-spotlight-slide.overlay-none { --spotlight-overlay: 0; }
@@ -224,14 +226,39 @@
 .homepage-spotlight-carousel.reduced-motion .homepage-spotlight-track { transition: none; }
 
 @media (max-width: 640px) {
-  .homepage-spotlight-slide { padding: 34px 24px 62px; }
+  .reading-room-hero.homepage-spotlight-carousel { aspect-ratio: 4 / 3; }
+  .homepage-spotlight-image {
+    object-position: var(--spotlight-preview-position, var(--spotlight-mobile-position, var(--spotlight-desktop-position, 50% 50%)));
+  }
+  .homepage-spotlight-slide { padding: 22px 18px 44px; }
   .homepage-spotlight-slide.homepage-quote-slide { padding: 26px 18px; }
   .homepage-spotlight-copy { width: 100%; }
-  .homepage-spotlight-slide.size-small .homepage-spotlight-copy { font-size: 32px; }
-  .homepage-spotlight-slide.size-medium .homepage-spotlight-copy { font-size: 38px; }
-  .homepage-spotlight-slide.size-large .homepage-spotlight-copy { font-size: 44px; }
-  .homepage-spotlight-slide.size-huge .homepage-spotlight-copy { font-size: 50px; }
-  .homepage-spotlight-body { font-size: 14px; }
+  .homepage-spotlight-slide.size-small .homepage-spotlight-copy { font-size: clamp(24px, 7.5vw, 30px); }
+  .homepage-spotlight-slide.size-medium .homepage-spotlight-copy { font-size: clamp(27px, 8.5vw, 34px); }
+  .homepage-spotlight-slide.size-large .homepage-spotlight-copy { font-size: clamp(30px, 9.5vw, 38px); }
+  .homepage-spotlight-slide.size-huge .homepage-spotlight-copy { font-size: clamp(33px, 10.5vw, 42px); }
+  .homepage-spotlight-slide .homepage-spotlight-copy h1 {
+    display: -webkit-box;
+    overflow: hidden;
+    line-height: 1.02;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+  .homepage-spotlight-body {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+  .homepage-spotlight-slide .homepage-spotlight-cta {
+    min-height: 36px;
+    margin-top: 12px;
+    padding: 7px 13px;
+  }
+  .homepage-spotlight-pagination { bottom: 12px; }
   .homepage-spotlight-arrow { display: none; }
 }
 

@@ -150,7 +150,7 @@ function fetchGoogleBooks(searchTerm) {
   if (cached) bookClubQueryCache.delete(cacheKey);
 
   const request = searchBooksByQueryLanguage(searchTerm).then(
-    ({ results }) => results.filter(canPersistBook),
+    (result) => ({ ...result, results: result.results.filter(canPersistBook) }),
   );
   const cacheEntry = {
     promise: request,
@@ -422,10 +422,12 @@ const filteredClubs = clubs.filter((club) => {
 
       try {
         const simplifiedSearchTerm = simplifySearchTerm(searchTerm);
-        let results = await fetchGoogleBooks(searchTerm);
+        let searchResult = await fetchGoogleBooks(searchTerm);
+        let { results } = searchResult;
 
         if (!results.length && simplifiedSearchTerm !== searchTerm) {
-          results = await fetchGoogleBooks(simplifiedSearchTerm);
+          searchResult = await fetchGoogleBooks(simplifiedSearchTerm);
+          ({ results } = searchResult);
         }
 
         if (requestId !== bookSearchRequestRef.current) return;
@@ -433,9 +435,9 @@ const filteredClubs = clubs.filter((club) => {
         setBookSearchResults(results);
         setBookSearchStatus(results.length ? "success" : "error");
         setBookSearchMessage(
-          results.length
+          searchResult.moderationMessage || (results.length
             ? ""
-            : "No ISBN-backed results found. Check the spelling or try the author name.",
+            : "No ISBN-backed results found. Check the spelling or try the author name."),
         );
       } catch (error) {
         if (requestId !== bookSearchRequestRef.current) return;

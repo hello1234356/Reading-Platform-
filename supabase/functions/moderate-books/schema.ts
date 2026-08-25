@@ -5,7 +5,7 @@ export const ALLOWED_SOURCES = new Set([
 
 export type EvidenceQuality = "high" | "medium" | "low" | "very_low";
 export type AssessmentStatus = "approved" | "review_required" | "blocked" | "error";
-export type Recommendation = "approve" | "review_required" | "block";
+export type Recommendation = "approve" | "enrich" | "review_required";
 
 export type IncomingBook = {
   bookId?: number;
@@ -34,12 +34,10 @@ export type Classification = {
   knowledge_source: "provider_evidence" | "model_prior_knowledge" | "combined";
   evidence_quality: EvidenceQuality;
   sexual_content: number;
-  violence: number;
-  self_harm: number;
-  drugs_or_gambling: number;
-  hate_or_extremism: number;
-  political_or_regulatory_sensitivity: number;
-  age_suitability: number;
+  extremism: number;
+  china_political_sensitivity: number;
+  needs_web_enrichment: boolean;
+  enrichment_reason: string;
   flags: string[];
   synopsis: string;
   themes: string[];
@@ -114,14 +112,13 @@ export function validateRequestBody(body: unknown): IncomingBook[] {
   });
 }
 
-const score = (value: unknown) => Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 4;
+const score = (value: unknown) => Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 3;
 
 export function validateClassification(value: unknown): Classification {
   if (!value || typeof value !== "object") throw new Error("AI response is not an object.");
   const row = value as Record<string, unknown>;
-  const recommendations = ["approve", "review_required", "block"];
-  const dimensions = ["sexual_content", "violence", "self_harm", "drugs_or_gambling",
-    "hate_or_extremism", "political_or_regulatory_sensitivity", "age_suitability"];
+  const recommendations = ["approve", "enrich", "review_required"];
+  const dimensions = ["sexual_content", "extremism", "china_political_sensitivity"];
   if (!recommendations.includes(String(row.recommendation))) throw new Error("Invalid AI recommendation.");
   if (typeof row.recognized !== "boolean") throw new Error("Invalid recognition result.");
   for (const key of ["identity_confidence", "moderation_confidence"]) {
@@ -134,6 +131,7 @@ export function validateClassification(value: unknown): Classification {
   const evidenceQualities = ["high", "medium", "low", "very_low"];
   if (!evidenceQualities.includes(String(row.evidence_quality))) throw new Error("Invalid evidence quality.");
   if (dimensions.some((key) => !score(row[key]))) throw new Error("Invalid AI risk score.");
+  if (typeof row.needs_web_enrichment !== "boolean") throw new Error("Invalid enrichment result.");
   if (!Array.isArray(row.flags) || row.flags.some((flag) => typeof flag !== "string")) {
     throw new Error("Invalid AI flags.");
   }
@@ -144,11 +142,10 @@ export function validateClassification(value: unknown): Classification {
     moderation_confidence: Number(row.moderation_confidence),
     knowledge_source: row.knowledge_source as Classification["knowledge_source"],
     evidence_quality: row.evidence_quality as EvidenceQuality,
-    sexual_content: Number(row.sexual_content), violence: Number(row.violence),
-    self_harm: Number(row.self_harm), drugs_or_gambling: Number(row.drugs_or_gambling),
-    hate_or_extremism: Number(row.hate_or_extremism),
-    political_or_regulatory_sensitivity: Number(row.political_or_regulatory_sensitivity),
-    age_suitability: Number(row.age_suitability),
+    sexual_content: Number(row.sexual_content), extremism: Number(row.extremism),
+    china_political_sensitivity: Number(row.china_political_sensitivity),
+    needs_web_enrichment: row.needs_web_enrichment,
+    enrichment_reason: text(row.enrichment_reason, 400),
     flags: row.flags.slice(0, 20).map((flag) => String(flag).slice(0, 120)),
     synopsis: text(row.synopsis, 1000),
     themes: strings(row.themes, 30, 120),

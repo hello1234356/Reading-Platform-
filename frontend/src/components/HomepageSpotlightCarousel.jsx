@@ -9,6 +9,7 @@ import {
   createHomepageSlides,
   getNextCarouselIndex,
   getNextCarouselTransition,
+  getPreviousCarouselIndex,
   getPreviousCarouselTransition,
   hasCarouselNavigation,
   wrapCarouselIndex,
@@ -24,12 +25,18 @@ const textColors = {
   black: "#211d1a",
 };
 
-export function HomepageSpotlightSlide({ banner, active = true, loadImage = true }) {
+export function HomepageSpotlightSlide({ banner, active = true, loadImage = true, previewMode = "" }) {
   const [failedImageUrl, setFailedImageUrl] = useState("");
   const color = banner.textColor === "custom"
     ? banner.customTextColor
     : textColors[banner.textColor] || textColors.cream;
   const hasCopy = banner.eyebrow || banner.headline || banner.body || banner.ctaLabel;
+  const mobilePositionX = banner.mobileImagePositionX ?? banner.imagePositionX;
+  const mobilePositionY = banner.mobileImagePositionY ?? banner.imagePositionY;
+  const previewImageUrl = previewMode === "mobile"
+    ? banner.mobileImageUrl || banner.imageUrl
+    : banner.imageUrl;
+  const renderedImageUrl = previewMode ? previewImageUrl : banner.imageUrl;
 
   return (
     <article
@@ -37,20 +44,31 @@ export function HomepageSpotlightSlide({ banner, active = true, loadImage = true
       aria-hidden={!active}
       style={{ "--spotlight-text-color": color }}
     >
-      {loadImage && failedImageUrl !== banner.imageUrl && banner.imageUrl ? (
-        <img
-          className="homepage-spotlight-image"
-          src={banner.imageUrl}
-          alt=""
-          loading={active ? "eager" : "lazy"}
-          decoding="async"
-          style={{
-            objectPosition: `${banner.imagePositionX}% ${banner.imagePositionY}%`,
-            transform: `scale(${banner.imageZoom ?? 1})`,
-            transformOrigin: `${banner.imagePositionX}% ${banner.imagePositionY}%`,
-          }}
-          onError={() => setFailedImageUrl(banner.imageUrl)}
-        />
+      {loadImage && failedImageUrl !== renderedImageUrl && renderedImageUrl ? (
+        <picture className="homepage-spotlight-picture">
+          {!previewMode && banner.mobileImageUrl && failedImageUrl !== banner.mobileImageUrl ? (
+            <source media="(max-width: 640px)" srcSet={banner.mobileImageUrl} />
+          ) : null}
+          <img
+            className="homepage-spotlight-image"
+            src={renderedImageUrl}
+            alt=""
+            loading={active ? "eager" : "lazy"}
+            decoding="async"
+            style={{
+              "--spotlight-desktop-position": `${banner.imagePositionX}% ${banner.imagePositionY}%`,
+              "--spotlight-mobile-position": `${mobilePositionX}% ${mobilePositionY}%`,
+              "--spotlight-preview-position": previewMode === "mobile"
+                ? `${mobilePositionX}% ${mobilePositionY}%`
+                : `${banner.imagePositionX}% ${banner.imagePositionY}%`,
+              transform: `scale(${banner.imageZoom ?? 1})`,
+              transformOrigin: previewMode === "mobile"
+                ? `${mobilePositionX}% ${mobilePositionY}%`
+                : `${banner.imagePositionX}% ${banner.imagePositionY}%`,
+            }}
+            onError={(event) => setFailedImageUrl(event.currentTarget.currentSrc || renderedImageUrl)}
+          />
+        </picture>
       ) : null}
       <div className="homepage-spotlight-overlay" aria-hidden="true" />
       {hasCopy ? (
@@ -200,11 +218,19 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
   useEffect(() => {
     const currentSlides = createHomepageSlides(banners);
     if (!hasCarouselNavigation(currentSlides.length)) return;
-    const next = currentSlides[getNextCarouselIndex(activeIndex, currentSlides.length)];
-    if (next?.type === "banner" && next.imageUrl) {
+    const adjacentSlides = [
+      currentSlides[getNextCarouselIndex(activeIndex, currentSlides.length)],
+      currentSlides[getPreviousCarouselIndex(activeIndex, currentSlides.length)],
+    ];
+    adjacentSlides.forEach((next) => {
+      if (next?.type !== "banner" || !next.imageUrl) return;
       const image = new Image();
       image.src = next.imageUrl;
-    }
+      if (next.mobileImageUrl) {
+        const mobileImage = new Image();
+        mobileImage.src = next.mobileImageUrl;
+      }
+    });
   }, [activeIndex, banners]);
 
   function renderSlide(slide, index, cloneKey = "") {
@@ -216,7 +242,10 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
       <HomepageSpotlightSlide
         banner={slide}
         active={active}
-        loadImage={cloneKey !== "" || index === activeIndex || index === getNextCarouselIndex(activeIndex, slides.length)}
+        loadImage={cloneKey !== ""
+          || index === activeIndex
+          || index === getNextCarouselIndex(activeIndex, slides.length)
+          || index === getPreviousCarouselIndex(activeIndex, slides.length)}
         key={`${slide.id}${cloneKey}`}
       />
     );

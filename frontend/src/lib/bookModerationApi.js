@@ -1,6 +1,7 @@
 import { requireSupabase } from "./supabase";
 
-const OBSERVE_SEARCH_BATCH_SIZE = 5;
+const ENFORCE_SEARCH_BATCH_SIZE = 10;
+export const BOOK_REVIEW_MESSAGE = "This book’s having a quick chat with our bookish gatekeepers 📚 Check back soon!";
 
 function identityFor(book) {
   const source = String(book?.source || "").trim();
@@ -39,15 +40,32 @@ export function toModerationBook(book) {
   };
 }
 
-export async function assessBooksInObserveMode(books) {
-  const normalized = books.map(toModerationBook).filter(Boolean).slice(0, OBSERVE_SEARCH_BATCH_SIZE);
-  if (!normalized.length) return { mode: "observe", results: [] };
+export async function enforceBookSearchResults(books) {
+  const candidates = books.map((book) => ({ book, moderation: toModerationBook(book) }))
+    .filter((candidate) => candidate.moderation);
+  if (!candidates.length) return { mode: "enforce", results: [], withheldCount: books.length,
+    message: books.length ? BOOK_REVIEW_MESSAGE : "" };
   const supabase = requireSupabase();
   const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData.session) return { mode: "observe", results: [] };
-  const { data, error } = await supabase.functions.invoke("moderate-books", {
-    body: { books: normalized },
-  });
-  if (error) throw error;
-  return data;
+  if (!sessionData.session) throw new Error("Sign in to search the moderated book catalog.");
+
+  const assessments = [];
+  for (let index = 0; index < candidates.length; index += ENFORCE_SEARCH_BATCH_SIZE) {
+    const batch = candidates.slice(index, index + ENFORCE_SEARCH_BATCH_SIZE);
+    const { data, error } = await supabase.functions.invoke("moderate-books", {
+      body: { books: batch.map((candidate) => candidate.moderation) },
+    });
+    if (error) throw error;
+    assessments.push(...(Array.isArray(data?.results) ? data.results : []));
+  }
+
+  const statusByIdentity = new Map(assessments.map((assessment) => [
+    `${assessment.source}\u0000${assessment.externalId}`, assessment.status,
+  ]));
+  const approved = candidates.filter(({ moderation }) => (
+    statusByIdentity.get(`${moderation.source}\u0000${moderation.externalId}`) === "approved"
+  )).map(({ book }) => book);
+  const withheldCount = books.length - approved.length;
+  return { mode: "enforce", results: approved, withheldCount,
+    message: withheldCount ? BOOK_REVIEW_MESSAGE : "" };
 }

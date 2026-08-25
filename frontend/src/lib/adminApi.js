@@ -302,6 +302,7 @@ export async function getBookModerationAssessments(status = "review_required") {
       manually_reviewed, reviewed_at, updated_at,
       books (title, author, cover_url)
     `)
+    .eq("policy_version", "school-books-2026-08-v2")
     .order("updated_at", { ascending: false })
     .limit(100);
   if (status && status !== "all") query = query.eq("status", status);

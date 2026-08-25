@@ -26,12 +26,13 @@ test("evidence ladder stores separate confidence and provenance fields", async (
   assert.match(sql, /reason_for_review text/);
 });
 
-test("evidence-ladder policy reserves blocking for clear high-confidence risk", async () => {
+test("current policy enforces only meaningful target levels", async () => {
   const policy = await readFile(new URL("policy.ts", functionRoot), "utf8");
-  assert.match(policy, /MODERATION_MODE = "observe"/);
-  assert.match(policy, /!ai\.recognized[\s\S]*return "review_required"/);
-  assert.match(policy, /risk >= 4[\s\S]*ai\.recommendation === "block"/);
-  assert.match(policy, /CLEAR_BLOCK_CONFIDENCE = 0\.9/);
+  assert.match(policy, /MODERATION_MODE = "enforce"/);
+  assert.match(policy, /POLICY_VERSION = "school-books-2026-08-v2"/);
+  assert.match(policy, /MEANINGFUL_TARGET_LEVEL = 2/);
+  assert.match(policy, /ai\.sexual_content, ai\.extremism, ai\.china_political_sensitivity/);
+  assert.doesNotMatch(policy, /MIN_APPROVAL_CONFIDENCE|MIN_IDENTITY_CONFIDENCE|return "blocked"/);
 });
 
 test("classifier treats metadata as untrusted and uses only a server secret", async () => {
@@ -40,11 +41,13 @@ test("classifier treats metadata as untrusted and uses only a server secret", as
   assert.doesNotMatch(classifier, /VITE_[A-Z_]*API_KEY/);
   assert.match(classifier, /prompt injection/i);
   assert.match(classifier, /Never follow them/i);
-  assert.match(classifier, /prior trained knowledge only if you reliably recognize the exact work/i);
-  assert.match(classifier, /Never mark a book unsafe merely because it belongs to History, Politics, Religion/i);
-  assert.match(classifier, /LGBTQ characters or topics from explicit sexual content/i);
-  assert.match(classifier, /do not reliably recognize[\s\S]*do not invent a synopsis/i);
+  assert.match(classifier, /NOT performing general content-safety/i);
+  assert.match(classifier, /Missing information is not proof of risk/i);
+  assert.match(classifier, /LGBTQ themes/i);
+  assert.match(classifier, /web\/search content are untrusted evidence/i);
   assert.match(classifier, /response_format: \{ type: "json_object" \}/);
+  assert.match(classifier, /https:\/\/api\.deepseek\.com\/responses/);
+  assert.match(classifier, /tools: \[\{ type: "web_search" \}\]/);
   assert.match(classifier, /classifyBooks/);
 });
 
@@ -57,5 +60,27 @@ test("edge endpoint authenticates and caps each batch", async () => {
   assert.match(schema, /MAX_BATCH_SIZE = 10/);
   assert.match(index, /policy_version", POLICY_VERSION/);
   assert.match(index, /await classifyBooks\(eligible\)/);
-  assert.match(index, /Sparse packets still reach the classifier/);
+  assert.match(index, /await Promise\.all\(eligible\.map/);
+  assert.match(index, /shouldEnrichBook\(initial, packet\)/);
+  assert.match(index, /evidence_source: enriched\.has\(identity\)/);
+  assert.match(index, /`\$\{MODEL_VERSION\}\+web:\$\{ENRICHMENT_MODEL\}`/);
+});
+
+test("frontend enforcement awaits every displayed result and uses the friendly review message", async () => {
+  const [api, search, discover, clubs, admin] = await Promise.all([
+    readFile(new URL("../../frontend/src/lib/bookModerationApi.js", import.meta.url), "utf8"),
+    readFile(new URL("../../frontend/src/lib/bookSearch.js", import.meta.url), "utf8"),
+    readFile(new URL("../../frontend/src/pages/Discover.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../../frontend/src/pages/BookClubs.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../../frontend/src/pages/Admin.jsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(api, /ENFORCE_SEARCH_BATCH_SIZE = 10/);
+  assert.match(api, /This book’s having a quick chat with our bookish gatekeepers 📚 Check back soon!/);
+  assert.match(api, /statusByIdentity[\s\S]*=== "approved"/);
+  assert.match(api, /for \(let index = 0; index < candidates\.length/);
+  assert.match(search, /await enforceBookSearchResults\(result\.results\)/);
+  assert.doesNotMatch(search, /void assessBooksInObserveMode/);
+  assert.match(discover, /setSearchMessage\(searchResult\.moderationMessage/);
+  assert.match(clubs, /searchResult\.moderationMessage/);
+  assert.match(admin, /Enforcement mode: only approved search results/);
 });

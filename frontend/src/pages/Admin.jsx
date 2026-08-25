@@ -582,7 +582,7 @@ function BookAiModerationTab() {
   return (
     <section className="admin-panel" aria-label="Book AI moderation review">
       <p className="admin-muted">
-        Observe mode: these assessments do not control public book visibility.
+        Enforcement mode: only approved search results are shown to students.
       </p>
       <FilterTabs filters={bookAssessmentFilters} activeFilter={filter} onChange={setFilter} />
       {message ? <p className="admin-error" role="alert">{message}</p> : null}
@@ -625,7 +625,7 @@ function BookAiModerationTab() {
               ) : null}
               <div className="admin-risk-grid" aria-label="Risk scores">
                 {Object.entries(assessment.riskScores).map(([dimension, score]) => (
-                  <span key={dimension}>{titleCase(dimension)}: {score}/4</span>
+                  <span key={dimension}>{titleCase(dimension)}: {score}/3</span>
                 ))}
               </div>
               {assessment.flags.length ? (

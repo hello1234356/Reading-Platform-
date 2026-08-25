@@ -1,23 +1,44 @@
-import type { AssessmentStatus, Classification, EvidenceQuality } from "./schema.ts";
+import type { AssessmentStatus, Classification, IncomingBook } from "./schema.ts";
 
-export const POLICY_VERSION = "school-display-v2-evidence-ladder-2026-08-25";
-export const MODERATION_MODE = "observe" as const;
-export const MIN_APPROVAL_CONFIDENCE = 0.78;
-export const MIN_IDENTITY_CONFIDENCE = 0.75;
-export const CLEAR_BLOCK_CONFIDENCE = 0.9;
+export const POLICY_VERSION = "school-books-2026-08-v2";
+export const MODERATION_MODE = "enforce" as const;
+export const MEANINGFUL_TARGET_LEVEL = 2;
 
-export function applyPolicy(ai: Classification, evidence: EvidenceQuality): AssessmentStatus {
-  if (!ai.recognized || ai.identity_confidence < MIN_IDENTITY_CONFIDENCE) return "review_required";
-  if (ai.moderation_confidence < MIN_APPROVAL_CONFIDENCE) return "review_required";
-  if (ai.political_or_regulatory_sensitivity >= 3) return "review_required";
-  const nonPoliticalRisks = [ai.sexual_content, ai.violence, ai.self_harm,
-    ai.drugs_or_gambling, ai.hate_or_extremism, ai.age_suitability];
-  if (nonPoliticalRisks.some((risk) => risk >= 4) && ai.recommendation === "block" &&
-    ai.moderation_confidence >= CLEAR_BLOCK_CONFIDENCE) {
-    return "blocked";
+export const targetLevels = (ai: Classification) => [
+  ai.sexual_content, ai.extremism, ai.china_political_sensitivity,
+];
+
+export function needsWebEnrichment(ai: Classification): boolean {
+  return ai.needs_web_enrichment || ai.recommendation === "enrich" ||
+    targetLevels(ai).some((level) => level === 1);
+}
+
+export function shouldEnrichBook(ai: Classification, book: Pick<IncomingBook,
+  "title" | "description" | "categories" | "subjects">): boolean {
+  if (!needsWebEnrichment(ai)) return false;
+  const hasSignal = targetLevels(ai).some((level) => level > 0);
+  const referenceText = [book.title, book.description, ...book.categories, ...book.subjects]
+    .join(" ").toLowerCase();
+  const plainlyReference = /\b(encyclop(?:a)?edia|dictionary|reference work|bibliograph(?:y|ic)|handbook)\b/
+    .test(referenceText);
+  return hasSignal || !plainlyReference;
+}
+
+export function applyPolicy(ai: Classification): AssessmentStatus {
+  return targetLevels(ai).some((level) => level >= MEANINGFUL_TARGET_LEVEL)
+    ? "review_required" : "approved";
+}
+
+export function applyEnrichmentFailurePolicy(ai: Classification): AssessmentStatus {
+  return targetLevels(ai).some((level) => level > 0)
+    ? "review_required" : "approved";
+}
+
+export function reviewReason(ai: Classification): string {
+  if (ai.sexual_content > 0) return `Sexual content: ${ai.reasoning_summary}`;
+  if (ai.extremism > 0) return `Extremist advocacy or propaganda: ${ai.reasoning_summary}`;
+  if (ai.china_political_sensitivity > 0) {
+    return `China-related political sensitivity: ${ai.reasoning_summary}`;
   }
-  if (ai.recommendation === "block" || ai.recommendation === "review_required") return "review_required";
-  if (ai.recommendation === "approve" && (evidence !== "very_low" ||
-    ai.knowledge_source === "model_prior_knowledge" || ai.knowledge_source === "combined")) return "approved";
-  return "review_required";
+  return ai.reasoning_summary;
 }

@@ -11,7 +11,7 @@ export const HOMEPAGE_BANNER_BUCKET = "homepage-banners";
 export const MAX_HOMEPAGE_BANNER_SIZE = 10 * 1024 * 1024;
 export const HOMEPAGE_BANNER_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-const bannerColumns = "id, eyebrow, headline, body, image_url, image_path, image_position_x, image_position_y, image_zoom, text_alignment, text_vertical_position, font_family, text_size, text_color, custom_text_color, overlay_strength, cta_label, cta_url, sort_order, status, starts_at, ends_at, created_at, updated_at";
+const bannerColumns = "id, eyebrow, headline, body, image_url, image_path, image_position_x, image_position_y, image_zoom, mobile_image_url, mobile_image_path, mobile_image_position_x, mobile_image_position_y, text_alignment, text_vertical_position, font_family, text_size, text_color, custom_text_color, overlay_strength, cta_label, cta_url, sort_order, status, starts_at, ends_at, created_at, updated_at";
 
 export async function getActiveHomepageBanners() {
   const supabase = requireSupabase();
@@ -123,6 +123,13 @@ export async function deleteHomepageBanner(banner) {
       await removeHomepageBannerImage(banner.imagePath);
     } catch (cleanupError) {
       console.warn("The deleted banner's image could not be removed:", cleanupError);
+    }
+  }
+  if (banner.mobileImagePath) {
+    try {
+      await removeHomepageBannerImage(banner.mobileImagePath);
+    } catch (cleanupError) {
+      console.warn("The deleted banner's mobile image could not be removed:", cleanupError);
     }
   }
 }

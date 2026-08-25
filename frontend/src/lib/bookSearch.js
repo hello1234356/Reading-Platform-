@@ -12,7 +12,7 @@ import {
 } from "./communityBooks";
 import { searchWithSharedCache } from "./bookSearchCache";
 import { searchGoogleWithQuotaFallback } from "./bookSearchPolicy";
-import { assessBooksInObserveMode } from "./bookModerationApi";
+import { enforceBookSearchResults } from "./bookModerationApi";
 
 export function isChineseBookSearch(searchTerm) {
   return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(
@@ -200,12 +200,8 @@ async function searchBooksByQueryLanguageRaw(searchTerm, limit = 20) {
 
 export async function searchBooksByQueryLanguage(searchTerm, limit = 20) {
   const result = await searchBooksByQueryLanguageRaw(searchTerm, limit);
-
-  // V1 observe mode deliberately does not delay search or alter visibility.
-  // Authenticated searches opportunistically populate the server-side cache.
-  void assessBooksInObserveMode(result.results).catch((error) => {
-    console.warn("Book moderation observation was unavailable:", error);
-  });
-
-  return result;
+  const moderated = await enforceBookSearchResults(result.results);
+  return { ...result, results: moderated.results,
+    blockedCount: (result.blockedCount || 0) + moderated.withheldCount,
+    moderationMessage: moderated.message };
 }

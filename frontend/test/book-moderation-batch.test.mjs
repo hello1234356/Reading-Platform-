@@ -5,15 +5,16 @@ import {
   validateBatchClassification,
 } from "../../supabase/functions/moderate-books/schema.ts";
 import { planBookAssessments } from "../../supabase/functions/moderate-books/evidence.ts";
+import { applyPolicy } from "../../supabase/functions/moderate-books/policy.ts";
 
 const dimensions = {
-  sexual_content: 0, violence: 0, self_harm: 0, drugs_or_gambling: 0,
-  hate_or_extremism: 0, political_or_regulatory_sensitivity: 0, age_suitability: 0,
+  sexual_content: 0, extremism: 0, china_political_sensitivity: 0,
 };
 const resultFor = (book, overrides = {}) => ({
   source: book.source, external_id: book.externalId, recommendation: "approve",
   recognized: true, identity_confidence: 0.96, moderation_confidence: 0.95,
   knowledge_source: "provider_evidence", evidence_quality: "high",
+  needs_web_enrichment: false, enrichment_reason: "",
   synopsis: "A factual synopsis.", themes: ["reading"],
   ...dimensions, flags: [], reasoning_summary: "Suitable based on supplied evidence.",
   ...overrides,
@@ -112,4 +113,46 @@ test("retryable provider failure retries the whole batch with a bound", async ()
   const validation = await classifyBooks(books.map((item) => ({ ...item, evidenceQuality: "medium" })));
   assert.equal(calls, 3);
   assert.equal(validation.valid.size, 2);
+});
+
+test("one of five books can use one targeted web enrichment request", async () => {
+  const books = [1, 2, 3, 4].map(book).concat([{
+    ...book(5, "A dragon-riding fantasy romance whose publisher summary omits content detail."),
+    title: "Fourth Wing", authors: ["Rebecca Yarros"], categories: ["Adult fantasy", "Romance"],
+  }]);
+  const initialResults = books.map((item, index) => resultFor(item, index === 4 ? {
+    recommendation: "enrich", sexual_content: 1, needs_web_enrichment: true,
+    enrichment_reason: "Adult romantasy metadata does not establish sexual explicitness.",
+  } : {}));
+  const enrichedResult = resultFor(books[4], {
+    recommendation: "review_required", sexual_content: 2,
+    knowledge_source: "combined", needs_web_enrichment: false,
+    reasoning_summary: "Multiple content descriptions report explicit on-page sexual scenes.",
+  });
+  const requests = [];
+  globalThis.Deno = { env: { get(name) {
+    return name === "DEEPSEEK_API_KEY" ? "test-key" : undefined;
+  } } };
+  globalThis.fetch = async (url, options) => {
+    requests.push({ url: String(url), body: JSON.parse(options.body) });
+    if (String(url).endsWith("/responses")) {
+      return new Response(JSON.stringify({ output: [{ type: "message", content: [{
+        type: "output_text", text: JSON.stringify(enrichedResult),
+      }] }] }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ choices: [{ message: { content:
+      JSON.stringify({ results: initialResults }) } }] }), { status: 200 });
+  };
+  const module = await import(`../../supabase/functions/moderate-books/classifier.ts?enrich=${Date.now()}`);
+  const packets = books.map((item) => ({ ...item, evidenceQuality: "medium" }));
+  const normal = await module.classifyBooks(packets);
+  assert.equal(requests.length, 1);
+  const candidate = normal.valid.get(moderationIdentity("google_books", "book-5"));
+  const enriched = await module.enrichBook(packets[4], candidate);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].body.model, "deepseek-v4-flash");
+  assert.deepEqual(requests[1].body.tools, [{ type: "web_search" }]);
+  assert.match(requests[1].body.input, /Fourth Wing/);
+  assert.doesNotMatch(requests[1].body.input, /Book 1/);
+  assert.equal(applyPolicy(enriched), "review_required");
 });

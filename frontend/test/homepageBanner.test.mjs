@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   getAdminHomepagePreviewBanners,
   mapHomepageBanner,
@@ -26,6 +27,10 @@ const storedBanner = {
   image_position_x: 42,
   image_position_y: 61,
   image_zoom: 1.35,
+  mobile_image_url: "https://example.test/banner-mobile.webp",
+  mobile_image_path: "admin/banner-mobile.webp",
+  mobile_image_position_x: 28,
+  mobile_image_position_y: 72,
   text_alignment: "right",
   text_vertical_position: "bottom",
   font_family: "classic_serif",
@@ -45,6 +50,9 @@ test("homepage banner normalization preserves custom color, zoom, crop, and typo
   assert.equal(banner.imageZoom, 1.35);
   assert.equal(banner.imagePositionX, 42);
   assert.equal(banner.imagePositionY, 61);
+  assert.equal(banner.mobileImageUrl, "https://example.test/banner-mobile.webp");
+  assert.equal(banner.mobileImagePositionX, 28);
+  assert.equal(banner.mobileImagePositionY, 72);
   assert.equal(banner.fontFamily, "classic_serif");
   assert.equal(banner.textSize, "huge");
   assert.equal(banner.textAlignment, "right");
@@ -59,6 +67,64 @@ test("homepage banner serialization persists custom color and image zoom", () =>
   assert.equal(row.text_color, "custom");
   assert.equal(row.custom_text_color, "#f5e5b8");
   assert.equal(row.image_zoom, 1.35);
+  assert.equal(row.mobile_image_url, "https://example.test/banner-mobile.webp");
+  assert.equal(row.mobile_image_path, "admin/banner-mobile.webp");
+  assert.equal(row.mobile_image_position_x, 28);
+  assert.equal(row.mobile_image_position_y, 72);
+});
+
+test("mobile banner imagery and focal points remain optional", () => {
+  const banner = mapHomepageBanner({
+    ...storedBanner,
+    mobile_image_url: null,
+    mobile_image_path: null,
+    mobile_image_position_x: null,
+    mobile_image_position_y: null,
+  });
+  assert.equal(banner.mobileImageUrl, "");
+  assert.equal(banner.mobileImagePositionX, null);
+  assert.equal(banner.mobileImagePositionY, null);
+  const row = toHomepageBannerRow(banner);
+  assert.equal(row.mobile_image_url, null);
+  assert.equal(row.mobile_image_position_x, null);
+  assert.equal(row.mobile_image_position_y, null);
+});
+
+test("spotlight uses stable landscape ratios and responsive mobile imagery", async () => {
+  const [carousel, css, adminCss, api, migration] = await Promise.all([
+    readFile(new URL("../src/components/HomepageSpotlightCarousel.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/HomepageSpotlightCarousel.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/HomepageBannerAdmin.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/homepageBannerApi.js", import.meta.url), "utf8"),
+    readFile(new URL("../../supabase/migrations/202608250010_homepage_banner_mobile_images.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(css, /homepage-spotlight-carousel[\s\S]*aspect-ratio:\s*3 \/ 1/);
+  assert.match(css, /max-width:\s*1024px[\s\S]*aspect-ratio:\s*2 \/ 1/);
+  assert.match(css, /max-width:\s*640px[\s\S]*aspect-ratio:\s*4 \/ 3/);
+  assert.doesNotMatch(adminCss, /homepage-banner-preview\.mobile[^}]*min-height:\s*500px/);
+  assert.match(adminCss, /homepage-banner-preview\.mobile[\s\S]*aspect-ratio:\s*4 \/ 3/);
+  assert.match(carousel, /source media="\(max-width: 640px\)" srcSet=\{banner\.mobileImageUrl\}/);
+  assert.match(api, /mobile_image_url, mobile_image_path, mobile_image_position_x, mobile_image_position_y/);
+  assert.match(migration, /mobile_image_url text/);
+  assert.match(migration, /mobile_image_position_x numeric/);
+});
+
+test("banner photographs remain color-accurate during horizontal transitions", async () => {
+  const [carousel, css] = await Promise.all([
+    readFile(new URL("../src/components/HomepageSpotlightCarousel.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/HomepageSpotlightCarousel.css", import.meta.url), "utf8"),
+  ]);
+  const imageRule = css.match(/\.homepage-spotlight-image\s*\{([^}]*)\}/)?.[1] || "";
+  assert.match(imageRule, /opacity:\s*1/);
+  assert.match(imageRule, /filter:\s*none/);
+  assert.match(imageRule, /mix-blend-mode:\s*normal/);
+  assert.doesNotMatch(css, /homepage-spotlight-overlay[^}]*var\(--(?:mocha|forest|butter|olive|paper)/);
+  assert.doesNotMatch(css, /homepage-spotlight-overlay[^}]*rgb\((?:20 17 15|255 250 241)/);
+  assert.match(css, /homepage-spotlight-overlay[\s\S]*rgb\(0 0 0 \/ var\(--spotlight-overlay/);
+  assert.match(css, /homepage-spotlight-track[\s\S]*transition:\s*transform/);
+  assert.match(carousel, /transform:\s*`translateX\(-\$\{/);
+  assert.doesNotMatch(carousel, /opacity.*active/i);
+  assert.match(carousel, /getPreviousCarouselIndex\(activeIndex, slides\.length\)/);
 });
 
 test("carousel navigation wraps and controls require multiple banners", () => {

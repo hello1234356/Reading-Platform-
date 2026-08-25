@@ -20,6 +20,10 @@ const emptyBanner = {
   imagePositionX: 50,
   imagePositionY: 50,
   imageZoom: 1,
+  mobileImageUrl: "",
+  mobileImagePath: "",
+  mobileImagePositionX: null,
+  mobileImagePositionY: null,
   textAlignment: "left",
   textVerticalPosition: "center",
   fontFamily: "lit_serif",
@@ -101,16 +105,23 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
   const [banner, setBanner] = useState(() => editorBanner(initialBanner || { sortOrder: nextOrder }));
   const [imageFile, setImageFile] = useState(null);
   const [localImageUrl, setLocalImageUrl] = useState("");
+  const [mobileImageFile, setMobileImageFile] = useState(null);
+  const [localMobileImageUrl, setLocalMobileImageUrl] = useState("");
   const [imageWarning, setImageWarning] = useState("");
+  const [mobileImageWarning, setMobileImageWarning] = useState("");
   const [previewMode, setPreviewMode] = useState("desktop");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const originalSnapshot = useMemo(() => JSON.stringify(editorBanner(initialBanner || { sortOrder: nextOrder })), [initialBanner, nextOrder]);
-  const dirty = imageFile || JSON.stringify(banner) !== originalSnapshot;
+  const dirty = imageFile || mobileImageFile || JSON.stringify(banner) !== originalSnapshot;
 
   useEffect(() => () => {
     if (localImageUrl) URL.revokeObjectURL(localImageUrl);
   }, [localImageUrl]);
+
+  useEffect(() => () => {
+    if (localMobileImageUrl) URL.revokeObjectURL(localMobileImageUrl);
+  }, [localMobileImageUrl]);
 
   function update(field, value) {
     setBanner((current) => ({ ...current, [field]: value }));
@@ -143,6 +154,36 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
     }
   }
 
+  function chooseMobileImage(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      validateHomepageBannerImage(file);
+      setError("");
+      setMobileImageFile(file);
+      const objectUrl = URL.createObjectURL(file);
+      setLocalMobileImageUrl(objectUrl);
+      const image = new Image();
+      image.onload = () => {
+        setMobileImageWarning(image.naturalWidth < image.naturalHeight
+          ? "This image is portrait. Use a landscape mobile banner, ideally around 1200 × 900px."
+          : "");
+      };
+      image.src = objectUrl;
+    } catch (nextError) {
+      setError(nextError.message);
+      event.target.value = "";
+    }
+  }
+
+  function clearMobileImage() {
+    setMobileImageFile(null);
+    setLocalMobileImageUrl("");
+    setMobileImageWarning("");
+    update("mobileImageUrl", "");
+    update("mobileImagePath", "");
+  }
+
   async function submit(event) {
     event.preventDefault();
     const validationError = validateBanner(banner, imageFile);
@@ -154,11 +195,17 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
     setSaving(true);
     setError("");
     let uploaded = null;
+    let uploadedMobile = null;
     try {
       if (imageFile) uploaded = await uploadHomepageBannerImage(imageFile);
+      if (mobileImageFile) uploadedMobile = await uploadHomepageBannerImage(mobileImageFile);
       const saved = await saveHomepageBanner({
         ...banner,
         ...(uploaded || {}),
+        ...(uploadedMobile ? {
+          mobileImageUrl: uploadedMobile.imageUrl,
+          mobileImagePath: uploadedMobile.imagePath,
+        } : {}),
         startsAt: banner.startsAt ? new Date(banner.startsAt).toISOString() : "",
         endsAt: banner.endsAt ? new Date(banner.endsAt).toISOString() : "",
       });
@@ -169,11 +216,23 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
           console.warn("The old banner image could not be removed:", cleanupError);
         }
       }
+      if ((uploadedMobile || !banner.mobileImageUrl) && initialBanner?.mobileImagePath) {
+        try {
+          await removeHomepageBannerImage(initialBanner.mobileImagePath);
+        } catch (cleanupError) {
+          console.warn("The old mobile banner image could not be removed:", cleanupError);
+        }
+      }
       onSaved(saved);
     } catch (saveError) {
       if (uploaded?.imagePath) {
         try { await removeHomepageBannerImage(uploaded.imagePath); } catch (cleanupError) {
           console.warn("The unused banner upload could not be removed:", cleanupError);
+        }
+      }
+      if (uploadedMobile?.imagePath) {
+        try { await removeHomepageBannerImage(uploadedMobile.imagePath); } catch (cleanupError) {
+          console.warn("The unused mobile banner upload could not be removed:", cleanupError);
         }
       }
       setError(saveError.message || "Could not save this homepage banner.");
@@ -182,7 +241,11 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
     }
   }
 
-  const preview = { ...banner, imageUrl: localImageUrl || banner.imageUrl };
+  const preview = {
+    ...banner,
+    imageUrl: localImageUrl || banner.imageUrl,
+    mobileImageUrl: localMobileImageUrl || banner.mobileImageUrl,
+  };
 
   return (
     <form className="homepage-banner-editor" onSubmit={submit}>
@@ -198,7 +261,7 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
       <div className="homepage-banner-editor-layout">
         <div className="homepage-banner-controls">
           <section className="homepage-banner-fieldset">
-            <h3>Background</h3>
+            <h3>Desktop background</h3>
             <Field label={banner.imageUrl || localImageUrl ? "Replace image" : "Background image"} wide hint="JPG, PNG, or WebP up to 10 MB. Around 2400 × 800px works best.">
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseImage} />
             </Field>
@@ -211,6 +274,20 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
             </Field>
             <Field label={`Image zoom (${Number(banner.imageZoom).toFixed(2)}×)`} wide>
               <input type="range" min="1" max="2.5" step="0.05" value={banner.imageZoom} onChange={(event) => update("imageZoom", event.target.value)} />
+            </Field>
+            <h3>Mobile background <small>(optional)</small></h3>
+            <Field label={banner.mobileImageUrl || localMobileImageUrl ? "Replace mobile image" : "Mobile image"} wide hint="Optional landscape image, ideally around 1200 × 900px. Without one, LitShelf crops the desktop image.">
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseMobileImage} />
+            </Field>
+            {banner.mobileImageUrl || localMobileImageUrl ? (
+              <button className="ghost-button homepage-banner-remove-mobile" type="button" onClick={clearMobileImage}>Use desktop image on mobile</button>
+            ) : null}
+            {mobileImageWarning ? <p className="homepage-banner-warning">{mobileImageWarning}</p> : null}
+            <Field label={`Mobile horizontal focal point (${banner.mobileImagePositionX ?? banner.imagePositionX}%)`}>
+              <input type="range" min="0" max="100" value={banner.mobileImagePositionX ?? banner.imagePositionX} onChange={(event) => update("mobileImagePositionX", event.target.value)} />
+            </Field>
+            <Field label={`Mobile vertical focal point (${banner.mobileImagePositionY ?? banner.imagePositionY}%)`}>
+              <input type="range" min="0" max="100" value={banner.mobileImagePositionY ?? banner.imagePositionY} onChange={(event) => update("mobileImagePositionY", event.target.value)} />
             </Field>
           </section>
 
@@ -247,7 +324,11 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
             </div>
           </div>
           <div className={`homepage-banner-preview ${previewMode}`}>
-            <HomepageSpotlightSlide banner={preview} />
+            <HomepageSpotlightSlide banner={preview} previewMode={previewMode} />
+            <div className="homepage-spotlight-pagination homepage-banner-preview-pagination" aria-hidden="true">
+              <button className="active" type="button" tabIndex="-1" />
+              <button type="button" tabIndex="-1" />
+            </div>
           </div>
         </aside>
       </div>
