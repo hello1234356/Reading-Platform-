@@ -45,6 +45,29 @@
   line-height: 0.9;
 }
 
+.profile-identity-copy,
+.profile-display-name-fit,
+.profile-display-name {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.profile-display-name-fit {
+  width: 100%;
+}
+
+.profile-identity .profile-display-name {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.profile-identity .profile-display-name--wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  hyphens: none;
+}
+
 .profile-identity span {
   display: block;
   margin-top: 12px;

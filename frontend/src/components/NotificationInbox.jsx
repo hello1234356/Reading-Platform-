@@ -130,7 +130,9 @@ function NotificationInbox({ userId }) {
           <div className="notification-inbox-list">
             {items.map((item) => (
               <button key={item.id} type="button"
-                className={item.isRead ? "notification-inbox-row" : "notification-inbox-row unread"}
+                className={`notification-inbox-row notification-inbox-row--${item.type}${
+                  item.isRead ? "" : " unread"
+                }`}
                 onClick={() => openNotification(item)}>
                 {item.actor ? <UserAvatar avatarUrl={item.actor.avatarUrl}
                   name={item.actor.name} size="small" /> : (

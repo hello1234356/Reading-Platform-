@@ -611,6 +611,14 @@
   -webkit-line-clamp: 2;
 }
 
+.notification-inbox-row--admin_announcement .notification-inbox-copy span {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: unset;
+}
+
 .notification-inbox-copy time {
   color: var(--soft-gray);
   font-size: 11px;

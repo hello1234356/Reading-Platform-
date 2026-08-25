@@ -91,6 +91,7 @@ test("navbar mailbox placement, bounded inbox, and accessibility are explicit", 
   assert.match(css, /\.notification-mailbox-button:focus-visible[\s\S]*0 0 0 3px/);
   assert.match(css, /\.notification-unread-badge[\s\S]*position: absolute/);
   assert.match(css, /width: min\(390px, calc\(100vw - 32px\)\)/);
+  assert.match(css, /\.notification-inbox-row--admin_announcement \.notification-inbox-copy span[\s\S]*overflow: visible[\s\S]*-webkit-line-clamp: unset/);
   assert.match(responsive, /max-width: 720px[\s\S]*\.notification-inbox-panel[\s\S]*position: fixed/);
   assert.match(responsive, /max-width: 1020px[\s\S]*\.nav-school-actions[\s\S]*grid-column: 2/);
 });

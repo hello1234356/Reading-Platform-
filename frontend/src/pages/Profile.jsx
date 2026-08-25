@@ -17,6 +17,7 @@ import { getUserReviews, saveReview } from "../lib/reviewApi";
 import { getBookClubs } from "../lib/bookClubApi";
 import { createPost } from "../lib/postApi";
 import StarRating from "../components/StarRating";
+import FittedProfileName from "../components/FittedProfileName";
 import {
   uploadUserAvatar,
   syncUserGrade,
@@ -984,9 +985,9 @@ function Profile() {
                 </span>
               )}
             </div>
-            <div>
+            <div className="profile-identity-copy">
               <p className="eyebrow">Personal Profile</p>
-              <h1>{displayName}</h1>
+              <FittedProfileName>{displayName}</FittedProfileName>
               <div className="profile-meta-row">
                 <span>
                   {officialName}
