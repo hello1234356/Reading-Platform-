@@ -10,7 +10,7 @@
   display: flex;
   width: 100%;
   min-height: inherit;
-  transition: transform 700ms cubic-bezier(0.22, 0.75, 0.24, 1);
+  transition: transform 1050ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .homepage-spotlight-track.no-transition {

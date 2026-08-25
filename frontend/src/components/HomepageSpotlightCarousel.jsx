@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getActiveHomepageBanners } from "../lib/homepageBannerApi";
+import {
+  getActiveHomepageBanners,
+  getHomepageBannersForAdminPreview,
+} from "../lib/homepageBannerApi";
+import { getAdminRole } from "../lib/adminApi";
 import {
   createHomepageSlides,
   getNextCarouselIndex,
@@ -159,7 +163,13 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
 
   useEffect(() => {
     let cancelled = false;
-    getActiveHomepageBanners()
+    getAdminRole()
+      .catch(() => null)
+      .then((adminRole) => (
+        adminRole
+          ? getHomepageBannersForAdminPreview()
+          : getActiveHomepageBanners()
+      ))
       .then((items) => {
         if (!cancelled) {
           setBanners(items);

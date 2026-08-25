@@ -1,5 +1,6 @@
 import { requireSupabase } from "./supabase";
 import {
+  getAdminHomepagePreviewBanners,
   mapHomepageBanner,
   toHomepageBannerRow,
 } from "./homepageBannerModel";
@@ -38,6 +39,10 @@ export async function getAllHomepageBanners() {
 
   if (error) throw error;
   return (data || []).map(mapHomepageBanner);
+}
+
+export async function getHomepageBannersForAdminPreview() {
+  return getAdminHomepagePreviewBanners(await getAllHomepageBanners());
 }
 
 export async function saveHomepageBanner(banner) {

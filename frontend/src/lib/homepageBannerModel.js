@@ -52,3 +52,17 @@ export function toHomepageBannerRow(banner) {
     ends_at: banner.endsAt || null,
   };
 }
+
+export function isHomepageBannerCurrentlyActive(banner, now = new Date()) {
+  if (banner.status !== "published") return false;
+  const timestamp = now.getTime();
+  if (banner.startsAt && new Date(banner.startsAt).getTime() > timestamp) return false;
+  if (banner.endsAt && new Date(banner.endsAt).getTime() <= timestamp) return false;
+  return true;
+}
+
+export function getAdminHomepagePreviewBanners(banners, now = new Date()) {
+  return banners.filter((banner) => (
+    banner.status === "draft" || isHomepageBannerCurrentlyActive(banner, now)
+  ));
+}

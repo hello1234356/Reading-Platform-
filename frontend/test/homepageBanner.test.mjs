@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  getAdminHomepagePreviewBanners,
   mapHomepageBanner,
   toHomepageBannerRow,
 } from "../src/lib/homepageBannerModel.js";
@@ -87,4 +88,19 @@ test("the quote-only state has no carousel controls", () => {
   const slides = createHomepageSlides([]);
   assert.equal(slides.length, 1);
   assert.deepEqual(getCarouselControlCounts(slides.length), { indicators: 0, arrows: 0 });
+});
+
+test("admin homepage preview includes drafts and only currently active published banners", () => {
+  const now = new Date("2026-08-25T12:00:00Z");
+  const banners = [
+    { id: "draft", status: "draft", startsAt: "2027-01-01T00:00:00Z", endsAt: "" },
+    { id: "active", status: "published", startsAt: "", endsAt: "" },
+    { id: "scheduled", status: "published", startsAt: "2027-01-01T00:00:00Z", endsAt: "" },
+    { id: "expired", status: "published", startsAt: "", endsAt: "2026-01-01T00:00:00Z" },
+  ];
+
+  assert.deepEqual(
+    getAdminHomepagePreviewBanners(banners, now).map((banner) => banner.id),
+    ["draft", "active"],
+  );
 });
