@@ -91,7 +91,6 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
   const nextShelf = targetShelf || null;
   const internalBookId = getInternalBookId(book);
   let providerIdentity = getProviderIdentity(book, normalizedIsbn);
-  let bookToPersist = book;
 
   if (!allowedShelves.includes(nextShelf)) {
     throw new Error("That shelf is not valid.");
@@ -154,11 +153,11 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
   }
 
   if (!savedBook && !providerIdentity) {
-    bookToPersist = await getIsbnWorkBookDetails({
+    const resolvedBook = await getIsbnWorkBookDetails({
       ...book,
       isbn: normalizedIsbn,
     });
-    providerIdentity = getProviderIdentity(bookToPersist, normalizedIsbn);
+    providerIdentity = getProviderIdentity(resolvedBook, normalizedIsbn);
 
     if (!providerIdentity) {
       throw new Error(
@@ -171,74 +170,12 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
    * If the book is not in the catalog yet, create it.
    */
   if (!savedBook) {
-    if (!bookToPersist.title?.trim()) {
-      throw new Error("This book is missing a title.");
-    }
-
-    const { data: insertedBook, error: insertBookError } = await supabase
-      .from("books")
-      .insert({
-        title: bookToPersist.title.trim(),
-        author: bookToPersist.author?.trim() || "Unknown author",
-        isbn: normalizedIsbn || null,
-        source: providerIdentity.source,
-        external_id: providerIdentity.externalId,
-        cover_url: bookToPersist.coverUrl || null,
-        description: bookToPersist.description || null,
-        genre: bookToPersist.genre || null,
-        shelf: null,
-      })
-      .select("id, title, author, isbn, cover_url, source, external_id")
-      .single();
-
-    if (insertBookError) {
-      /*
-       * Another user may have inserted the same ISBN between our
-       * lookup and insert. In that case, fetch the existing row.
-       */
-      if (insertBookError.code !== "23505") {
-        throw insertBookError;
-      }
-
-      let concurrentBook = null;
-
-      if (providerIdentity) {
-        const { data, error } = await supabase
-          .from("books")
-          .select("id, title, author, isbn, cover_url, source, external_id")
-          .eq("source", providerIdentity.source)
-          .eq("external_id", providerIdentity.externalId)
-          .maybeSingle();
-
-        if (error) {
-          throw error;
-        }
-
-        concurrentBook = data;
-      }
-
-      if (!concurrentBook && normalizedIsbn) {
-        const { data, error } = await supabase
-          .from("books")
-          .select("id, title, author, isbn, cover_url, source, external_id")
-          .eq("isbn", normalizedIsbn)
-          .maybeSingle();
-
-        if (error) {
-          throw error;
-        }
-
-        concurrentBook = data;
-      }
-
-      if (!concurrentBook) {
-        throw insertBookError;
-      }
-
-      savedBook = concurrentBook;
-    } else {
-      savedBook = insertedBook;
-    }
+    const { data: insertedBook, error: insertBookError } = await supabase.rpc(
+      "materialize_approved_book",
+      { p_source: providerIdentity.source, p_external_id: providerIdentity.externalId },
+    );
+    if (insertBookError) throw insertBookError;
+    savedBook = insertedBook;
   }
 
   /*

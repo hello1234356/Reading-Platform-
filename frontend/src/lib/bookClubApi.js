@@ -337,64 +337,11 @@ async function findOrCreateBook(selectedBook) {
     );
   }
 
-  const { data: createdBook, error: insertError } = await supabase
-    .from("books")
-    .insert({
-      title: selectedBook.title?.trim() || "Untitled",
-      author: selectedBook.author?.trim() || "Unknown author",
-      isbn: isbn || null,
-      source: providerIdentity.source,
-      external_id: providerIdentity.externalId,
-      cover_url: selectedBook.coverUrl || null,
-      description: selectedBook.description || null,
-      genre: selectedBook.genre || null,
-    })
-    .select("id, title, author, isbn, cover_url, source, external_id")
-    .single();
-
-  if (insertError) {
-    if (insertError.code !== "23505") {
-      throw insertError;
-    }
-
-    if (providerIdentity) {
-      const { data: concurrentBook, error: concurrentBookError } =
-        await supabase
-          .from("books")
-          .select("id, title, author, isbn, cover_url, source, external_id")
-          .eq("source", providerIdentity.source)
-          .eq("external_id", providerIdentity.externalId)
-          .maybeSingle();
-
-      if (concurrentBookError) {
-        throw concurrentBookError;
-      }
-
-      if (concurrentBook) {
-        return concurrentBook;
-      }
-    }
-
-    if (isbn) {
-      const { data: concurrentBook, error: concurrentBookError } =
-        await supabase
-          .from("books")
-          .select("id, title, author, isbn, cover_url, source, external_id")
-          .eq("isbn", isbn)
-          .maybeSingle();
-
-      if (concurrentBookError) {
-        throw concurrentBookError;
-      }
-
-      if (concurrentBook) {
-        return concurrentBook;
-      }
-    }
-
-    throw insertError;
-  }
-
+  const { data: createdBook, error: insertError } = await supabase.rpc(
+    "materialize_approved_book",
+    { p_source: providerIdentity.source, p_external_id: providerIdentity.externalId },
+  );
+  if (insertError) throw insertError;
   return createdBook;
 }
 

@@ -102,7 +102,8 @@ test("transient errors use a short retry backoff but are never durable decisions
 test("Admin review defaults exclude pure technical failures", async () => {
   const adminApi = await readFile(new URL("../src/lib/adminApi.js", import.meta.url), "utf8");
   assert.match(adminApi, /getBookModerationAssessments\(status = "review_required"\)/);
-  assert.match(adminApi, /row\.status === status/);
+  assert.match(adminApi, /list_effective_book_moderation_assessments/);
+  assert.match(adminApi, /p_status: status \|\| "all"/);
 });
 
 test("five unknown books use one batch call and injection stays quoted as evidence", async () => {
@@ -239,6 +240,66 @@ test("classifier exposes structured truncation and invalid JSON codes", async ()
     (error) => error.code === "classification_invalid_json");
 });
 
+test("classifier distinguishes missing key, auth, server, timeout, and empty output", async () => {
+  globalThis.Deno = { env: { get() { return undefined; } } };
+  globalThis.fetch = async () => { throw new Error("fetch must not run without a key"); };
+  const missingKey = await import(
+    `../../supabase/functions/moderate-books/classifier.ts?missingkey=${Date.now()}`
+  );
+  await assert.rejects(missingKey.classifyBooks(openLibraryHarryPotterBooks.slice(0, 1)),
+    (error) => error.code === "deepseek_key_missing");
+
+  globalThis.Deno = { env: { get(name) {
+    return name === "DEEPSEEK_API_KEY" ? "test-key" : undefined;
+  } } };
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: {
+    code: "unauthorized", message: "Authentication failed.",
+  } }), { status: 401 });
+  const auth = await import(`../../supabase/functions/moderate-books/classifier.ts?auth=${Date.now()}`);
+  await assert.rejects(auth.classifyBooks(openLibraryHarryPotterBooks.slice(0, 1)),
+    (error) => error.code === "deepseek_auth_failed");
+
+  globalThis.fetch = async () => new Response("provider down", { status: 500 });
+  const server = await import(`../../supabase/functions/moderate-books/classifier.ts?server=${Date.now()}`);
+  await assert.rejects(server.classifyBooks(openLibraryHarryPotterBooks.slice(0, 1)),
+    (error) => error.code === "deepseek_server_error");
+
+  globalThis.fetch = async () => { throw new DOMException("aborted", "AbortError"); };
+  const timeout = await import(`../../supabase/functions/moderate-books/classifier.ts?timeout=${Date.now()}`);
+  await assert.rejects(timeout.classifyBooks(openLibraryHarryPotterBooks.slice(0, 1)),
+    (error) => error.code === "deepseek_timeout");
+
+  globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop",
+    message: { content: "" } }] }), { status: 200 });
+  const empty = await import(`../../supabase/functions/moderate-books/classifier.ts?empty=${Date.now()}`);
+  await assert.rejects(empty.classifyBooks(openLibraryHarryPotterBooks.slice(0, 1)),
+    (error) => error.code === "classification_empty");
+});
+
+test("one failed truncation retry half preserves the successful five books", async () => {
+  let calls = 0;
+  globalThis.Deno = { env: { get(name) {
+    return name === "DEEPSEEK_API_KEY" ? "test-key" : undefined;
+  } } };
+  globalThis.fetch = async (_url, options) => {
+    calls += 1;
+    const packets = JSON.parse(JSON.parse(options.body).messages[1].content).evidence_packets;
+    if (calls === 1) return new Response(JSON.stringify({ choices: [{ finish_reason: "length",
+      message: { content: "{" } }] }), { status: 200 });
+    if (calls === 3) return new Response(JSON.stringify({ choices: [{ finish_reason: "stop",
+      message: { content: "invalid-json" } }] }), { status: 200 });
+    const sourceBooks = packets.map((packet) => openLibraryHarryPotterBooks.find((item) =>
+      item.externalId === packet.identity.external_id));
+    return new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content:
+      JSON.stringify({ results: sourceBooks.map((item) => resultFor(item)) }) } }] }), { status: 200 });
+  };
+  const module = await import(`../../supabase/functions/moderate-books/classifier.ts?half=${Date.now()}`);
+  const validation = await module.classifyBooks(openLibraryHarryPotterBooks);
+  assert.equal(validation.valid.size, 5);
+  assert.equal(validation.errors.size, 5);
+  validation.errors.forEach((code) => assert.equal(code, "classifier_unavailable"));
+});
+
 test("invalid DeepSeek model response preserves a structured code and safe server log", async () => {
   globalThis.Deno = { env: { get(name) {
     return name === "DEEPSEEK_API_KEY" ? "test-key" : undefined;
@@ -302,7 +363,7 @@ test("one of five books can use one targeted web enrichment request", async () =
   globalThis.fetch = async (url, options) => {
     requests.push({ url: String(url), body: JSON.parse(options.body) });
     if (String(url).endsWith("/responses")) {
-      return new Response(JSON.stringify({ output: [{ type: "message", content: [{
+    return new Response(JSON.stringify({ status: "completed", output: [{ type: "message", content: [{
         type: "output_text", text: JSON.stringify(enrichedResult),
       }] }] }), { status: 200 });
     }
@@ -383,4 +444,65 @@ test("moderation failure preserves cached approvals and fails only unknown cards
       } else throw new Error("temporary outage");
     });
   assert.deepEqual(updates.map(([, status]) => status), ["approved", "failed"]);
+});
+
+test("cache lookup failure still attempts the classifier", async () => {
+  const books = initializeBookModerationResults([book(1), book(2)]);
+  const updates = [];
+  const calls = [];
+  await moderateBookSearchResults(books, (...args) => updates.push(args), 4,
+    async (batch, cacheOnly, onBatch) => {
+      calls.push(cacheOnly);
+      if (cacheOnly) throw new Error("cache unavailable");
+      onBatch(batch.map((item) => ({ source: item.source, externalId: item.externalId,
+        cached: false, status: "approved" })));
+    });
+  assert.deepEqual(calls, [true, false]);
+  assert.deepEqual(updates.map(([, status]) => status), ["approved", "approved"]);
+});
+
+test("a later failed batch cannot overwrite earlier approved results", async () => {
+  const books = initializeBookModerationResults(Array.from({ length: 12 }, (_, index) => book(index + 1)));
+  const updates = [];
+  await moderateBookSearchResults(books, (...args) => updates.push(args), 4,
+    async (batch, cacheOnly, onBatch) => {
+      if (cacheOnly) {
+        onBatch(batch.map((item) => ({ source: item.source, externalId: item.externalId,
+          cached: false, status: "checking" })));
+        return;
+      }
+      onBatch(batch.slice(0, 10).map((item) => ({ source: item.source,
+        externalId: item.externalId, status: "approved" })), {}, {
+        requestedBooks: batch.slice(0, 10),
+      });
+      onBatch([], {}, { requestedBooks: batch.slice(10), error: new Error("second batch failed") });
+    });
+  assert.deepEqual(updates.slice(0, 10).map(([, status]) => status), Array(10).fill("approved"));
+  assert.deepEqual(updates.slice(10).map(([, status]) => status), ["failed", "failed"]);
+  assert.ok(updates.slice(10).every(([, , details]) =>
+    details.failureCode === "edge_request_failed"));
+});
+
+test("missing Edge response identities leave no card checking forever", async () => {
+  const books = initializeBookModerationResults([book(1), book(2), book(3)]);
+  const updates = [];
+  await moderateBookSearchResults(books, (...args) => updates.push(args), 4,
+    async (batch, cacheOnly, onBatch) => {
+      if (cacheOnly) return onBatch([]);
+      onBatch([{ source: batch[0].source, externalId: batch[0].externalId,
+        status: "approved" }]);
+    });
+  assert.equal(updates[0][1], "approved");
+  assert.deepEqual(updates.slice(1).map(([, status]) => status), ["failed", "failed"]);
+  assert.ok(updates.slice(1).every(([, , details]) =>
+    details.failureCode === "moderation_response_incomplete"));
+});
+
+test("duplicate identities retain the richest evidence packet", () => {
+  const sparse = { ...book(20, ""), authors: [], categories: [] };
+  const rich = { ...sparse, description: "Canonical description ".repeat(30),
+    authors: ["Known Author"], categories: ["Fiction"] };
+  const [selected] = uniqueModerationBooks([rich, sparse]);
+  assert.equal(selected.description, rich.description);
+  assert.deepEqual(selected.authors, ["Known Author"]);
 });

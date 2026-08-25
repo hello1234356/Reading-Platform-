@@ -29,7 +29,7 @@ test("evidence ladder stores separate confidence and provenance fields", async (
 test("current policy enforces only meaningful target levels", async () => {
   const policy = await readFile(new URL("policy.ts", functionRoot), "utf8");
   assert.match(policy, /MODERATION_MODE = "enforce"/);
-  assert.match(policy, /POLICY_VERSION = "school-books-2026-08-v2"/);
+  assert.match(policy, /POLICY_VERSION = "school-books-2026-08-v3"/);
   assert.match(policy, /MEANINGFUL_TARGET_LEVEL = 2/);
   assert.match(policy, /ai\.sexual_content, ai\.extremism, ai\.china_political_sensitivity/);
   assert.doesNotMatch(policy, /MIN_APPROVAL_CONFIDENCE|MIN_IDENTITY_CONFIDENCE|return "blocked"/);
@@ -72,11 +72,12 @@ test("edge endpoint authenticates and caps each batch", async () => {
 });
 
 test("frontend renders checking cards before asynchronous moderation and keeps durable states distinct", async () => {
-  const [api, search, discover, clubs, admin, adminApi] = await Promise.all([
+  const [api, search, discover, clubs, status, admin, adminApi] = await Promise.all([
     readFile(new URL("../../frontend/src/lib/bookModerationApi.js", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/lib/bookSearch.js", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/pages/Discover.jsx", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/pages/BookClubs.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../../frontend/src/lib/bookModerationStatus.js", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/pages/Admin.jsx", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/lib/adminApi.js", import.meta.url), "utf8"),
   ]);
@@ -88,11 +89,18 @@ test("frontend renders checking cards before asynchronous moderation and keeps d
   assert.match(search, /startModeration: \(onUpdate\)/);
   assert.match(search, /firstResultsRenderedMs: providerDurationMs/);
   assert.doesNotMatch(search, /await (?:enforce|moderate)BookSearchResults/);
-  assert.match(discover, /Checking availability…/);
-  assert.match(discover, /Pending school review/);
-  assert.match(clubs, /Checking availability…/);
-  assert.match(clubs, /Pending school review/);
-  assert.match(admin, /Enforcement mode: only approved search results/);
+  assert.match(discover, /<BookModerationStatus book=\{book\}/);
+  assert.match(clubs, /<BookModerationStatus book=\{book\}/);
+  assert.match(status, /Checking with our bookish gatekeepers… 📚/);
+  assert.match(status, /taking a closer look at this one/);
+  assert.match(status, /temporarily unavailable/);
+  assert.doesNotMatch(discover, /moderationStatus === "blocked"[\s\S]*\.filter/);
+  assert.doesNotMatch(clubs, /moderationStatus === "blocked"[\s\S]*\.filter/);
+  assert.match(admin, /only approved books can be opened or used/);
+  assert.match(admin, /Technical moderation failure/);
+  assert.match(admin, /This is not a content-review decision/);
+  assert.match(admin, /Approve manually/);
   assert.doesNotMatch(adminApi, /\.eq\("policy_version", "school-books-2026-08-v2"\)/);
-  assert.match(adminApi, /latestByIdentity/);
+  assert.match(adminApi, /list_effective_book_moderation_assessments/);
+  assert.doesNotMatch(adminApi, /resolveEffectiveBookModerationRows/);
 });

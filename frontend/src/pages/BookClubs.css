@@ -693,28 +693,32 @@
   background: rgba(255, 250, 241, 0.96);
 }
 
-.book-search-suggestions button {
+.book-search-suggestion {
+  border-bottom: 1px solid rgba(138, 106, 88, 0.08);
+}
+
+.book-search-suggestion:last-child {
+  border-bottom: 0;
+}
+
+.book-search-suggestion-select {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 2px;
   align-items: center;
+  width: 100%;
   padding: 10px 12px;
   border: 0;
-  border-bottom: 1px solid rgba(138, 106, 88, 0.08);
   background: transparent;
   color: var(--charcoal);
   text-align: left;
 }
 
-.book-search-suggestions button:last-child {
-  border-bottom: 0;
-}
-
-.book-search-suggestions button:hover {
+.book-search-suggestion-select:hover {
   background: rgba(244, 220, 123, 0.2);
 }
 
-.book-search-suggestions button.selected {
+.book-search-suggestion-select.selected {
   background: rgba(170, 182, 150, 0.24);
 }
 
@@ -1161,7 +1165,8 @@
 }
 .book-search-suggestions .book-moderation-state {
   display: block;
-  margin-top: 4px;
+  max-width: calc(100% - 66px);
+  margin: 0 12px 10px 54px;
   color: var(--mocha);
   font-size: 11px;
   font-weight: 800;

@@ -20,6 +20,7 @@ import {
 } from "../lib/openLibraryBooks";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
+import BookModerationStatus from "../components/BookModerationStatus";
 import ReviewModal from "../components/ReviewModal";
 import StarRating from "../components/StarRating";
 import { createPost } from "../lib/postApi";
@@ -54,6 +55,8 @@ function EditorPickCover({ book, featured = false }) {
 
   useEffect(() => {
     const nextCoverSrc = getEditorPickCoverUrl(book);
+    // Synchronize state when a different editor pick is rendered.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCoverSrc(nextCoverSrc);
     setHasImage(Boolean(nextCoverSrc));
   }, [book]);
@@ -144,7 +147,7 @@ function isHttpUrl(value) {
 
 function Discover() {
   const { requireLogin } = useRequireLogin();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const bookDeepLinkHandledRef = useRef("");
   const bookSearchGateRef = useRef(createLatestRequestGate());
@@ -235,6 +238,14 @@ function Discover() {
   }
 
   async function runBookSearch(searchTerm) {
+    // The Edge classifier is intentionally authenticated and rate-limited.
+    // Keep the public editorial page readable, but do not start a provider
+    // search whose moderation phase cannot legally complete.
+    if (authLoading) return;
+    if (!user?.id) {
+      requireLogin();
+      return;
+    }
     const requestId = bookSearchGateRef.current.begin();
     const normalizedSearchTerm = searchTerm.trim();
 
@@ -271,12 +282,17 @@ function Discover() {
       setBookResults(results);
       setSearchStatus("success");
       setSearchMessage("");
-      void searchResult.startModeration((key, moderationStatus) => {
+      void searchResult.startModeration((key, moderationStatus, details = {}) => {
         if (!bookSearchGateRef.current.isCurrent(requestId)) return;
-        setBookResults((current) => moderationStatus === "blocked"
-          ? current.filter((book) => book.moderationKey !== key)
-          : current.map((book) => book.moderationKey === key
-            ? { ...book, moderationStatus } : book));
+        setBookResults((current) => current.map((book) => book.moderationKey === key
+          ? {
+            ...book,
+            moderationStatus,
+            moderationFailureCode: details.failureCode || "",
+            moderationPolicyVersion:
+              details.policyVersion || book.moderationPolicyVersion || "",
+          }
+          : book));
       });
     } catch (error) {
       if (!bookSearchGateRef.current.isCurrent(requestId)) return;
@@ -329,9 +345,12 @@ function Discover() {
         runBookSearch(searchTerm);
       });
     }
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, authLoading, user?.id]);
 
   useEffect(() => {
+    // Reset the sentinel when a new result set starts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFloatingSubmissionUnlocked(false);
   }, [query, bookResults.length, searchStatus]);
 
@@ -711,7 +730,7 @@ async function submitMissingBook(event) {
               {bookResults.map((book, index) => {
                 const isSaved = isBookSaved(book);
                 const isSaving = savingBookKey === getBookKey(book);
-                const isAvailable = book.moderationStatus === "approved";
+                const isModerationApproved = book.moderationStatus === "approved";
                 const shouldInsertInlineSubmissionEntry =
                   shouldShowResultSubmission &&
                   !shouldUseFloatingSubmission &&
@@ -724,7 +743,7 @@ async function submitMissingBook(event) {
 	                    <button
                           className="isbn-result-details-button"
                           type="button"
-                          disabled={!isAvailable}
+                          disabled={!isModerationApproved}
                           onClick={() => openBookDetails(book)}
                           aria-label={`View details for ${book.title}`}
                         >
@@ -743,15 +762,9 @@ async function submitMissingBook(event) {
                             <p className="isbn-result-author">{book.author}</p>
                             {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
                             {book.isbn ? <small>ISBN {book.isbn}</small> : null}
-                            {!isAvailable ? <small className={`book-moderation-state ${book.moderationStatus}`}>
-                              {book.moderationStatus === "review_required"
-                                ? "Pending school review"
-                                : book.moderationStatus === "failed"
-                                  ? "Availability check failed — retry with another search"
-                                  : "Checking availability…"}
-                            </small> : null}
                           </div>
                         </button>
+	                      <BookModerationStatus book={book} />
 	                      <div className="isbn-result-actions">
                           <label className="isbn-shelf-choice">
                             <span>Add to</span>
@@ -763,7 +776,7 @@ async function submitMissingBook(event) {
                                   [getBookKey(book)]: event.target.value,
                                 }))
                               }
-                              disabled={isSaving || !isAvailable}
+                              disabled={isSaving || !isModerationApproved}
                             >
                               <option value="to-be-read">To Be Read</option>
                               <option value="currently-reading">Currently Reading</option>
@@ -773,7 +786,7 @@ async function submitMissingBook(event) {
 		                      <button
 	                        className="primary-button"
 	                        type="button"
-                          disabled={isSaved || isSaving || !isAvailable}
+                          disabled={isSaved || isSaving || !isModerationApproved}
                           onClick={() => addToReadingList(book)}
                         >
                           {isSaving

@@ -6,7 +6,9 @@ create table if not exists public.book_moderators (
 alter table public.books
 add column if not exists language text,
 add column if not exists publisher text,
-add column if not exists publication_year integer;
+add column if not exists publication_year integer,
+add column if not exists cover_url text,
+add column if not exists shelf text;
 
 create table if not exists public.book_submissions (
   id uuid primary key default gen_random_uuid(),

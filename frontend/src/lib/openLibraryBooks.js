@@ -1,4 +1,4 @@
-import { persistMissingBookMetadataSafely } from "./bookMetadataApi";
+import { persistMissingBookMetadataSafely } from "./bookMetadataApi.js";
 
 const OPEN_LIBRARY_BASE_PATH = "/open-library-api";
 const OPEN_LIBRARY_ORIGIN = "https://openlibrary.org";
@@ -152,6 +152,33 @@ async function fetchOpenLibrarySearchWithFallback(primaryUrl, fallbackUrl) {
   }
 }
 
+async function fetchOpenLibraryDetail(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Open Library detail returned ${response.status}.`);
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType && !/json/i.test(contentType)) {
+    throw new Error("Open Library detail proxy returned non-JSON content.");
+  }
+  const data = await response.json();
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("Open Library detail response was malformed.");
+  }
+  return data;
+}
+
+async function fetchOpenLibraryDetailWithFallback(primaryUrl, fallbackUrl) {
+  try {
+    return await fetchOpenLibraryDetail(primaryUrl);
+  } catch (primaryError) {
+    try {
+      return await fetchOpenLibraryDetail(fallbackUrl);
+    } catch (fallbackError) {
+      fallbackError.primaryError = primaryError;
+      throw fallbackError;
+    }
+  }
+}
+
 export async function searchOpenLibraryBooks(searchTerm, limit = 20, options = {}) {
   const query = String(searchTerm || "").trim();
 
@@ -214,23 +241,7 @@ export async function getOpenLibraryBookDetails(book) {
     const fallbackDetailUrl = new URL(
       `${OPEN_LIBRARY_ORIGIN}${detailPath}`,
     );
-    let response;
-
-    try {
-      response = await fetch(detailUrl);
-    } catch {
-      response = await fetch(fallbackDetailUrl);
-    }
-
-    if (!response.ok) {
-      response = await fetch(fallbackDetailUrl);
-
-      if (!response.ok) {
-        throw new Error("Open Library could not load this book.");
-      }
-    }
-
-    const data = await response.json();
+    const data = await fetchOpenLibraryDetailWithFallback(detailUrl, fallbackDetailUrl);
     const coverId = firstValue(data.covers);
 
     const resolvedDetails = {

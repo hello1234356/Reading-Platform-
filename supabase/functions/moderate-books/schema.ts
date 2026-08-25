@@ -58,7 +58,39 @@ export type BatchClassificationValidation = {
 export const moderationIdentity = (source: string, externalId: string) =>
   `${source}\u0000${externalId}`;
 
+export function canonicalExternalId(source: string, value: unknown, bookId?: number) {
+  const raw = String(value || "").trim();
+  if (source === "google_books") {
+    return /^[A-Za-z0-9_-]{1,300}$/u.test(raw) ? raw : "";
+  }
+  if (source === "open_library") {
+    if (/^\/(?:works|books)\/[A-Za-z0-9_-]+[WM]$/u.test(raw)) return raw;
+    if (/^[A-Za-z0-9_-]+M$/u.test(raw)) return `/books/${raw}`;
+    if (/^[A-Za-z0-9_-]+W$/u.test(raw)) return `/works/${raw}`;
+    return "";
+  }
+  if (source === "isbn_work") {
+    const isbn = raw.replace(/[^0-9Xx]/g, "").toUpperCase();
+    return isbn.length === 10 || isbn.length === 13 ? isbn : "";
+  }
+  if (source === "community") {
+    const numericId = Number(bookId);
+    const expected = Number.isSafeInteger(numericId) && numericId > 0
+      ? `book:${numericId}` : "";
+    if (!raw) return expected;
+    if (!/^book:[1-9]\d*$/u.test(raw)) return "";
+    return expected && raw !== expected ? "" : raw;
+  }
+  return "";
+}
+
 const text = (value: unknown, max: number) => String(value || "").trim().slice(0, max);
+const prose = (value: unknown, maxWords: number, maxLength: number) => String(value || "")
+  .trim()
+  .split(/\s+/)
+  .slice(0, maxWords)
+  .join(" ")
+  .slice(0, maxLength);
 const strings = (value: unknown, maxItems: number, maxLength: number) =>
   Array.isArray(value)
     ? value.slice(0, maxItems).map((item) => text(item, maxLength)).filter(Boolean)
@@ -79,11 +111,12 @@ export function validateRequestBody(body: unknown): IncomingBook[] {
     const item = raw as Record<string, unknown>;
     const source = text(item.source, 40).toLowerCase();
     const bookId = Number(item.bookId);
-    let externalId = text(item.externalId, 300);
-    if (source === "community" && !externalId && Number.isSafeInteger(bookId) && bookId > 0) {
-      externalId = `book:${bookId}`;
-    }
     if (!ALLOWED_SOURCES.has(source)) throw new Error(`books[${index}].source is unsupported.`);
+    const externalId = canonicalExternalId(
+      source,
+      text(item.externalId, 300),
+      Number.isSafeInteger(bookId) && bookId > 0 ? bookId : undefined,
+    );
     if (!externalId) throw new Error(`books[${index}].externalId is required.`);
     const identity = `${source}\u0000${externalId}`;
     if (seen.has(identity)) throw new Error(`books[${index}] duplicates another provider identity.`);
@@ -106,8 +139,9 @@ export function validateRequestBody(body: unknown): IncomingBook[] {
       maturityRating: text(item.maturityRating, 100),
       language: text(item.language, 40),
       coverUrl: text(item.coverUrl, 2000),
-      providerMetadata: item.providerMetadata && typeof item.providerMetadata === "object"
-        ? item.providerMetadata as Record<string, unknown> : undefined,
+      // Provider metadata is fetched or loaded again server-side. Never pass an
+      // arbitrary nested client object into a durable shared assessment.
+      providerMetadata: undefined,
     };
   });
 }
@@ -146,10 +180,10 @@ export function validateClassification(value: unknown): Classification {
     china_political_sensitivity: Number(row.china_political_sensitivity),
     needs_web_enrichment: row.needs_web_enrichment,
     enrichment_reason: text(row.enrichment_reason, 400),
-    flags: row.flags.slice(0, 20).map((flag) => String(flag).slice(0, 120)),
-    synopsis: text(row.synopsis, 1000),
-    themes: strings(row.themes, 30, 120),
-    reasoning_summary: text(row.reasoning_summary, 600),
+    flags: row.flags.slice(0, 6).map((flag) => String(flag).slice(0, 120)),
+    synopsis: prose(row.synopsis, 40, 500),
+    themes: strings(row.themes, 6, 120),
+    reasoning_summary: prose(row.reasoning_summary, 30, 400),
   };
 }
 

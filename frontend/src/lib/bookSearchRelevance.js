@@ -28,13 +28,20 @@ export function scoreBookSearchResult(query, book = {}) {
   const authorTokens = new Set(author.split(" "));
   const allTitleTokens = tokens.every((token) => titleTokens.has(token));
   const allCombinedTokens = tokens.every((token) => titleTokens.has(token) || authorTokens.has(token));
+  const queryHasCjk = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(normalizedQuery);
+  const titleContainsPhrase = queryHasCjk
+    ? title.includes(normalizedQuery)
+    : ` ${title} `.includes(` ${normalizedQuery} `);
+  const authorContainsPhrase = queryHasCjk
+    ? author.includes(normalizedQuery)
+    : ` ${author} `.includes(` ${normalizedQuery} `);
   let score;
 
   if (title === normalizedQuery) score = 1000;
   else if (title.startsWith(`${normalizedQuery} `)) score = 900;
-  else if (title.includes(normalizedQuery)) score = 850;
+  else if (titleContainsPhrase) score = 850;
   else if (allTitleTokens) score = 750;
-  else if (author === normalizedQuery || author.includes(normalizedQuery)) score = 650;
+  else if (author === normalizedQuery || authorContainsPhrase) score = 650;
   else if (allCombinedTokens) score = 500;
   else {
     const titleMatches = tokens.filter((token) => titleTokens.has(token)).length;

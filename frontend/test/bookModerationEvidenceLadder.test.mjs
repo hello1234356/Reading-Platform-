@@ -54,16 +54,18 @@ test("broad genres do not prevent classification or force a verdict", async () =
 });
 
 test("provider mappings retain available moderation evidence", async () => {
-  const [google, openLibrary, api] = await Promise.all([
+  const [google, openLibrary, api, providerEvidence] = await Promise.all([
     readFile(new URL("lib/googleBooks.js", root), "utf8"),
     readFile(new URL("lib/openLibraryBooks.js", root), "utf8"),
     readFile(new URL("lib/bookModerationApi.js", root), "utf8"),
+    readFile(new URL("../../supabase/functions/moderate-books/providerEvidence.ts", import.meta.url), "utf8"),
   ]);
   assert.match(google, /categories: Array\.isArray\(info\.categories\)/);
   assert.match(google, /maturityRating: info\.maturityRating/);
   assert.match(openLibrary, /subjects: Array\.isArray\(doc\.subject\)/);
-  assert.match(api, /providerMetadata/);
   assert.match(api, /coverUrl/);
+  assert.match(providerEvidence, /canonicalProvider/);
+  assert.match(providerEvidence, /assessEvidenceQuality/);
 });
 
 test("historical extremist discussion differs from extremist advocacy", () => {

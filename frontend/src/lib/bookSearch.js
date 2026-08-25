@@ -9,7 +9,6 @@ import { searchOpenLibraryBooks } from "./openLibraryBooks";
 import {
   normalizeCommunityBookIsbn,
   searchCatalogBooks,
-  searchCommunityBooks,
 } from "./communityBooks";
 import { searchWithSharedCache } from "./bookSearchCache";
 import { searchCatalogAndExternal, searchGoogleWithQuotaFallback } from "./bookSearchPolicy";
@@ -96,7 +95,7 @@ function getProviderKey(book) {
   return "";
 }
 
-function mergeBookResults(preferredResults = [], additionalResults = [], limit = 20) {
+export function mergeBookResults(preferredResults = [], additionalResults = []) {
   const mergedResults = [];
   const seenIsbns = new Set();
   const seenProviderKeys = new Set();
@@ -114,32 +113,34 @@ function mergeBookResults(preferredResults = [], additionalResults = [], limit =
     mergedResults.push(book);
   });
 
-  return mergedResults.slice(0, limit);
+  // Ranking happens after every provider/catalog candidate has been merged.
+  // Slicing here lets provider order discard a later exact catalog/title match.
+  return mergedResults;
 }
 
 async function searchChineseBooks(searchTerm, limit, options = {}) {
-  const [openLibrarySearch, communitySearch] = await Promise.allSettled([
+  const [openLibrarySearch, catalogSearch] = await Promise.allSettled([
     searchOpenLibraryProvider(searchTerm, limit, options),
-    searchCommunityBooks(searchTerm, limit),
+    searchCatalogBooks(searchTerm, limit),
   ]);
   const openLibraryResults = openLibrarySearch.status === "fulfilled"
     ? openLibrarySearch.value.results
     : [];
-  const communityResults = communitySearch.status === "fulfilled"
-    ? communitySearch.value.results
+  const catalogResults = catalogSearch.status === "fulfilled"
+    ? catalogSearch.value.results
     : [];
 
-  if (communitySearch.status === "rejected") {
-    console.error("Community book search failed:", communitySearch.reason);
+  if (catalogSearch.status === "rejected") {
+    console.error("Book catalog search failed:", catalogSearch.reason);
   }
 
   if (openLibrarySearch.status === "rejected") {
     console.error("Open Library search failed:", openLibrarySearch.reason);
-    if (communityResults.length === 0) throw openLibrarySearch.reason;
+    if (catalogResults.length === 0) throw openLibrarySearch.reason;
   }
 
   return {
-    results: mergeBookResults(openLibraryResults, communityResults, limit),
+    results: mergeBookResults(openLibraryResults, catalogResults),
     blockedCount: openLibrarySearch.status === "fulfilled"
       ? openLibrarySearch.value.blockedCount || 0
       : 0,
@@ -149,28 +150,28 @@ async function searchChineseBooks(searchTerm, limit, options = {}) {
 async function searchBooksByQueryLanguageRaw(searchTerm, limit = 20, options = {}) {
   const bypassProviderCache = Boolean(import.meta.env?.DEV && options.bypassProviderCache);
   if (isLikelyIsbn(searchTerm)) {
-    const [openLibrarySearch, communitySearch] = await Promise.allSettled([
+    const [openLibrarySearch, catalogSearch] = await Promise.allSettled([
       searchOpenLibraryProvider(searchTerm, limit, { bypassProviderCache }),
-      searchCommunityBooks(searchTerm, limit),
+      searchCatalogBooks(searchTerm, limit),
     ]);
     const openLibraryResults = openLibrarySearch.status === "fulfilled"
       ? openLibrarySearch.value.results
       : [];
-    const communityResults = communitySearch.status === "fulfilled"
-      ? communitySearch.value.results
+    const catalogResults = catalogSearch.status === "fulfilled"
+      ? catalogSearch.value.results
       : [];
 
-    if (communitySearch.status === "rejected") {
-      console.error("Community book search failed:", communitySearch.reason);
+    if (catalogSearch.status === "rejected") {
+      console.error("Book catalog search failed:", catalogSearch.reason);
     }
 
     if (openLibrarySearch.status === "rejected") {
       console.error("Open Library ISBN search failed:", openLibrarySearch.reason);
-      if (communityResults.length === 0) throw openLibrarySearch.reason;
+      if (catalogResults.length === 0) throw openLibrarySearch.reason;
     }
 
     return {
-      results: mergeBookResults(openLibraryResults, communityResults, limit),
+      results: mergeBookResults(openLibraryResults, catalogResults),
       blockedCount: openLibrarySearch.status === "fulfilled"
         ? openLibrarySearch.value.blockedCount || 0
         : 0,
@@ -198,7 +199,7 @@ async function searchBooksByQueryLanguageRaw(searchTerm, limit = 20, options = {
       searchCatalog: async () => catalogSearch,
       searchExternal: () => searchNonChineseExternalBooks(searchTerm, limit, { bypassProviderCache }),
       mergeResults: (externalResults, catalogResults) => mergeBookResults(
-        externalResults, catalogResults, limit,
+        externalResults, catalogResults,
       ),
     });
     return {

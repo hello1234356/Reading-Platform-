@@ -221,7 +221,10 @@ function ModerationTab({ isOwner }) {
   }
 
   useEffect(() => {
+    // Follows the existing Admin async-load convention.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadReports(filter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   async function updateReport(reportId, nextStatus) {
@@ -390,7 +393,10 @@ function BookVerificationTab({ isOwner }) {
   }
 
   useEffect(() => {
+    // Follows the existing Admin async-load convention.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSubmissions(filter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   async function decideSubmission(submissionId, decision) {
@@ -582,7 +588,7 @@ function BookAiModerationTab() {
   return (
     <section className="admin-panel" aria-label="Book AI moderation review">
       <p className="admin-muted">
-        Enforcement mode: only approved search results are shown to students.
+        Enforcement mode: search cards remain visible, but only approved books can be opened or used.
       </p>
       <FilterTabs filters={bookAssessmentFilters} activeFilter={filter} onChange={setFilter} />
       {message ? <p className="admin-error" role="alert">{message}</p> : null}
@@ -616,8 +622,23 @@ function BookAiModerationTab() {
                 ) : null}
                 <span>Policy: {assessment.policyVersion}</span>
                 <span>Model: {assessment.modelVersion}</span>
-                {assessment.manuallyReviewed ? <span>Human reviewed</span> : null}
+                {assessment.manuallyReviewed ? (
+                  <span>Human reviewed {assessment.reviewedAt
+                    ? formatDate(assessment.reviewedAt) : ""}</span>
+                ) : null}
+                {assessment.reviewedBy ? <span>Reviewer ID: {assessment.reviewedBy}</span> : null}
+                {assessment.userReportCount > 0 ? (
+                  <span>{assessment.userReportCount} student decision report{
+                    assessment.userReportCount === 1 ? "" : "s"
+                  }</span>
+                ) : null}
               </div>
+              {assessment.status === "error" ? (
+                <p className="admin-error">
+                  Technical moderation failure{assessment.failureCode
+                    ? ` (${assessment.failureCode})` : ""}. This is not a content-review decision.
+                </p>
+              ) : null}
               {assessment.summary ? <p className="admin-muted">AI summary: {assessment.summary}</p> : null}
               {assessment.synopsis ? <p className="admin-muted">Synopsis used: {assessment.synopsis}</p> : null}
               {assessment.themes.length ? (
@@ -651,10 +672,14 @@ function BookAiModerationTab() {
               <div className="admin-actions">
                 <button className="primary-button" type="button"
                   disabled={savingId === assessment.id}
-                  onClick={() => decide(assessment.id, "approve")}>Approve</button>
-                <button className="ghost-button" type="button"
-                  disabled={savingId === assessment.id}
-                  onClick={() => decide(assessment.id, "block")}>Block</button>
+                  onClick={() => decide(assessment.id, "approve")}>
+                  {assessment.status === "error" ? "Approve manually" : "Approve"}
+                </button>
+                {assessment.status !== "error" ? (
+                  <button className="ghost-button" type="button"
+                    disabled={savingId === assessment.id}
+                    onClick={() => decide(assessment.id, "block")}>Block</button>
+                ) : null}
                 {assessment.manuallyReviewed ? (
                   <button className="ghost-button" type="button"
                     disabled={savingId === assessment.id}
@@ -798,6 +823,8 @@ function AdminManagementTab() {
   }
 
   useEffect(() => {
+    // Follows the existing Admin async-load convention.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAdmins();
   }, []);
 
@@ -995,6 +1022,8 @@ function Admin() {
 
   useEffect(() => {
     if (!isOwner && activeTab === "admins") {
+      // Keep an owner-only tab from surviving a role refresh.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab("moderation");
     }
   }, [isOwner, activeTab]);

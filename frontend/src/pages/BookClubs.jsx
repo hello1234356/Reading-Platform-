@@ -26,6 +26,7 @@ import {
   replaceClubSchedule
 } from "../lib/bookClubApi";
 import UserAvatar from "../components/UserAvatar";
+import BookModerationStatus from "../components/BookModerationStatus";
 import ProfileLink from "../components/ProfileLink";
 import ModerationWarningCard from "../components/ModerationWarningCard";
 import ModerationStatusBar from "../components/ModerationStatusBar";
@@ -437,12 +438,17 @@ const filteredClubs = clubs.filter((club) => {
         setBookSearchMessage(
           results.length ? "" : "No ISBN-backed results found. Check the spelling or try the author name.",
         );
-        void searchResult.startModeration((key, moderationStatus) => {
+        void searchResult.startModeration((key, moderationStatus, details = {}) => {
           if (requestId !== bookSearchRequestRef.current) return;
-          setBookSearchResults((current) => moderationStatus === "blocked"
-            ? current.filter((book) => book.moderationKey !== key)
-            : current.map((book) => book.moderationKey === key
-              ? { ...book, moderationStatus } : book));
+          setBookSearchResults((current) => current.map((book) => book.moderationKey === key
+            ? {
+              ...book,
+              moderationStatus,
+              moderationFailureCode: details.failureCode || "",
+              moderationPolicyVersion:
+                details.policyVersion || book.moderationPolicyVersion || "",
+            }
+            : book));
         });
       } catch (error) {
         if (requestId !== bookSearchRequestRef.current) return;
@@ -2138,48 +2144,44 @@ const filteredClubs = clubs.filter((club) => {
                 {bookSearchResults.length > 0 && (
                   <div className="book-search-suggestions" aria-label="Book suggestions">
                     {bookSearchResults.map((book) => (
-                      <button
-                        type="button"
-                        disabled={book.moderationStatus !== "approved"}
-                        className={
-                          getBookSelectionKey(selectedClubBook) === getBookSelectionKey(book)
-                            ? "selected"
-                            : ""
-                        }
+                      <div
+                        className="book-search-suggestion"
                         key={`${book.source || "book"}-${getBookSelectionKey(book)}`}
-                        onClick={() =>
-                          {
-                            setSelectedClubBook(book);
-                            setNewClub((draft) => ({ ...draft, bookTitle: book.title }));
-                            setBookSearchResults([]);
-                            setBookSearchStatus("idle");
-                            setBookSearchMessage("");
-                          }
-                        }
                       >
-                        {book.coverUrl ? (
-                          <img src={book.coverUrl} alt="" loading="lazy" onError={(event) => hideBrokenCover(event, book.isbn)} />
-                        ) : null}
-                        <strong>{book.title}</strong>
-                        <small>
-                          {book.author}
-                          {book.firstPublished ? ` / ${book.firstPublished}` : ""}
-                          {book.source === "community" ? " / LitShelf" : ""}
-                          {book.source === "open_library" ? " / Open Library" : ""}
-                          {book.source === "isbn_work" ? " / Chinese ISBN database" : ""}
-                          {" "}
-                          {book.isbn ? `/ ISBN ${book.isbn}` : ""}
-                        </small>
-                        {book.moderationStatus !== "approved" ? (
-                          <small className={`book-moderation-state ${book.moderationStatus}`}>
-                            {book.moderationStatus === "review_required"
-                              ? "Pending school review"
-                              : book.moderationStatus === "failed"
-                                ? "Availability check failed"
-                                : "Checking availability…"}
+                        <button
+                          type="button"
+                          disabled={book.moderationStatus !== "approved"}
+                          className={`book-search-suggestion-select ${
+                            getBookSelectionKey(selectedClubBook) === getBookSelectionKey(book)
+                              ? "selected"
+                              : ""
+                          }`}
+                          onClick={() =>
+                            {
+                              setSelectedClubBook(book);
+                              setNewClub((draft) => ({ ...draft, bookTitle: book.title }));
+                              setBookSearchResults([]);
+                              setBookSearchStatus("idle");
+                              setBookSearchMessage("");
+                            }
+                          }
+                        >
+                          {book.coverUrl ? (
+                            <img src={book.coverUrl} alt="" loading="lazy" onError={(event) => hideBrokenCover(event, book.isbn)} />
+                          ) : null}
+                          <strong>{book.title}</strong>
+                          <small>
+                            {book.author}
+                            {book.firstPublished ? ` / ${book.firstPublished}` : ""}
+                            {book.source === "community" ? " / LitShelf" : ""}
+                            {book.source === "open_library" ? " / Open Library" : ""}
+                            {book.source === "isbn_work" ? " / Chinese ISBN database" : ""}
+                            {" "}
+                            {book.isbn ? `/ ISBN ${book.isbn}` : ""}
                           </small>
-                        ) : null}
-                      </button>
+                        </button>
+                        <BookModerationStatus book={book} />
+                      </div>
                     ))}
                   </div>
                 )}

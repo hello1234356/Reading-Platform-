@@ -1,9 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { classifyBooks, enrichBook, ENRICHMENT_MODEL, MODEL_VERSION } from "./classifier.ts";
-import { planBookAssessments, safeEvidenceForStorage, type EvidencePacket } from "./evidence.ts";
+import { planBookAssessments, safeEvidenceForStorage, selectEffectiveAssessments,
+  type EvidencePacket } from "./evidence.ts";
 import { applyEnrichmentFailurePolicy, applyPolicy, MODERATION_MODE,
   POLICY_VERSION, reviewCategory, reviewReason, shouldEnrichBook } from "./policy.ts";
+import { verifyProviderEvidence } from "./providerEvidence.ts";
 
 import { moderationIdentity, validateRequestBody, type BatchClassificationValidation,
   type Classification, type IncomingBook } from "./schema.ts";
@@ -37,15 +39,16 @@ async function saveAssessment(
   eventType?: "ai_assessed" | "evidence_updated",
   eventDetails: Record<string, unknown> = {},
 ) {
+  let prior = previous;
   const row = { book_id: packet.bookId || null, source: packet.source,
     external_id: packet.externalId, evidence_quality: packet.evidenceQuality,
     evidence: safeEvidenceForStorage(packet), policy_version: POLICY_VERSION,
     model_version: MODEL_VERSION, updated_at: new Date().toISOString(), ...values };
   let wroteAssessment = false;
 
-  if (previous?.status === "error" && !previous.manually_reviewed) {
+  if (prior && !prior.manually_reviewed) {
     const { data, error } = await service.from("book_moderation_assessments").update(row)
-      .eq("id", previous.id).eq("manually_reviewed", false).select("id");
+      .eq("id", prior.id).eq("manually_reviewed", false).select("id");
     if (error) throw error;
     wroteAssessment = Boolean(data?.length);
   } else {
@@ -55,13 +58,38 @@ async function saveAssessment(
     wroteAssessment = Boolean(data?.length);
   }
 
+  // A concurrent request may have inserted the identity after our cache read.
+  // Update only a non-manual winner; never overwrite an admin decision.
+  if (!wroteAssessment && !prior) {
+    const { data: conflict, error: conflictError } = await service
+      .from("book_moderation_assessments")
+      .select("id,status,manually_reviewed")
+      .eq("source", packet.source).eq("external_id", packet.externalId)
+      .eq("policy_version", POLICY_VERSION).single();
+    if (conflictError) throw conflictError;
+    prior = conflict;
+    if (!conflict.manually_reviewed) {
+      const { data, error } = await service.from("book_moderation_assessments").update(row)
+        .eq("id", conflict.id).eq("manually_reviewed", false).select("id");
+      if (error) throw error;
+      wroteAssessment = Boolean(data?.length);
+    }
+  }
+
   const { data: saved, error: readError } = await service.from("book_moderation_assessments")
     .select("*").eq("source", packet.source).eq("external_id", packet.externalId)
     .eq("policy_version", POLICY_VERSION).single();
   if (readError) throw readError;
   if (eventType && wroteAssessment && !saved.manually_reviewed) {
-    await service.from("book_moderation_events").insert({ assessment_id: saved.id,
-      event_type: eventType, next_status: saved.status, details: eventDetails });
+    const { error: eventError } = await service.from("book_moderation_events").insert({
+      assessment_id: saved.id, event_type: eventType,
+      previous_status: prior?.status || null, next_status: saved.status,
+      details: eventDetails,
+    });
+    if (eventError) console.error("Could not save book moderation audit event", {
+      assessmentId: saved.id, eventType, failureCode: "audit_event_persistence_error",
+      message: eventError.message,
+    });
   }
   return saved;
 }
@@ -83,7 +111,12 @@ Deno.serve(async (request) => {
   const userClient = createClient(url, anon, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: authData } = await userClient.auth.getUser(authorization.replace(/^Bearer\s+/i, ""));
+  const { data: authData, error: authError } = await userClient.auth.getUser(
+    authorization.replace(/^Bearer\s+/i, ""),
+  );
+  if (authError) console.warn("Book moderation authentication failed", {
+    failureCode: "authentication_failed", message: authError.message,
+  });
   if (!authData.user) return json({ error: "Sign in to assess books." }, 401);
 
   let books: IncomingBook[];
@@ -102,9 +135,14 @@ Deno.serve(async (request) => {
   const sources = [...new Set(books.map((book) => book.source))];
   const externalIds = [...new Set(books.map((book) => book.externalId))];
   const { data: cachedRows, error: cacheError } = await service.from("book_moderation_assessments")
-    .select("*").eq("policy_version", POLICY_VERSION).in("source", sources).in("external_id", externalIds);
-  if (cacheError) return json({ error: "Moderation cache is unavailable." }, 500);
-  const cache = new Map((cachedRows || []).map((row) => [moderationIdentity(row.source, row.external_id), row]));
+    .select("*").in("source", sources).in("external_id", externalIds);
+  if (cacheError && cacheOnly) return json({ error: "Moderation cache is unavailable." }, 503);
+  if (cacheError) console.error("Moderation cache lookup failed; continuing without cache", {
+    failureCode: "cache_lookup_failed", message: cacheError.message,
+  });
+  const cache = cacheError
+    ? new Map<string, Record<string, unknown>>()
+    : selectEffectiveAssessments(cachedRows || [], POLICY_VERSION);
   const { data: storedRows, error: storedError } = await service.from("books").select(
     "id,title,author,isbn,genre,description,cover_url,language,publisher,publication_year,source,external_id"
   ).in("source", sources).in("external_id", externalIds);
@@ -133,8 +171,57 @@ Deno.serve(async (request) => {
       )) });
   }
 
-  // Sparse packets still reach the classifier so reliable prior knowledge can identify exact works.
-  const eligible = unknownPackets;
+  // Charge the authenticated account before any provider or AI work. Cache-only
+  // lookups remain free and technical failures never become content decisions.
+  if (unknownPackets.length) {
+    const { data: quotaAllowed, error: quotaError } = await service.rpc(
+      "consume_book_moderation_quota",
+      { p_user_id: authData.user.id, p_book_count: unknownPackets.length },
+    );
+    if (quotaError || quotaAllowed !== true) {
+      const failureCode = quotaError
+        ? "moderation_quota_guard_unavailable" : "moderation_rate_limited";
+      console.warn("Book moderation quota rejected work", {
+        userId: authData.user.id, count: unknownPackets.length, failureCode,
+        message: quotaError?.message || "Per-user moderation quota exceeded.",
+      });
+      unknownPackets.forEach((packet) => resultByIdentity.set(
+        moderationIdentity(packet.source, packet.externalId),
+        { source: packet.source, externalId: packet.externalId, status: "error",
+          confidence: 0, evidenceQuality: packet.evidenceQuality,
+          failureCode, policyVersion: POLICY_VERSION, cached: false },
+      ));
+      return json({ mode: MODERATION_MODE, policyVersion: POLICY_VERSION,
+        results: books.map((book) => resultByIdentity.get(
+          moderationIdentity(book.source, book.externalId),
+        )) });
+    }
+  }
+
+  // Client metadata is untrusted. Replace it with an exact provider record (or
+  // a database-bound community/ISBN.work row) before it can reach DeepSeek or
+  // the shared durable moderation cache.
+  const verifiedPackets = await Promise.all(unknownPackets.map(async (packet) => {
+    const identity = moderationIdentity(packet.source, packet.externalId);
+    try {
+      return await verifyProviderEvidence(packet);
+    } catch (error) {
+      console.error("Book provider evidence verification failed", {
+        identity, failureCode: "evidence_verification_failed",
+        message: error instanceof Error ? error.message : "Provider evidence lookup failed.",
+      });
+      resultByIdentity.set(identity, {
+        source: packet.source, externalId: packet.externalId, status: "error",
+        confidence: 0, evidenceQuality: packet.evidenceQuality,
+        failureCode: "evidence_verification_failed",
+        policyVersion: POLICY_VERSION, cached: false,
+      });
+      return null;
+    }
+  }));
+  // Sparse verified packets still reach the classifier so reliable prior
+  // knowledge can identify exact works.
+  const eligible = verifiedPackets.filter((packet): packet is EvidencePacket => Boolean(packet));
   let batch: BatchClassificationValidation = {
     valid: new Map(), errors: new Map(), rejectedIdentities: [],
   };
@@ -169,12 +256,18 @@ Deno.serve(async (request) => {
     const initial = batch.valid.get(identity) as Classification | undefined;
     const classification = enriched.get(identity) || initial;
     try {
+      const previous = cache.get(identity);
       const enrichmentFailed = enrichmentErrors.has(identity);
       const decision = classification && initial
-        ? (enrichmentFailed ? applyEnrichmentFailurePolicy(initial) : applyPolicy(classification))
+        ? (enrichmentFailed
+          ? applyEnrichmentFailurePolicy(initial)
+          : applyPolicy(classification, packet.evidenceQuality))
         : "error";
+      const eventType = previous && ["approved", "review_required", "blocked"].includes(
+          String(previous.status || ""),
+        ) ? "evidence_updated" : "ai_assessed";
       const saved = classification && initial
-        ? await saveAssessment(service, packet, cache.get(identity), {
+        ? await saveAssessment(service, packet, previous, {
           status: decision,
           confidence: classification.moderation_confidence,
           model_version: enriched.has(identity)
@@ -188,23 +281,32 @@ Deno.serve(async (request) => {
           flags: decision === "error"
             ? ["enrichment_failed", ...classification.flags]
             : decision === "review_required"
-            ? [...classification.flags, `review_category:${reviewCategory(classification, enrichmentFailed)}`]
+            ? [...classification.flags, `review_category:${reviewCategory(
+              classification, packet.evidenceQuality, enrichmentFailed,
+            )}`]
             : classification.flags,
           summary: decision === "error"
             ? "Evidence enrichment hit a technical error and will be retried; this is not a content-review decision."
             : classification.reasoning_summary,
           reason_for_review: decision === "review_required"
-            ? reviewReason(classification) : "",
-        }, "ai_assessed", { recommendation: classification.recommendation,
+            ? reviewReason(classification, packet.evidenceQuality) : "",
+        }, eventType, { recommendation: classification.recommendation,
           recognized: classification.recognized, knowledge_source: classification.knowledge_source,
-          evidence_source: enriched.has(identity) ? "provider_metadata+web_enrichment" : "provider_metadata",
+          evidence_source: enriched.has(identity)
+            ? "provider_metadata+web_enrichment"
+            : classification.knowledge_source === "model_prior_knowledge"
+            ? "model_prior_knowledge" : "provider_metadata",
           enrichment_error: enrichmentErrors.get(identity) || null, mode: MODERATION_MODE })
-        : await saveAssessment(service, packet, cache.get(identity), {
-          status: "error", confidence: 0, risk_scores: {},
+        : await saveAssessment(service, packet, previous, {
+          status: "error", confidence: 0, identity_confidence: 0,
+          moderation_confidence: 0, knowledge_source: "provider_evidence",
+          synopsis: "", themes: [], risk_scores: {},
           flags: [providerFailure ? "classifier_unavailable" : batch.errors.get(identity) || "invalid_classification"],
           summary: "Automated assessment hit a technical error and will be retried; this is not a content-review decision.",
           reason_for_review: "",
-        });
+        }, eventType, { failure_code: providerFailure
+          ? "classifier_unavailable" : batch.errors.get(identity) || "invalid_classification",
+          provider_failure_code: providerFailure || null, mode: MODERATION_MODE });
       resultByIdentity.set(identity, publicResult(saved, false));
     } catch (error) {
       console.error("Could not save book assessment", { identity,

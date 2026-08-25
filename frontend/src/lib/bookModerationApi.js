@@ -2,13 +2,25 @@ import { requireSupabase } from "./supabase.js";
 
 const MODERATION_BATCH_SIZE = 10;
 
+function canonicalOpenLibraryId(value) {
+  const raw = String(value || "").trim();
+  if (/^\/(?:works|books)\/[A-Za-z0-9_-]+[WM]$/u.test(raw)) return raw;
+  if (/^[A-Za-z0-9_-]+M$/u.test(raw)) return `/books/${raw}`;
+  if (/^[A-Za-z0-9_-]+W$/u.test(raw)) return `/works/${raw}`;
+  return "";
+}
+
 export function moderationIdentityForBook(book) {
-  const source = String(book?.source || "").trim();
+  const source = String(book?.source || "").trim().toLowerCase();
   let externalId = String(book?.externalId || book?.external_id
     || (source === "google_books" ? book?.googleBooksId : "")
     || (source === "open_library" ? book?.openLibraryKey || book?.editionKey : "")
     || (source === "isbn_work" ? book?.isbn : "")).trim();
   const bookId = Number(book?.bookId || "");
+  if (source === "open_library") externalId = canonicalOpenLibraryId(externalId);
+  if (source === "isbn_work") {
+    externalId = externalId.replace(/[^0-9Xx]/g, "").toUpperCase();
+  }
   if (source === "community" && !externalId && Number.isSafeInteger(bookId) && bookId > 0) {
     externalId = `book:${bookId}`;
   }
@@ -31,16 +43,26 @@ export function toModerationBook(book) {
     publisher: String(book.publisher || ""),
     publicationYear: Number(book.publicationYear || book.firstPublished) || undefined,
     isbn: String(book.isbn || ""), maturityRating: String(book.maturityRating || ""),
-    language: String(book.language || ""), coverUrl: String(book.coverUrl || ""),
-    providerMetadata: book.providerMetadata && typeof book.providerMetadata === "object"
-      ? book.providerMetadata : {} };
+    language: String(book.language || ""), coverUrl: String(book.coverUrl || "") };
+}
+
+function evidenceRichness(book) {
+  return String(book.description || "").length + (book.authors?.length || 0) * 200 +
+    (book.categories?.length || 0) * 80 + (book.subjects?.length || 0) * 40 +
+    [book.publisher, book.publicationYear, book.isbn, book.language]
+      .filter(Boolean).length * 100;
 }
 
 export function uniqueModerationBooks(books) {
   const unique = new Map();
   books.forEach((book) => {
     const normalized = toModerationBook(book);
-    if (normalized) unique.set(`${normalized.source}\u0000${normalized.externalId}`, normalized);
+    if (!normalized) return;
+    const key = `${normalized.source}\u0000${normalized.externalId}`;
+    const previous = unique.get(key);
+    if (!previous || evidenceRichness(normalized) > evidenceRichness(previous)) {
+      unique.set(key, normalized);
+    }
   });
   return [...unique.values()];
 }
@@ -54,11 +76,17 @@ async function invokeBatches(books, cacheOnly, onBatch) {
   const supabase = requireSupabase();
   for (let index = 0; index < books.length; index += MODERATION_BATCH_SIZE) {
     const batch = books.slice(index, index + MODERATION_BATCH_SIZE);
-    const { data, error } = await supabase.functions.invoke("moderate-books", {
-      body: { books: batch, cacheOnly },
-    });
-    if (error) throw error;
-    onBatch(Array.isArray(data?.results) ? data.results : [], data || {});
+    try {
+      const { data, error } = await supabase.functions.invoke("moderate-books", {
+        body: { books: batch, cacheOnly },
+      });
+      if (error) throw error;
+      onBatch(Array.isArray(data?.results) ? data.results : [], data || {}, {
+        requestedBooks: batch,
+      });
+    } catch (error) {
+      onBatch([], {}, { requestedBooks: batch, error });
+    }
   }
 }
 
@@ -85,10 +113,17 @@ export async function moderateBookSearchResults(
   const cacheStartedAt = now();
 
   try {
-    await invoke(unique, true, (results) => {
+    await invoke(unique, true, (results, _data, context = {}) => {
+      if (context.error) {
+        debugTiming("cache batch lookup failed", {
+          failureCode: "cache_request_failed", count: context.requestedBooks?.length || 0,
+          error: context.error,
+        });
+        return;
+      }
       results.forEach((result) => {
         const key = `${result.source}\u0000${result.externalId}`;
-        if (result.cached) {
+        if (result.cached && unknown.has(key)) {
           cachedCount += 1;
           unknown.delete(key);
           onUpdate(key, result.status === "error" ? "failed" : result.status, result);
@@ -96,10 +131,7 @@ export async function moderateBookSearchResults(
       });
     });
   } catch (error) {
-    unique.forEach((book) => onUpdate(`${book.source}\u0000${book.externalId}`, "failed",
-      { failureCode: "cache_request_failed" }));
     debugTiming("cache lookup failed", { failureCode: "cache_request_failed", error });
-    return;
   }
 
   const cacheDurationMs = now() - cacheStartedAt;
@@ -109,23 +141,53 @@ export async function moderateBookSearchResults(
   if (!requiringAi.length) return;
 
   const aiStartedAt = now();
+  const unresolved = new Map(requiringAi.map((book) => [
+    `${book.source}\u0000${book.externalId}`, book,
+  ]));
   try {
-    await invoke(requiringAi, false, (results) => {
+    await invoke(requiringAi, false, (results, _data, context = {}) => {
+      const requestedKeys = new Set((context.requestedBooks || []).map((book) =>
+        `${book.source}\u0000${book.externalId}`));
+      if (context.error) {
+        requestedKeys.forEach((key) => {
+          if (!unresolved.has(key)) return;
+          unresolved.delete(key);
+          onUpdate(key, "failed", { failureCode: "edge_request_failed" });
+        });
+        debugTiming("AI batch failed", { failureCode: "edge_request_failed",
+          count: requestedKeys.size, error: context.error });
+        return;
+      }
+      const returnedKeys = new Set();
       results.forEach((result) => {
+        const key = `${result.source}\u0000${result.externalId}`;
+        if (!unresolved.has(key)) return;
+        returnedKeys.add(key);
+        unresolved.delete(key);
         if (result.status === "error") {
           debugTiming("moderation result failed", { source: result.source,
             externalId: result.externalId, failureCode: result.failureCode || "moderation_error" });
         }
-        onUpdate(`${result.source}\u0000${result.externalId}`,
+        onUpdate(key,
           result.status === "error" ? "failed" : result.status, result);
+      });
+      requestedKeys.forEach((key) => {
+        if (!unresolved.has(key) || returnedKeys.has(key)) return;
+        unresolved.delete(key);
+        onUpdate(key, "failed", { failureCode: "moderation_response_incomplete" });
       });
     });
   } catch (error) {
-    requiringAi.forEach((book) => onUpdate(
-      `${book.source}\u0000${book.externalId}`, "failed", { failureCode: "edge_request_failed" },
+    unresolved.forEach((_book, key) => onUpdate(
+      key, "failed", { failureCode: "edge_request_failed" },
     ));
+    unresolved.clear();
     debugTiming("AI batch failed", { failureCode: "edge_request_failed", error });
   } finally {
+    unresolved.forEach((_book, key) => onUpdate(
+      key, "failed", { failureCode: "moderation_response_incomplete" },
+    ));
+    unresolved.clear();
     debugTiming("AI", { aiBatchDurationMs: now() - aiStartedAt,
       totalBackgroundDurationMs: now() - startedAt, requiringAi: requiringAi.length });
   }

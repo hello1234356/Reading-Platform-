@@ -67,6 +67,10 @@ async function throwGoogleBooksError(response) {
   error.googleStatus = googleStatus;
   error.reasons = reasons;
   error.isQuotaExceeded = isQuotaExceeded;
+  if (!isQuotaExceeded && (response.status === 401 || response.status === 403)) {
+    error.code = "google_auth_failed";
+    error.shouldFallback = true;
+  }
   throw error;
 }
 
@@ -252,7 +256,25 @@ export async function searchGoogleBooks(searchTerm, maxResults = 20, options = {
         throw error;
       }
     }
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (cause) {
+      const error = new Error("Google Books returned an invalid response.");
+      error.code = "google_invalid_response";
+      error.shouldFallback = true;
+      error.actualProviderFetchPerformed = true;
+      error.cause = cause;
+      throw error;
+    }
+    if (!data || typeof data !== "object" ||
+      (data.items != null && !Array.isArray(data.items))) {
+      const error = new Error("Google Books returned an invalid response.");
+      error.code = "google_invalid_response";
+      error.shouldFallback = true;
+      error.actualProviderFetchPerformed = true;
+      throw error;
+    }
     const results = data.items || [];
     if (debug) console.debug("[book-search] GOOGLE ACTUAL RESPONSE", {
       status: response.status, itemCount: results.length,

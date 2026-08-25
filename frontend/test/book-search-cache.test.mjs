@@ -172,6 +172,31 @@ test("Google 503 is fallback eligible", async () => {
   assert.deepEqual(result.results, [openLibraryResult]);
 });
 
+test("Google credential rejection and malformed JSON fall back without hiding English search", async () => {
+  for (const response of [
+    new Response(JSON.stringify({ error: { message: "API key rejected" } }), {
+      status: 403, headers: { "content-type": "application/json" },
+    }),
+    new Response("<html>proxy error</html>", {
+      status: 200, headers: { "content-type": "text/html" },
+    }),
+  ]) {
+    let fallbackCalls = 0;
+    const result = await searchGoogleWithQuotaFallback({
+      searchGoogle: () => searchGoogleBooks("harry potter", 10, {
+        apiKey: "configured", debug: false, fetchImpl: async () => response,
+      }),
+      searchOpenLibrary: async () => {
+        fallbackCalls += 1;
+        return { results: [openLibraryResult] };
+      },
+      isQuotaError: shouldFallbackFromGoogleBooks,
+    });
+    assert.equal(fallbackCalls, 1);
+    assert.deepEqual(result.results, [openLibraryResult]);
+  }
+});
+
 test("arbitrary programming errors are not silently sent to fallback", async () => {
   let openLibraryCalls = 0;
   const error = new TypeError("bug in result mapper");
@@ -391,6 +416,26 @@ test("local catalog filtering hides weak database matches", () => {
     [books[0]],
   );
   assert.deepEqual(filterRelevantCatalogBooks(books, "Potter"), []);
+});
+
+test("single-word title relevance uses token boundaries", () => {
+  const ranked = rankBookSearchResults("art", [
+    { title: "Earth Science", author: "A" },
+    { title: "The Art Book", author: "B" },
+  ]);
+  assert.deepEqual(ranked.map((item) => item.title), ["The Art Book"]);
+});
+
+test("all catalog and provider candidates are merged before final ranking", async () => {
+  const source = await readFile(new URL("../src/lib/bookSearch.js", import.meta.url), "utf8");
+  assert.match(source, /Ranking happens after[\s\S]*return mergedResults;/);
+  assert.doesNotMatch(source, /return mergedResults\.slice\(0, limit\)/);
+  assert.match(source, /searchCatalogBooks\(searchTerm, limit\)/);
+  const candidates = Array.from({ length: 20 }, (_, index) => ({
+    title: `Weak provider result ${index}`, author: "Unknown",
+  })).concat([{ title: "Harry Potter and the Philosopher's Stone", author: "J. K. Rowling" }]);
+  const ranked = rankBookSearchResults("harry potter", candidates, 20);
+  assert.equal(ranked[0].title, "Harry Potter and the Philosopher's Stone");
 });
 
 test("metadata RPC is authenticated and only fills missing fields", async () => {

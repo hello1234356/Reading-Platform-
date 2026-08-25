@@ -98,15 +98,22 @@ function mapBookAssessment(row) {
     themes: Array.isArray(row.themes) ? row.themes : [],
     reasonForReview: row.reason_for_review || "",
     evidence,
-    title: evidence.title || row.books?.title || "Untitled",
+    title: evidence.title || row.book_title || row.books?.title || "Untitled",
     author: Array.isArray(evidence.authors) && evidence.authors.length
-      ? evidence.authors.join(", ") : row.books?.author || "Unknown author",
-    coverUrl: evidence.coverUrl || row.books?.cover_url || "",
+      ? evidence.authors.join(", ")
+      : row.book_author || row.books?.author || "Unknown author",
+    coverUrl: evidence.coverUrl || row.book_cover_url || row.books?.cover_url || "",
     policyVersion: row.policy_version || "",
     modelVersion: row.model_version || "",
     manuallyReviewed: Boolean(row.manually_reviewed),
+    reviewedBy: row.reviewed_by || "",
     reviewedAt: row.reviewed_at || null,
     updatedAt: row.updated_at,
+    userReportCount: Number(row.user_report_count) || (Array.isArray(row.book_moderation_events)
+      ? row.book_moderation_events.filter((event) =>
+        event?.event_type === "user_reported_block").length
+      : 0),
+    failureCode: row.failure_code || (row.status === "error" ? flags[0] || "moderation_error" : ""),
   };
 }
 
@@ -296,28 +303,12 @@ export async function reviewModerationReport({ reportId, status, reviewerNote = 
 
 export async function getBookModerationAssessments(status = "review_required") {
   const supabase = requireSupabase();
-  let query = supabase
-    .from("book_moderation_assessments")
-    .select(`
-      id, book_id, source, external_id, status, confidence, identity_confidence,
-      moderation_confidence, knowledge_source, evidence_quality, risk_scores, flags,
-      summary, synopsis, themes, reason_for_review, evidence, policy_version, model_version,
-      manually_reviewed, reviewed_at, updated_at,
-      books (title, author, cover_url)
-    `)
-    .order("updated_at", { ascending: false })
-    .limit(500);
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc(
+    "list_effective_book_moderation_assessments",
+    { p_status: status || "all", p_limit: 100, p_offset: 0 },
+  );
   if (error) throw error;
-  const latestByIdentity = new Map();
-  (data || []).forEach((row) => {
-    const identity = `${row.source}\u0000${row.external_id}`;
-    if (!latestByIdentity.has(identity)) latestByIdentity.set(identity, row);
-  });
-  return [...latestByIdentity.values()]
-    .filter((row) => !status || status === "all" || row.status === status)
-    .slice(0, 100)
-    .map(mapBookAssessment);
+  return (data || []).map(mapBookAssessment);
 }
 
 export async function reviewBookModerationAssessment({ assessmentId, decision }) {

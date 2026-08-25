@@ -29,6 +29,8 @@ function normalizeCachedPayload(payload, limit) {
   return {
     results,
     blockedCount: Number(payload?.blockedCount) || 0,
+    // Older cache rows were always populated by the app's 20-result search.
+    coveredLimit: Math.max(1, Math.min(Number(payload?.coveredLimit) || 20, 20)),
   };
 }
 
@@ -40,7 +42,8 @@ export async function readSharedBookSearchCache(provider, searchTerm, limit = 20
   const memoryEntry = memoryCache.get(cacheKey);
 
   if (memoryEntry?.expiresAt > Date.now()) {
-    return normalizeCachedPayload(memoryEntry.payload, limit);
+    const cached = normalizeCachedPayload(memoryEntry.payload, limit);
+    if (cached.coveredLimit >= limit) return cached;
   }
 
   if (memoryEntry) memoryCache.delete(cacheKey);
@@ -63,7 +66,8 @@ export async function readSharedBookSearchCache(provider, searchTerm, limit = 20
     expiresAt: new Date(data.expires_at).getTime(),
   });
 
-  return normalizeCachedPayload(payload, limit);
+  const cached = normalizeCachedPayload(payload, limit);
+  return cached.coveredLimit >= limit ? cached : null;
 }
 
 export async function writeSharedBookSearchCache(
@@ -96,9 +100,9 @@ export async function writeSharedBookSearchCache(
   return data;
 }
 
-export function getOrCreateProviderSearch(provider, searchTerm, factory) {
+export function getOrCreateProviderSearch(provider, searchTerm, factory, limit = 20) {
   const normalizedQuery = normalizeBookSearchQuery(searchTerm);
-  const cacheKey = getCacheKey(provider, normalizedQuery);
+  const cacheKey = `${getCacheKey(provider, normalizedQuery)}:${limit}`;
 
   if (inFlightSearches.has(cacheKey)) {
     return inFlightSearches.get(cacheKey);
@@ -151,7 +155,7 @@ export async function searchWithSharedCache({
         bypassProviderCache });
       throw error;
     }
-    const payload = normalizeCachedPayload(fetched, limit);
+    const payload = { ...normalizeCachedPayload(fetched, limit), coveredLimit: limit };
     onCacheDiagnostic({ provider, query: normalizeBookSearchQuery(searchTerm),
       cacheHit: false, resultCount: payload.results.length,
       actualProviderFetchPerformed: true, bypassProviderCache });
@@ -168,5 +172,5 @@ export async function searchWithSharedCache({
 
   return bypassProviderCache
     ? executeSearch()
-    : getOrCreateProviderSearch(provider, searchTerm, executeSearch);
+    : getOrCreateProviderSearch(provider, searchTerm, executeSearch, limit);
 }

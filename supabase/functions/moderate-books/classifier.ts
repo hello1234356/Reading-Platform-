@@ -141,7 +141,8 @@ async function requestJson(url: string, body: Record<string, unknown>, timeoutMs
 
 async function classifyBatch(packets: EvidencePacket[]): Promise<BatchClassificationValidation> {
   const providerResult = await requestJson(CHAT_API_URL, { model: MODEL_VERSION,
-    temperature: 0, max_tokens: 6000, response_format: { type: "json_object" },
+    thinking: { type: "disabled" }, temperature: 0, max_tokens: 6000,
+    response_format: { type: "json_object" },
     messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content:
       JSON.stringify({ evidence_packets: packets.map(packetForModel) }) }] }, 20_000);
   if (providerResult?.choices?.[0]?.finish_reason === "length") {
@@ -172,6 +173,12 @@ function mergeBatchResults(results: BatchClassificationValidation[]): BatchClass
   return merged;
 }
 
+function failedBatchResult(packets: EvidencePacket[]): BatchClassificationValidation {
+  return { valid: new Map(), errors: new Map(packets.map((packet) => [
+    moderationIdentity(packet.source, packet.externalId), "classifier_unavailable",
+  ])), rejectedIdentities: [] };
+}
+
 export async function classifyBooks(packets: EvidencePacket[]): Promise<BatchClassificationValidation> {
   if (!packets.length) return { valid: new Map(), errors: new Map(), rejectedIdentities: [] };
   try {
@@ -183,21 +190,34 @@ export async function classifyBooks(packets: EvidencePacket[]): Promise<BatchCla
     for (let index = 0; index < packets.length; index += 5) {
       subBatches.push(packets.slice(index, index + 5));
     }
-    return mergeBatchResults(await Promise.all(subBatches.map((batch) => classifyBatch(batch))));
+    const settled = await Promise.allSettled(subBatches.map((batch) => classifyBatch(batch)));
+    return mergeBatchResults(settled.map((result, index) => {
+      if (result.status === "fulfilled") return result.value;
+      console.error("DeepSeek classification sub-batch failed", {
+        count: subBatches[index].length,
+        errorCode: result.reason instanceof ClassifierError
+          ? result.reason.code : "deepseek_request_failed",
+      });
+      return failedBatchResult(subBatches[index]);
+    }));
   }
 }
 
 function responseOutputText(response: Record<string, unknown>): string {
   const output = Array.isArray(response.output) ? response.output : [];
+  const textParts: string[] = [];
   for (const item of output) {
     if (!item || typeof item !== "object" || (item as { type?: string }).type !== "message") continue;
     const parts = Array.isArray((item as { content?: unknown[] }).content)
       ? (item as { content: unknown[] }).content : [];
-    const part = parts.find((value) => value && typeof value === "object"
-      && (value as { type?: string }).type === "output_text") as { text?: unknown } | undefined;
-    if (typeof part?.text === "string") return part.text;
+    parts.forEach((value) => {
+      if (!value || typeof value !== "object" ||
+        (value as { type?: string }).type !== "output_text") return;
+      const part = value as { text?: unknown };
+      if (typeof part.text === "string") textParts.push(part.text);
+    });
   }
-  return "";
+  return textParts.join("");
 }
 
 export async function enrichBook(packet: EvidencePacket, initial: Classification): Promise<Classification> {
@@ -212,17 +232,38 @@ export async function enrichBook(packet: EvidencePacket, initial: Classification
     tools: [{ type: "web_search" }], tool_choice: { type: "web_search" },
     reasoning: { effort: "low" }, max_output_tokens: 1400,
     text: { format: { type: "json_object" } } }, 30_000);
-  const content = responseOutputText(response as Record<string, unknown>);
-  if (!content) throw new Error("Web enrichment returned no structured content.");
+  if (!response || typeof response !== "object") {
+    throw new ClassifierError("deepseek_invalid_response");
+  }
+  const responseRecord = response as Record<string, unknown>;
+  if (responseRecord.status !== "completed") {
+    const details = responseRecord.incomplete_details &&
+      typeof responseRecord.incomplete_details === "object"
+      ? responseRecord.incomplete_details as Record<string, unknown> : {};
+    const code = responseRecord.status === "incomplete" &&
+        details.reason === "max_output_tokens"
+      ? "classification_truncated" : "deepseek_invalid_response";
+    console.error("DeepSeek enrichment did not complete", {
+      responseStatus: String(responseRecord.status || ""),
+      incompleteReason: String(details.reason || ""),
+      model: ENRICHMENT_MODEL,
+      errorCode: code,
+    });
+    throw new ClassifierError(code);
+  }
+  const content = responseOutputText(responseRecord);
+  if (!content) throw new ClassifierError("classification_empty");
   let parsed: unknown;
-  try { parsed = JSON.parse(content); } catch { throw new Error("Web enrichment returned invalid JSON."); }
+  try { parsed = JSON.parse(content); } catch (cause) {
+    throw new ClassifierError("classification_invalid_json", { cause });
+  }
   const validation = validateBatchClassification(
     parsed && typeof parsed === "object" && Array.isArray((parsed as { results?: unknown }).results)
       ? parsed : { results: [parsed] },
     [{ source: packet.source, externalId: packet.externalId }],
   );
   const result = validation.valid.get(moderationIdentity(packet.source, packet.externalId));
-  if (!result) throw new Error("Web enrichment returned an invalid classification.");
+  if (!result) throw new ClassifierError("deepseek_invalid_response");
   return { ...result, knowledge_source: "combined", needs_web_enrichment: false,
-    flags: [...new Set([...result.flags, "web_enrichment"])] };
+    flags: [...new Set([...result.flags.slice(0, 5), "web_enrichment"])] };
 }

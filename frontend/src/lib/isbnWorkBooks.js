@@ -1,4 +1,4 @@
-const ISBN_WORK_BASE_PATH = "/isbn-work-api/openApi";
+import { requireSupabase } from "./supabase.js";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
@@ -52,65 +52,15 @@ export function isLikelyIsbn(searchTerm) {
   return normalizedSearchTerm.length === 10 || normalizedSearchTerm.length === 13;
 }
 
-function getAppKey() {
-  return import.meta.env.VITE_ISBN_WORK_APP_KEY?.trim() || "";
-}
-
-async function fetchIsbnWork(url) {
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`ISBN.work returned ${response.status}.`);
-  }
-
-  const data = await response.json();
-
-  if (data?.success === false || (typeof data?.code === "number" && data.code !== 0)) {
-    throw new Error(data?.msg || data?.message || "ISBN.work could not find matching books.");
-  }
-
-  return data;
-}
-
 async function invokeIsbnWorkBooks({ action, query, isbn, limit }) {
-  const appKey = getAppKey();
-
-  if (!appKey) {
-    throw new Error(
-      "Add VITE_ISBN_WORK_APP_KEY to frontend/.env.local, then restart Vite.",
-    );
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.functions.invoke("isbn-work-books", {
+    body: { action, query, isbn, limit },
+  });
+  if (error) throw error;
+  if (!data || typeof data !== "object") {
+    throw new Error("ISBN.work returned an invalid response.");
   }
-
-  if (action === "isbn") {
-    const normalizedIsbn = normalizeIsbn(isbn || query);
-
-    if (!normalizedIsbn) {
-      throw new Error("Enter an ISBN to look up this book.");
-    }
-
-    const url = new URL(
-      `${ISBN_WORK_BASE_PATH}/getInfoByIsbn`,
-      window.location.origin,
-    );
-    url.searchParams.set("isbn", normalizedIsbn);
-    url.searchParams.set("appKey", appKey);
-    return fetchIsbnWork(url);
-  }
-
-  const normalizedQuery = String(query || "").trim();
-
-  if (!normalizedQuery) {
-    throw new Error("Enter a Chinese title to search.");
-  }
-
-  const url = new URL(
-    `${ISBN_WORK_BASE_PATH}/book/page`,
-    window.location.origin,
-  );
-  url.searchParams.set("bookName", normalizedQuery);
-  url.searchParams.set("current", "1");
-  url.searchParams.set("appKey", appKey);
-  const data = await fetchIsbnWork(url);
   const records = getRecordsFromResponse(data);
 
   if (records.length > limit) {
@@ -120,7 +70,9 @@ async function invokeIsbnWorkBooks({ action, query, isbn, limit }) {
     };
   }
 
-  return data;
+  return records.length > Number(limit || 20)
+    ? { ...data, data: records.slice(0, Number(limit || 20)) }
+    : data;
 }
 
 export async function searchIsbnWorkBooks(searchTerm, limit = 20) {
