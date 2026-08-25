@@ -521,7 +521,9 @@
   display: flex;
   flex-direction: column;
   width: min(390px, calc(100vw - 32px));
-  max-height: min(560px, calc(100vh - 124px));
+  height: var(--notification-panel-height, min(560px, calc(100dvh - 124px)));
+  max-height: var(--notification-panel-height, min(560px, calc(100vh - 124px)));
+  min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(138, 106, 88, 0.16);
   border-radius: 22px;
@@ -560,9 +562,25 @@
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-color: rgba(138, 106, 88, 0.55) rgba(138, 106, 88, 0.1);
+  scrollbar-width: thin;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
+}
+
+.notification-inbox-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.notification-inbox-list::-webkit-scrollbar-track {
+  background: rgba(138, 106, 88, 0.1);
+}
+
+.notification-inbox-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(138, 106, 88, 0.55);
 }
 
 .notification-inbox-panel > .notification-inbox-state {

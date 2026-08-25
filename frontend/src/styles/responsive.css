@@ -1241,7 +1241,8 @@
     right: max(12px, env(safe-area-inset-right));
     left: max(12px, env(safe-area-inset-left));
     width: auto;
-    max-height: calc(100dvh - 92px - env(safe-area-inset-bottom));
+    height: var(--notification-panel-height, calc(100dvh - 92px - env(safe-area-inset-bottom)));
+    max-height: var(--notification-panel-height, calc(100vh - 92px));
   }
 }
 

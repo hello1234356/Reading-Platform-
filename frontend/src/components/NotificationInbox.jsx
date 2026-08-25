@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserAvatar from "./UserAvatar";
 import {
@@ -9,6 +9,7 @@ import {
   markNotificationRead,
   subscribeToNotifications,
 } from "../lib/notificationApi";
+import { getNotificationPanelHeight } from "../lib/notificationLayout";
 
 function MailboxIcon() {
   return (
@@ -23,6 +24,7 @@ function MailboxIcon() {
 function NotificationInbox({ userId }) {
   const navigate = useNavigate();
   const wrapperRef = useRef(null);
+  const panelRef = useRef(null);
   const firstActionRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -80,6 +82,34 @@ function NotificationInbox({ userId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open || !panelRef.current) return undefined;
+
+    const syncPanelHeight = () => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const viewport = window.visualViewport;
+      const viewportBottom = viewport
+        ? viewport.offsetTop + viewport.height
+        : window.innerHeight;
+      const height = getNotificationPanelHeight(
+        panel.getBoundingClientRect().top,
+        viewportBottom,
+      );
+      panel.style.setProperty("--notification-panel-height", `${height}px`);
+    };
+
+    syncPanelHeight();
+    window.addEventListener("resize", syncPanelHeight);
+    window.visualViewport?.addEventListener("resize", syncPanelHeight);
+    window.visualViewport?.addEventListener("scroll", syncPanelHeight);
+    return () => {
+      window.removeEventListener("resize", syncPanelHeight);
+      window.visualViewport?.removeEventListener("resize", syncPanelHeight);
+      window.visualViewport?.removeEventListener("scroll", syncPanelHeight);
+    };
+  }, [open, items.length, message, status]);
+
   async function openNotification(item) {
     if (!item.isRead) {
       setItems((current) => current.map((entry) => entry.id === item.id
@@ -114,7 +144,7 @@ function NotificationInbox({ userId }) {
       </button>
 
       {open ? (
-        <section className="notification-inbox-panel" id="notification-inbox-panel"
+        <section className="notification-inbox-panel" id="notification-inbox-panel" ref={panelRef}
           role="dialog" aria-label="Notifications">
           <header className="notification-inbox-header">
             <h2>Notifications</h2>

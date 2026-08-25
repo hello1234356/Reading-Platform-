@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { formatNotificationTime, safeNotificationTarget } from "../src/lib/notificationApi.js";
+import { getNotificationPanelHeight } from "../src/lib/notificationLayout.js";
 
 const migrationUrl = new URL("../../supabase/migrations/202608250005_notifications.sql", import.meta.url);
 const unreadResetMigrationUrl = new URL(
@@ -26,6 +27,12 @@ test("notification relative timestamps remain deterministic", () => {
   const now = new Date("2026-08-25T12:00:00Z").getTime();
   assert.equal(formatNotificationTime("2026-08-25T11:58:00Z", now), "2m ago");
   assert.equal(formatNotificationTime("2026-08-24T12:00:00Z", now), "Yesterday");
+});
+
+test("notification panel height is derived from its rendered top and viewport bottom", () => {
+  assert.equal(getNotificationPanelHeight(100, 600), 488);
+  assert.equal(getNotificationPanelHeight(82, 900), 560);
+  assert.equal(getNotificationPanelHeight(590, 600), 0);
 });
 
 test("migration enforces recipient privacy and narrow read workflows", async () => {
@@ -100,8 +107,24 @@ test("navbar mailbox placement, bounded inbox, and accessibility are explicit", 
   assert.match(css, /\.notification-mailbox-button:focus-visible[\s\S]*0 0 0 3px/);
   assert.match(css, /\.notification-unread-badge[\s\S]*position: absolute/);
   assert.match(css, /width: min\(390px, calc\(100vw - 32px\)\)/);
-  assert.match(css, /\.notification-inbox-panel[\s\S]*display: flex[\s\S]*flex-direction: column/);
-  assert.match(css, /\.notification-inbox-list[\s\S]*min-height: 0[\s\S]*overflow-y: auto[\s\S]*touch-action: pan-y/);
+  const panelRule = css.match(/\.notification-inbox-panel\s*\{([^}]*)\}/)?.[1] || "";
+  assert.match(panelRule, /display:\s*flex/);
+  assert.match(panelRule, /flex-direction:\s*column/);
+  assert.match(panelRule, /height:\s*var\(--notification-panel-height/);
+  assert.match(panelRule, /max-height:\s*var\(--notification-panel-height/);
+  assert.match(panelRule, /min-height:\s*0/);
+  assert.match(panelRule, /overflow:\s*hidden/);
+  const headerRule = css.match(/\.notification-inbox-header\s*\{([^}]*)\}/)?.[1] || "";
+  assert.match(headerRule, /flex:\s*0 0 auto/);
+  const listRule = css.match(/\.notification-inbox-list\s*\{([^}]*)\}/)?.[1] || "";
+  assert.match(listRule, /flex:\s*1 1 auto/);
+  assert.match(listRule, /min-height:\s*0/);
+  assert.match(listRule, /overflow-y:\s*auto/);
+  assert.match(listRule, /overflow-x:\s*hidden/);
+  assert.match(listRule, /scrollbar-width:\s*thin/);
+  assert.match(listRule, /touch-action:\s*pan-y/);
+  assert.doesNotMatch(css, /notification-inbox-list[^}]*scrollbar-width:\s*none/);
+  assert.doesNotMatch(css, /notification-inbox-list::-[^{]*scrollbar[^}]*display:\s*none/);
   assert.match(css, /\.notification-inbox-row--admin_announcement \.notification-inbox-copy span[\s\S]*overflow: visible[\s\S]*-webkit-line-clamp: unset/);
   assert.match(responsive, /max-width: 720px[\s\S]*\.notification-inbox-panel[\s\S]*position: fixed/);
   assert.match(responsive, /max-width: 1020px[\s\S]*\.nav-school-actions[\s\S]*grid-column: 2/);
