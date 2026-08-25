@@ -1084,7 +1084,7 @@
   object-fit: cover;
 }
 
-.feed-card:hover .book-cover {
+.book-strip:hover .book-cover {
   transform: translateX(2px);
 }
 
@@ -1149,6 +1149,24 @@
   color: var(--terracotta);
   font-size: 13px;
   white-space: nowrap;
+}
+
+.rating-display {
+  grid-column: -2 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-self: end;
+  gap: 3px;
+}
+
+.rating-display .star-rating {
+  justify-content: flex-end;
+}
+
+.rating-display .rating {
+  align-self: flex-end;
+  text-align: right;
 }
 
 .feed-actions {

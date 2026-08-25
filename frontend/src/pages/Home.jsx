@@ -38,6 +38,7 @@ import ProfileLink from "../components/ProfileLink";
 import ModerationWarningCard from "../components/ModerationWarningCard";
 import ModerationStatusBar from "../components/ModerationStatusBar";
 import ModerationBlockedCard from "../components/ModerationBlockedCard";
+import RetryingImage from "../components/RetryingImage";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -1680,25 +1681,18 @@ function Home() {
                   }
                 >                  
                   <div className="book-cover" aria-hidden="true">
-                    {post.coverUrl ? (
-                      <img
-                        src={post.coverUrl}
-                        alt=""
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span>{post.book}</span>
-                    )}
+                    <RetryingImage
+                      src={post.coverUrl}
+                      alt=""
+                      loading="lazy"
+                      fallback={<span>{post.book}</span>}
+                    />
                   </div>
 
                   <div className="book-details">
                     <p>{post.genre}</p>
                     <div className="feed-book-title-row">
                       <strong>{post.book}</strong>
-
-                      {post.postType === "review" && (
-                        <StarRating rating={post.rating} />
-                      )}
                     </div>                    
                     <small>{post.author}</small>
                     <small>
@@ -1720,19 +1714,24 @@ function Home() {
                     </div>
                   </div>
 
-                  <div
-                    className="rating"
-                    aria-label={
-                      post.rating > 0
-                        ? `${post.rating} out of 5 open books`
-                        : "No rating"
-                    }
-                  >
-                    {post.rating > 0
-                      ? `${post.rating} / 5`
-                      : post.postType === "review"
-                        ? "Finished"
-                        : "In Progress"}
+                  <div className="rating-display">
+                    {post.postType === "review" && (
+                      <StarRating rating={post.rating} />
+                    )}
+                    <div
+                      className="rating"
+                      aria-label={
+                        post.rating > 0
+                          ? `${post.rating} out of 5 open books`
+                          : "No rating"
+                      }
+                    >
+                      {post.rating > 0
+                        ? `${post.rating} / 5`
+                        : post.postType === "review"
+                          ? "Finished"
+                          : "In Progress"}
+                    </div>
                   </div>
                   </button>
 )}
