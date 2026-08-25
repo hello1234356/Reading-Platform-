@@ -1,6 +1,6 @@
 import { requireSupabase } from "./supabase";
 import { getPreferredGoogleBooksCoverUrl } from "./googleBooks";
-import { getIsbnWorkBookDetails } from "./isbnWorkBooks";
+import { resolveIsbnBookFromExistingProviders } from "./isbnBookProviders";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
@@ -69,6 +69,9 @@ function mapLibraryRow(row) {
     isbn: row.books.isbn,
     genre: row.books.genre,
     description: row.books.description,
+    publisher: row.books.publisher || "",
+    firstPublished: row.books.publication_year || null,
+    language: row.books.language || "",
     source: bookSource,
     externalId: row.books.external_id || "",
     googleBooksId:
@@ -153,15 +156,12 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
   }
 
   if (!savedBook && !providerIdentity) {
-    const resolvedBook = await getIsbnWorkBookDetails({
-      ...book,
-      isbn: normalizedIsbn,
-    });
+    const resolvedBook = await resolveIsbnBookFromExistingProviders(normalizedIsbn);
     providerIdentity = getProviderIdentity(resolvedBook, normalizedIsbn);
 
     if (!providerIdentity) {
       throw new Error(
-        "This ISBN-only book could not be resolved through ISBN.work. Search for it from a supported provider first.",
+        "This ISBN could not be resolved through Open Library or Google Books. Search for another edition for now.",
       );
     }
   }
@@ -265,6 +265,9 @@ export async function getUserLibrary(userId) {
         isbn,
         genre,
         description,
+        publisher,
+        publication_year,
+        language,
         cover_url,
         source,
         external_id
@@ -322,6 +325,9 @@ export async function moveLibraryBook(shelfEntryId, nextShelf) {
         isbn,
         genre,
         description,
+        publisher,
+        publication_year,
+        language,
         cover_url,
         source,
         external_id
@@ -365,6 +371,9 @@ export async function updateLibraryBookProgress(shelfEntryId, progress) {
         isbn,
         genre,
         description,
+        publisher,
+        publication_year,
+        language,
         cover_url,
         source,
         external_id

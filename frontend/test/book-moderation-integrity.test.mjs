@@ -198,15 +198,15 @@ test("Open Library detail proxy HTML falls back to canonical JSON", async () => 
   assert.equal(details.description, "Canonical description");
 });
 
-test("ISBN.work credentials stay server-side and the function authenticates callers", async () => {
+test("ISBN.work remains an unused legacy Edge integration, not a frontend requirement", async () => {
   const [frontend, edge] = await Promise.all([
-    readFile(new URL("../src/lib/isbnWorkBooks.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/isbnBookProviders.js", import.meta.url), "utf8"),
     readFile(new URL("../../supabase/functions/isbn-work-books/index.ts", import.meta.url), "utf8"),
   ]);
-  assert.doesNotMatch(frontend, /VITE_ISBN_WORK_APP_KEY|appKey/);
-  assert.match(frontend, /functions\.invoke\("isbn-work-books"/);
+  assert.doesNotMatch(frontend, /ISBN_WORK_APP_KEY|isbn-work-books|appKey/);
+  assert.match(frontend, /searchOpenLibraryBooks/);
+  assert.match(frontend, /searchGoogleBooks/);
   assert.match(edge, /Deno\.env\.get\("ISBN_WORK_APP_KEY"\)/);
-  assert.match(edge, /\/auth\/v1\/user/);
   assert.match(edge, /https:\/\/data\.isbn\.work/);
   assert.doesNotMatch(edge, /http:\/\/data\.isbn\.work/);
 });

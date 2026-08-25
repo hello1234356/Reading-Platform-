@@ -4,9 +4,7 @@ import { requireSupabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
-import {
-  getGoogleBooksBookDetails,
-} from "../lib/googleBooks";
+import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
 import { getOpenLibraryIsbnCoverUrl } from "../lib/openLibraryBooks";
 import {
   getUserLibrary,
@@ -675,10 +673,13 @@ function Profile() {
     setBookDetailLoading(true);
     setBookDetailError("");
 
-    const details = await getGoogleBooksBookDetails(book);
-    setSelectedBook(details);
-    setBookDetailError(details.error || "");
-    setBookDetailLoading(false);
+    try {
+      const result = await loadBookDetailsSafely(book, loadProviderBookDetails);
+      setSelectedBook(result.details);
+      setBookDetailError(result.error);
+    } finally {
+      setBookDetailLoading(false);
+    }
   }
 
   function closeBookDetails() {

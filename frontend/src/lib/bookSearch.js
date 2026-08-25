@@ -4,7 +4,7 @@ import {
   searchGoogleBooks,
   shouldFallbackFromGoogleBooks,
 } from "./googleBooks";
-import { isLikelyIsbn } from "./isbnWorkBooks";
+import { isLikelyIsbn } from "./isbnBookProviders";
 import { searchOpenLibraryBooks } from "./openLibraryBooks";
 import {
   normalizeCommunityBookIsbn,

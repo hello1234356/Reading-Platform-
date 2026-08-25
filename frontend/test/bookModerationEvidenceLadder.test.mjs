@@ -41,15 +41,15 @@ test("broad genres do not prevent classification or force a verdict", async () =
   terms.forEach((genre) => {
     assert.equal(applyPolicy({ ...base, synopsis: `Benign ${genre} discussion` }, "medium"), "approved");
   });
-  const [google, search, discover, clubs, openLibrary, isbnWork] = await Promise.all([
+  const [google, search, discover, clubs, openLibrary, isbnProviders] = await Promise.all([
     readFile(new URL("lib/googleBooks.js", root), "utf8"),
     readFile(new URL("lib/bookSearch.js", root), "utf8"),
     readFile(new URL("pages/Discover.jsx", root), "utf8"),
     readFile(new URL("pages/BookClubs.jsx", root), "utf8"),
     readFile(new URL("lib/openLibraryBooks.js", root), "utf8"),
-    readFile(new URL("lib/isbnWorkBooks.js", root), "utf8"),
+    readFile(new URL("lib/isbnBookProviders.js", root), "utf8"),
   ]);
-  const activeVisibilityCode = [google, search, discover, clubs, openLibrary, isbnWork].join("\n");
+  const activeVisibilityCode = [google, search, discover, clubs, openLibrary, isbnProviders].join("\n");
   assert.doesNotMatch(activeVisibilityCode, /isBlockedGoogleBooks|blockedCategoryPatterns|BLOCKED_BOOK_CATEGORY_MESSAGE/);
 });
 

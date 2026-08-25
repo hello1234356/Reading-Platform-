@@ -6,16 +6,14 @@ import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
 import {
-  getGoogleBooksBookDetails,
   getGoogleBooksCoverUrl,
   getPreferredGoogleBooksCoverUrl,
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import { createLatestRequestGate } from "../lib/bookSearchRelevance";
 import { submitBookSubmission } from "../lib/bookSubmissions";
-import { getIsbnWorkBookDetails } from "../lib/isbnWorkBooks";
+import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
 import {
-  getOpenLibraryBookDetails,
   getOpenLibraryIsbnCoverUrl,
 } from "../lib/openLibraryBooks";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
@@ -509,22 +507,13 @@ async function openBookDetails(book) {
   setBookDetailLoading(true);
   setBookDetailError("");
 
-  const details =
-    book.source === "community"
-      ? {
-          ...book,
-          description:
-            book.description ||
-            "LitShelf does not have a description for this book yet.",
-        }
-      : book.source === "open_library"
-      ? await getOpenLibraryBookDetails(book)
-      : book.source === "isbn_work"
-        ? await getIsbnWorkBookDetails(book)
-        : await getGoogleBooksBookDetails(book);
-  setSelectedBook(details);
-  setBookDetailError(details.error || "");
-  setBookDetailLoading(false);
+  try {
+    const result = await loadBookDetailsSafely(book, loadProviderBookDetails);
+    setSelectedBook(result.details);
+    setBookDetailError(result.error);
+  } finally {
+    setBookDetailLoading(false);
+  }
 }
 
 function openSubmissionForm() {
