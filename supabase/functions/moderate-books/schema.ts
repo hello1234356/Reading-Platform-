@@ -3,7 +3,7 @@ export const ALLOWED_SOURCES = new Set([
   "google_books", "open_library", "isbn_work", "community",
 ]);
 
-export type EvidenceQuality = "high" | "medium" | "low" | "insufficient";
+export type EvidenceQuality = "high" | "medium" | "low" | "very_low";
 export type AssessmentStatus = "approved" | "review_required" | "blocked" | "error";
 export type Recommendation = "approve" | "review_required" | "block";
 
@@ -22,12 +22,17 @@ export type IncomingBook = {
   isbn?: string;
   maturityRating?: string;
   language?: string;
+  coverUrl?: string;
   providerMetadata?: Record<string, unknown>;
 };
 
 export type Classification = {
   recommendation: Recommendation;
-  confidence: number;
+  recognized: boolean;
+  identity_confidence: number;
+  moderation_confidence: number;
+  knowledge_source: "provider_evidence" | "model_prior_knowledge" | "combined";
+  evidence_quality: EvidenceQuality;
   sexual_content: number;
   violence: number;
   self_harm: number;
@@ -36,7 +41,9 @@ export type Classification = {
   political_or_regulatory_sensitivity: number;
   age_suitability: number;
   flags: string[];
-  summary: string;
+  synopsis: string;
+  themes: string[];
+  reasoning_summary: string;
 };
 
 export type IdentifiedClassification = Classification & {
@@ -100,6 +107,7 @@ export function validateRequestBody(body: unknown): IncomingBook[] {
       isbn: text(item.isbn, 32).replace(/[^0-9Xx]/g, "").toUpperCase(),
       maturityRating: text(item.maturityRating, 100),
       language: text(item.language, 40),
+      coverUrl: text(item.coverUrl, 2000),
       providerMetadata: item.providerMetadata && typeof item.providerMetadata === "object"
         ? item.providerMetadata as Record<string, unknown> : undefined,
     };
@@ -115,23 +123,36 @@ export function validateClassification(value: unknown): Classification {
   const dimensions = ["sexual_content", "violence", "self_harm", "drugs_or_gambling",
     "hate_or_extremism", "political_or_regulatory_sensitivity", "age_suitability"];
   if (!recommendations.includes(String(row.recommendation))) throw new Error("Invalid AI recommendation.");
-  if (!Number.isFinite(Number(row.confidence)) || Number(row.confidence) < 0 || Number(row.confidence) > 1) {
-    throw new Error("Invalid AI confidence.");
+  if (typeof row.recognized !== "boolean") throw new Error("Invalid recognition result.");
+  for (const key of ["identity_confidence", "moderation_confidence"]) {
+    if (!Number.isFinite(Number(row[key])) || Number(row[key]) < 0 || Number(row[key]) > 1) {
+      throw new Error(`Invalid ${key}.`);
+    }
   }
+  const knowledgeSources = ["provider_evidence", "model_prior_knowledge", "combined"];
+  if (!knowledgeSources.includes(String(row.knowledge_source))) throw new Error("Invalid knowledge source.");
+  const evidenceQualities = ["high", "medium", "low", "very_low"];
+  if (!evidenceQualities.includes(String(row.evidence_quality))) throw new Error("Invalid evidence quality.");
   if (dimensions.some((key) => !score(row[key]))) throw new Error("Invalid AI risk score.");
   if (!Array.isArray(row.flags) || row.flags.some((flag) => typeof flag !== "string")) {
     throw new Error("Invalid AI flags.");
   }
   return {
     recommendation: row.recommendation as Recommendation,
-    confidence: Number(row.confidence),
+    recognized: row.recognized,
+    identity_confidence: Number(row.identity_confidence),
+    moderation_confidence: Number(row.moderation_confidence),
+    knowledge_source: row.knowledge_source as Classification["knowledge_source"],
+    evidence_quality: row.evidence_quality as EvidenceQuality,
     sexual_content: Number(row.sexual_content), violence: Number(row.violence),
     self_harm: Number(row.self_harm), drugs_or_gambling: Number(row.drugs_or_gambling),
     hate_or_extremism: Number(row.hate_or_extremism),
     political_or_regulatory_sensitivity: Number(row.political_or_regulatory_sensitivity),
     age_suitability: Number(row.age_suitability),
     flags: row.flags.slice(0, 20).map((flag) => String(flag).slice(0, 120)),
-    summary: text(row.summary, 600),
+    synopsis: text(row.synopsis, 1000),
+    themes: strings(row.themes, 30, 120),
+    reasoning_summary: text(row.reasoning_summary, 600),
   };
 }
 

@@ -6,11 +6,9 @@ import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
 import {
-  BLOCKED_BOOK_CATEGORY_MESSAGE,
   getGoogleBooksBookDetails,
   getGoogleBooksCoverUrl,
   getPreferredGoogleBooksCoverUrl,
-  isBlockedGoogleBooksCategoryText,
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import { submitBookSubmission } from "../lib/bookSubmissions";
@@ -249,25 +247,13 @@ function Discover() {
     setBookResults([]);
 
     try {
-      if (isBlockedGoogleBooksCategoryText(normalizedSearchTerm)) {
-        setSearchStatus("error");
-        setSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
-        return;
-      }
-
       const simplifiedSearchTerm = simplifySearchTerm(normalizedSearchTerm);
-      let { results, blockedCount } =
+      let { results } =
         await searchBooksByQueryLanguage(normalizedSearchTerm);
 
       if (!results.length && simplifiedSearchTerm !== normalizedSearchTerm) {
-        ({ results, blockedCount } =
+        ({ results } =
           await searchBooksByQueryLanguage(simplifiedSearchTerm));
-      }
-
-      if (!results.length && blockedCount > 0) {
-        setSearchStatus("error");
-        setSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
-        return;
       }
 
       if (!results.length) {

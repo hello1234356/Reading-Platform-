@@ -13,7 +13,11 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 });
 const publicResult = (row: Record<string, unknown>, cached: boolean) => ({
   source: row.source, externalId: row.external_id, status: row.status,
-  confidence: row.confidence, evidenceQuality: row.evidence_quality,
+  confidence: row.moderation_confidence ?? row.confidence,
+  identityConfidence: row.identity_confidence,
+  moderationConfidence: row.moderation_confidence ?? row.confidence,
+  knowledgeSource: row.knowledge_source,
+  evidenceQuality: row.evidence_quality,
   policyVersion: row.policy_version, cached,
 });
 
@@ -92,7 +96,7 @@ Deno.serve(async (request) => {
   if (cacheError) return json({ error: "Moderation cache is unavailable." }, 500);
   const cache = new Map((cachedRows || []).map((row) => [moderationIdentity(row.source, row.external_id), row]));
   const { data: storedRows } = await service.from("books").select(
-    "id,title,author,isbn,genre,description,language,publisher,publication_year,source,external_id"
+    "id,title,author,isbn,genre,description,cover_url,language,publisher,publication_year,source,external_id"
   ).in("source", sources).in("external_id", externalIds);
   const stored = new Map((storedRows || []).map((row) => [moderationIdentity(row.source, row.external_id), row]));
 
@@ -103,9 +107,8 @@ Deno.serve(async (request) => {
   });
   const unknownPackets = plan.unknown;
 
-  // Insufficient evidence is decided deterministically and omitted from the AI batch.
-  const insufficient = unknownPackets.filter((packet) => packet.evidenceQuality === "insufficient");
-  const eligible = unknownPackets.filter((packet) => packet.evidenceQuality !== "insufficient");
+  // Sparse packets still reach the classifier so reliable prior knowledge can identify exact works.
+  const eligible = unknownPackets;
   let batch = { valid: new Map(), errors: new Map<string, string>(), rejectedIdentities: [] as string[] };
   let providerFailure = "";
   if (eligible.length) {
@@ -118,25 +121,6 @@ Deno.serve(async (request) => {
     }
   }
 
-  for (const packet of insufficient) {
-    const identity = moderationIdentity(packet.source, packet.externalId);
-    try {
-      const saved = await saveAssessment(service, packet, cache.get(identity), {
-        status: "review_required", confidence: 0, risk_scores: {},
-        flags: ["insufficient_evidence"],
-        summary: "Available metadata is insufficient for automatic approval.",
-        model_version: "deterministic-no-ai",
-      }, "evidence_updated", { reason: "insufficient_evidence", mode: MODERATION_MODE });
-      resultByIdentity.set(identity, publicResult(saved, false));
-    } catch (error) {
-      console.error("Could not save insufficient-evidence assessment", { identity,
-        message: error instanceof Error ? error.message : "unknown" });
-      resultByIdentity.set(identity, { source: packet.source, externalId: packet.externalId,
-        status: "error", confidence: 0, evidenceQuality: packet.evidenceQuality,
-        policyVersion: POLICY_VERSION, cached: false });
-    }
-  }
-
   for (const packet of eligible) {
     const identity = moderationIdentity(packet.source, packet.externalId);
     const classification = batch.valid.get(identity) as Classification | undefined;
@@ -144,9 +128,19 @@ Deno.serve(async (request) => {
       const saved = classification
         ? await saveAssessment(service, packet, cache.get(identity), {
           status: applyPolicy(classification, packet.evidenceQuality),
-          confidence: classification.confidence, risk_scores: riskScores(classification),
-          flags: classification.flags, summary: classification.summary,
-        }, "ai_assessed", { recommendation: classification.recommendation, mode: MODERATION_MODE })
+          confidence: classification.moderation_confidence,
+          identity_confidence: classification.identity_confidence,
+          moderation_confidence: classification.moderation_confidence,
+          knowledge_source: classification.knowledge_source,
+          synopsis: classification.synopsis,
+          themes: classification.themes,
+          risk_scores: riskScores(classification), flags: classification.flags,
+          summary: classification.reasoning_summary,
+          reason_for_review: applyPolicy(classification, packet.evidenceQuality) === "review_required"
+            ? classification.reasoning_summary : "",
+        }, "ai_assessed", { recommendation: classification.recommendation,
+          recognized: classification.recognized, knowledge_source: classification.knowledge_source,
+          mode: MODERATION_MODE })
         : await saveAssessment(service, packet, cache.get(identity), {
           status: "error", confidence: 0, risk_scores: {},
           flags: [providerFailure ? "classifier_unavailable" : batch.errors.get(identity) || "invalid_classification"],

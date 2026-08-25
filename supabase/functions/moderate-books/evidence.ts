@@ -3,14 +3,16 @@ import { moderationIdentity, type EvidenceQuality, type IncomingBook } from "./s
 export type EvidencePacket = IncomingBook & { evidenceQuality: EvidenceQuality };
 
 export function assessEvidenceQuality(book: IncomingBook): EvidenceQuality {
-  const descriptionLength = (book.description || "").length;
+  const rawDescription = book.description || "";
+  const descriptionLength = /does not have an official description/i.test(rawDescription)
+    ? 0 : rawDescription.length;
   const supporting = [book.publisher, book.publicationYear, book.isbn, book.language,
     book.maturityRating].filter(Boolean).length;
   const topical = book.categories.length + book.subjects.length;
   if (descriptionLength >= 500 && supporting >= 2 && topical >= 2) return "high";
   if (descriptionLength >= 180 && (supporting >= 1 || topical >= 1)) return "medium";
   if (descriptionLength >= 60 || topical >= 2 || (book.authors.length > 0 && supporting >= 2)) return "low";
-  return "insufficient";
+  return "very_low";
 }
 
 export function buildEvidencePacket(incoming: IncomingBook, stored?: Record<string, unknown>): EvidencePacket {
@@ -26,6 +28,7 @@ export function buildEvidencePacket(incoming: IncomingBook, stored?: Record<stri
     publicationYear: incoming.publicationYear || (Number(stored?.publication_year) || undefined),
     isbn: incoming.isbn || String(stored?.isbn || ""),
     language: incoming.language || String(stored?.language || ""),
+    coverUrl: incoming.coverUrl || String(stored?.cover_url || ""),
   };
   return { ...merged, evidenceQuality: assessEvidenceQuality(merged) };
 }
@@ -37,6 +40,7 @@ export function safeEvidenceForStorage(packet: EvidencePacket) {
     publisher: packet.publisher || "", publicationYear: packet.publicationYear || null,
     isbn: packet.isbn || "", maturityRating: packet.maturityRating || "",
     language: packet.language || "", providerMetadata: packet.providerMetadata || {},
+    coverUrl: packet.coverUrl || "",
   };
 }
 
@@ -50,10 +54,16 @@ export function planBookAssessments(
   books.forEach((book) => {
     const identity = moderationIdentity(book.source, book.externalId);
     const assessment = cachedByIdentity.get(identity);
-    if (assessment && (assessment.status !== "error" || assessment.manually_reviewed)) {
+    const packet = buildEvidencePacket(book, storedByIdentity.get(identity));
+    const qualityRank: Record<string, number> = {
+      insufficient: 0, very_low: 0, low: 1, medium: 2, high: 3,
+    };
+    const evidenceImproved = assessment && !assessment.manually_reviewed &&
+      qualityRank[packet.evidenceQuality] > qualityRank[String(assessment.evidence_quality || "very_low")];
+    if (assessment && !evidenceImproved && (assessment.status !== "error" || assessment.manually_reviewed)) {
       cached.set(identity, assessment);
     } else {
-      unknown.push(buildEvidencePacket(book, storedByIdentity.get(identity)));
+      unknown.push(packet);
     }
   });
   return { cached, unknown };

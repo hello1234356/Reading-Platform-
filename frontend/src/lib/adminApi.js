@@ -84,15 +84,21 @@ function mapBookAssessment(row) {
     externalId: row.external_id || "",
     status: row.status || "review_required",
     confidence: Number(row.confidence) || 0,
+    identityConfidence: Number(row.identity_confidence) || 0,
+    moderationConfidence: Number(row.moderation_confidence ?? row.confidence) || 0,
+    knowledgeSource: row.knowledge_source || "provider_evidence",
     evidenceQuality: row.evidence_quality || "insufficient",
     riskScores: row.risk_scores && typeof row.risk_scores === "object" ? row.risk_scores : {},
     flags: Array.isArray(row.flags) ? row.flags : [],
     summary: row.summary || "",
+    synopsis: row.synopsis || "",
+    themes: Array.isArray(row.themes) ? row.themes : [],
+    reasonForReview: row.reason_for_review || "",
     evidence,
     title: evidence.title || row.books?.title || "Untitled",
     author: Array.isArray(evidence.authors) && evidence.authors.length
       ? evidence.authors.join(", ") : row.books?.author || "Unknown author",
-    coverUrl: row.books?.cover_url || "",
+    coverUrl: evidence.coverUrl || row.books?.cover_url || "",
     policyVersion: row.policy_version || "",
     modelVersion: row.model_version || "",
     manuallyReviewed: Boolean(row.manually_reviewed),
@@ -290,8 +296,9 @@ export async function getBookModerationAssessments(status = "review_required") {
   let query = supabase
     .from("book_moderation_assessments")
     .select(`
-      id, book_id, source, external_id, status, confidence, evidence_quality,
-      risk_scores, flags, summary, evidence, policy_version, model_version,
+      id, book_id, source, external_id, status, confidence, identity_confidence,
+      moderation_confidence, knowledge_source, evidence_quality, risk_scores, flags,
+      summary, synopsis, themes, reason_for_review, evidence, policy_version, model_version,
       manually_reviewed, reviewed_at, updated_at,
       books (title, author, cover_url)
     `)

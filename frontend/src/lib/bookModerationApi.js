@@ -33,6 +33,9 @@ export function toModerationBook(book) {
     isbn: String(book.isbn || ""),
     maturityRating: String(book.maturityRating || ""),
     language: String(book.language || ""),
+    coverUrl: String(book.coverUrl || ""),
+    providerMetadata: book.providerMetadata && typeof book.providerMetadata === "object"
+      ? book.providerMetadata : {},
   };
 }
 

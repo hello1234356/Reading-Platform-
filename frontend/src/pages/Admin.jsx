@@ -607,13 +607,22 @@ function BookAiModerationTab() {
               <div className="admin-meta-grid">
                 <span>Source: {titleCase(assessment.source)}</span>
                 <span>External ID: {assessment.externalId}</span>
-                <span>{formatConfidence(assessment.confidence)}</span>
+                <span>Identity: {formatConfidence(assessment.identityConfidence)}</span>
+                <span>Moderation: {formatConfidence(assessment.moderationConfidence)}</span>
+                <span>Knowledge: {titleCase(assessment.knowledgeSource)}</span>
                 <span>Evidence: {titleCase(assessment.evidenceQuality)}</span>
                 <span>Policy: {assessment.policyVersion}</span>
                 <span>Model: {assessment.modelVersion}</span>
                 {assessment.manuallyReviewed ? <span>Human reviewed</span> : null}
               </div>
               {assessment.summary ? <p className="admin-muted">AI summary: {assessment.summary}</p> : null}
+              {assessment.synopsis ? <p className="admin-muted">Synopsis used: {assessment.synopsis}</p> : null}
+              {assessment.themes.length ? (
+                <p className="admin-muted">Themes: {assessment.themes.join(", ")}</p>
+              ) : null}
+              {assessment.reasonForReview ? (
+                <p className="admin-muted">Reason for review: {assessment.reasonForReview}</p>
+              ) : null}
               <div className="admin-risk-grid" aria-label="Risk scores">
                 {Object.entries(assessment.riskScores).map(([dimension, score]) => (
                   <span key={dimension}>{titleCase(dimension)}: {score}/4</span>

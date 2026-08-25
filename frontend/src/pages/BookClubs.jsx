@@ -8,9 +8,7 @@ import { requireSupabase } from "../lib/supabase";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import {
-  BLOCKED_BOOK_CATEGORY_MESSAGE,
   getGoogleBooksCoverUrl,
-  isBlockedGoogleBooksCategoryText,
 } from "../lib/googleBooks";
 import { getOpenLibraryIsbnCoverUrl } from "../lib/openLibraryBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
@@ -423,13 +421,6 @@ const filteredClubs = clubs.filter((club) => {
       setBookSearchMessage("");
 
       try {
-        if (isBlockedGoogleBooksCategoryText(searchTerm)) {
-          setBookSearchResults([]);
-          setBookSearchStatus("error");
-          setBookSearchMessage(BLOCKED_BOOK_CATEGORY_MESSAGE);
-          return;
-        }
-
         const simplifiedSearchTerm = simplifySearchTerm(searchTerm);
         let results = await fetchGoogleBooks(searchTerm);
 

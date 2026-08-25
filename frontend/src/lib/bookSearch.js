@@ -1,5 +1,4 @@
 import {
-  filterGoogleBooksResults,
   isGoogleBooksQuotaError,
   mapGoogleBooksResult,
   searchGoogleBooks,
@@ -28,15 +27,12 @@ async function searchGoogleProvider(searchTerm, limit) {
     limit,
     fetchResults: async () => {
       const googleResults = await searchGoogleBooks(searchTerm, limit);
-      const { allowedResults, blockedCount } =
-        filterGoogleBooksResults(googleResults);
-
       return {
-        results: allowedResults.map((result) => ({
+        results: googleResults.map((result) => ({
           ...mapGoogleBooksResult(result),
           source: "google_books",
         })),
-        blockedCount,
+        blockedCount: 0,
       };
     },
   });

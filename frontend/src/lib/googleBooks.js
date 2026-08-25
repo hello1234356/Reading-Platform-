@@ -4,50 +4,6 @@ function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
 }
 
-export const BLOCKED_BOOK_CATEGORY_MESSAGE =
-  "This book category is currently unavailable. Stay tuned for future updates.";
-
-const blockedCategoryPatterns = [
-  /\b(?:world|american|british|chinese|european|asian|african|ancient|medieval|modern|military|social|cultural|oral)\s+histor(?:y|ies|ical|ically)\b/i,
-  /\bhistor(?:y|ies|ical|ically|ian|ians|iography|iographies|iographic|ic|icism)\b/i,
-  /\b(?:dynast(?:y|ies)|empire|imperial|colonial|colonialism|postcolonial|revolution|revolutionary|civil\s+war|cold\s+war|world\s+war|warfare|battle|battles|soldier|military|army|navy|air\s+force|holocaust|genocide|occupation|invasion|treaty|archive|archives|archaeology|ancient\s+civilization)\b/i,
-  /\b(?:politic(?:s|al|ally|ian|ians|ized|ised|ization|isation)?|geopolitic(?:s|al|ally)?|government|governmental|governance|civics?|statecraft|diplomacy|diplomatic|diplomats?|propaganda|ideology|ideologies|ideological|ideologically|election(?:s|eering)?|campaign|campaigns|policy|policies|public\s+policy|law|legal|constitution|constitutional|constitutionally|legislation|legislative|legislator|legislators|parliament|parliamentary|congress|congressional|senate|senatorial|democracy|democratic|democratically|republican|communis[mt]|communist|socialis[mt]|socialist|capitalis[mt]|capitalist|marxis[mt]|marxist|mao(?:ism|ist)?|lenin(?:ism|ist)?|fascis[mt]|fascist|authoritarian|authoritarianism|totalitarian|totalitarianism|nationalis[mt]|nationalist|activis[mt]|activist|human\s+rights|civil\s+rights|foreign\s+relations|international\s+relations|political\s+science)\b/i,
-  /\b(?:religion|religions|religious|spirituality|spiritual|theology|theological|scripture|scriptures|sacred|faith|faiths|worship|church|temple|mosque|synagogue|cathedral|monastery|prayer|sermon|clergy|priest|pastor|rabbi|imam|monk|nun|saint|saints|missionary|missions|mythology|mythological|creationism)\b/i,
-  /\b(?:christian(?:ity)?|catholic(?:ism)?|protestant(?:ism)?|orthodox\s+church|evangelical|mormon(?:ism)?|islam(?:ic)?|muslim|judaism|jewish|buddh(?:a|ism|ist)|hindu(?:ism)?|sikh(?:ism)?|tao(?:ism|ist)|dao(?:ism|ist)|confucian(?:ism)?|shinto(?:ism)?|pagan(?:ism)?|wicca|bible|biblical(?:ly)?|gospels?|quran(?:ic)?|koran(?:ic)?|torah|talmud(?:ic)?|hadith|sutras?|vedas?|bhagavad\s+gita|karma|nirvana)\b/i,
-  /\b(?:biograph(?:y|ies|ical)|autobiograph(?:y|ies|ical)|memoir|memoirs|true\s+story|current\s+affairs|social\s+science|sociology|anthropology|economics|public\s+affairs|non[-\s]?fiction|nonfiction)\b/i,
-];
-
-export function isBlockedGoogleBooksCategoryText(text) {
-  const normalizedText = String(text || "").trim();
-  return normalizedText
-    ? blockedCategoryPatterns.some((pattern) => pattern.test(normalizedText))
-    : false;
-}
-
-export function isBlockedGoogleBooksResult(result) {
-  const info = result?.volumeInfo || {};
-  return isBlockedGoogleBooksCategoryText([
-    info.title,
-    info.subtitle,
-    ...(info.authors || []),
-    info.publisher,
-    ...(info.categories || []),
-    info.description,
-  ].join(" "));
-}
-
-export function filterGoogleBooksResults(results = []) {
-  const allowedResults = [];
-  let blockedCount = 0;
-
-  results.forEach((result) => {
-    if (isBlockedGoogleBooksResult(result)) blockedCount += 1;
-    else allowedResults.push(result);
-  });
-
-  return { allowedResults, blockedCount };
-}
-
 function getApiKey() {
   return import.meta.env.VITE_GOOGLE_BOOKS_API_KEY?.trim() || "";
 }
@@ -227,7 +183,15 @@ export function mapGoogleBooksResult(result) {
     description: normalizeDescription(info.description),
     publisher: info.publisher || "",
     genre: info.categories?.[0] || "",
+    categories: Array.isArray(info.categories) ? info.categories : [],
+    subjects: [],
+    maturityRating: info.maturityRating || "",
     language: info.language || "",
+    providerMetadata: {
+      publishedDate: info.publishedDate || "",
+      pageCount: info.pageCount || null,
+      printType: info.printType || "",
+    },
   };
 }
 

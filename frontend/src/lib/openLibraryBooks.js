@@ -1,4 +1,3 @@
-import { isBlockedGoogleBooksCategoryText } from "./googleBooks";
 import { persistMissingBookMetadataSafely } from "./bookMetadataApi";
 
 const OPEN_LIBRARY_BASE_PATH = "/open-library-api";
@@ -63,28 +62,14 @@ function mapOpenLibraryDoc(doc) {
     description: "",
     publisher: firstValue(doc.publisher) || "",
     genre: firstValue(doc.subject) || "",
+    categories: [],
+    subjects: Array.isArray(doc.subject) ? doc.subject : [],
     language: "chi",
+    providerMetadata: {
+      editionCount: doc.edition_count || null,
+      firstPublishYear: doc.first_publish_year || null,
+    },
   };
-}
-
-function filterBlockedBooks(books) {
-  let blockedCount = 0;
-  const results = [];
-
-  books.forEach((book) => {
-    const categoryText = [
-      book.title,
-      book.author,
-      book.publisher,
-      book.genre,
-      book.description,
-    ].join(" ");
-
-    if (isBlockedGoogleBooksCategoryText(categoryText)) blockedCount += 1;
-    else results.push(book);
-  });
-
-  return { results, blockedCount };
 }
 
 function hasCjkText(value) {
@@ -187,7 +172,7 @@ export async function searchOpenLibraryBooks(searchTerm, limit = 20) {
       fallbackUrl,
     );
     const books = (data.docs || []).map(mapOpenLibraryDoc);
-    return filterBlockedBooks(books);
+    return { results: books, blockedCount: 0 };
   } catch (error) {
     console.error("Open Library search failed.", {
       status: error.status,

@@ -12,7 +12,10 @@ const dimensions = {
 };
 const resultFor = (book, overrides = {}) => ({
   source: book.source, external_id: book.externalId, recommendation: "approve",
-  confidence: 0.95, ...dimensions, flags: [], summary: "Suitable based on supplied evidence.",
+  recognized: true, identity_confidence: 0.96, moderation_confidence: 0.95,
+  knowledge_source: "provider_evidence", evidence_quality: "high",
+  synopsis: "A factual synopsis.", themes: ["reading"],
+  ...dimensions, flags: [], reasoning_summary: "Suitable based on supplied evidence.",
   ...overrides,
 });
 const book = (id, description = "A detailed description ".repeat(20)) => ({
@@ -24,7 +27,7 @@ const book = (id, description = "A detailed description ".repeat(20)) => ({
 test("partial malformed batch preserves four valid classifications", () => {
   const books = [1, 2, 3, 4, 5].map(book);
   const response = { results: books.map(resultFor) };
-  response.results[4] = resultFor(books[4], { confidence: 9 });
+  response.results[4] = resultFor(books[4], { moderation_confidence: 9 });
   const validated = validateBatchClassification(response, books);
   assert.equal(validated.valid.size, 4);
   assert.equal(validated.errors.get(moderationIdentity("google_books", "book-5")), "invalid_classification");
@@ -44,17 +47,30 @@ test("missing, invented, and duplicate identities cannot corrupt mapping", () =>
 test("cache planning sends only unknown books and protects manual overrides", () => {
   const books = [1, 2, 3, 4, 5].map(book);
   const cache = new Map([
-    [moderationIdentity("google_books", "book-1"), { status: "approved" }],
-    [moderationIdentity("google_books", "book-2"), { status: "blocked", manually_reviewed: true }],
-    [moderationIdentity("google_books", "book-3"), { status: "approved" }],
+    [moderationIdentity("google_books", "book-1"), { status: "approved", evidence_quality: "high" }],
+    [moderationIdentity("google_books", "book-2"), { status: "blocked", manually_reviewed: true, evidence_quality: "low" }],
+    [moderationIdentity("google_books", "book-3"), { status: "approved", evidence_quality: "high" }],
   ]);
   const partial = planBookAssessments(books, cache, new Map());
   assert.equal(partial.cached.size, 3);
   assert.deepEqual(partial.unknown.map((packet) => packet.externalId), ["book-4", "book-5"]);
   const full = planBookAssessments(books, new Map(books.map((item) => [
-    moderationIdentity(item.source, item.externalId), { status: "approved" },
+    moderationIdentity(item.source, item.externalId), { status: "approved", evidence_quality: "high" },
   ])), new Map());
   assert.equal(full.unknown.length, 0);
+});
+
+test("substantially improved evidence re-enters classification without overriding human review", () => {
+  const candidate = book(8);
+  const identity = moderationIdentity(candidate.source, candidate.externalId);
+  const improved = planBookAssessments([candidate], new Map([[identity, {
+    status: "review_required", evidence_quality: "very_low", manually_reviewed: false,
+  }]]), new Map());
+  assert.equal(improved.unknown.length, 1);
+  const human = planBookAssessments([candidate], new Map([[identity, {
+    status: "blocked", evidence_quality: "very_low", manually_reviewed: true,
+  }]]), new Map());
+  assert.equal(human.cached.size, 1);
 });
 
 test("five unknown books use one batch call and injection stays quoted as evidence", async () => {

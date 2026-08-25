@@ -1,5 +1,3 @@
-import { isBlockedGoogleBooksCategoryText } from "./googleBooks";
-
 const ISBN_WORK_BASE_PATH = "/isbn-work-api/openApi";
 
 function normalizeIsbn(isbn) {
@@ -40,28 +38,13 @@ function mapIsbnWorkBook(record) {
     description: record.bookDesc || record.summary || record.description || "",
     publisher: record.press || record.publisher || "",
     genre: record.clcName || record.category || "",
+    categories: [record.clcName || record.category || ""].filter(Boolean),
+    subjects: [],
     language: record.language || "chi",
+    providerMetadata: {
+      pressDate: record.pressDate || record.pubdate || null,
+    },
   };
-}
-
-function filterBlockedBooks(books) {
-  let blockedCount = 0;
-  const results = [];
-
-  books.forEach((book) => {
-    const categoryText = [
-      book.title,
-      book.author,
-      book.publisher,
-      book.genre,
-      book.description,
-    ].join(" ");
-
-    if (isBlockedGoogleBooksCategoryText(categoryText)) blockedCount += 1;
-    else results.push(book);
-  });
-
-  return { results, blockedCount };
 }
 
 export function isLikelyIsbn(searchTerm) {
@@ -150,7 +133,7 @@ export async function searchIsbnWorkBooks(searchTerm, limit = 20) {
   });
 
   const books = getRecordsFromResponse(data).map(mapIsbnWorkBook);
-  return filterBlockedBooks(books);
+  return { results: books, blockedCount: 0 };
 }
 
 export async function getIsbnWorkBookDetails(book) {
