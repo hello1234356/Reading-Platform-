@@ -4,6 +4,10 @@ import test from "node:test";
 import { formatNotificationTime, safeNotificationTarget } from "../src/lib/notificationApi.js";
 
 const migrationUrl = new URL("../../supabase/migrations/202608250005_notifications.sql", import.meta.url);
+const unreadResetMigrationUrl = new URL(
+  "../../supabase/migrations/202608250009_reset_all_notifications_unread.sql",
+  import.meta.url,
+);
 const navbarUrl = new URL("../src/components/Navbar.jsx", import.meta.url);
 const inboxUrl = new URL("../src/components/NotificationInbox.jsx", import.meta.url);
 const navbarCssUrl = new URL("../src/components/Navbar.css", import.meta.url);
@@ -32,6 +36,11 @@ test("migration enforces recipient privacy and narrow read workflows", async () 
   assert.doesNotMatch(sql, /grant (?:insert|update|delete).*notifications to authenticated/i);
   assert.match(sql, /mark_notification_read[\s\S]*recipient_id = auth\.uid\(\)/i);
   assert.match(sql, /mark_all_notifications_read[\s\S]*recipient_id = auth\.uid\(\)/i);
+});
+
+test("one-time reset marks every existing notification unread", async () => {
+  const sql = await readFile(unreadResetMigrationUrl, "utf8");
+  assert.match(sql, /update public\.notifications\s+set is_read = false\s+where is_read = true/i);
 });
 
 test("durable triggers prevent self and duplicate interaction notifications", async () => {
@@ -91,6 +100,8 @@ test("navbar mailbox placement, bounded inbox, and accessibility are explicit", 
   assert.match(css, /\.notification-mailbox-button:focus-visible[\s\S]*0 0 0 3px/);
   assert.match(css, /\.notification-unread-badge[\s\S]*position: absolute/);
   assert.match(css, /width: min\(390px, calc\(100vw - 32px\)\)/);
+  assert.match(css, /\.notification-inbox-panel[\s\S]*display: flex[\s\S]*flex-direction: column/);
+  assert.match(css, /\.notification-inbox-list[\s\S]*min-height: 0[\s\S]*overflow-y: auto[\s\S]*touch-action: pan-y/);
   assert.match(css, /\.notification-inbox-row--admin_announcement \.notification-inbox-copy span[\s\S]*overflow: visible[\s\S]*-webkit-line-clamp: unset/);
   assert.match(responsive, /max-width: 720px[\s\S]*\.notification-inbox-panel[\s\S]*position: fixed/);
   assert.match(responsive, /max-width: 1020px[\s\S]*\.nav-school-actions[\s\S]*grid-column: 2/);

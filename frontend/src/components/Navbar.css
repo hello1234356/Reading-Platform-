@@ -32,7 +32,8 @@
 }
 
 .nav-center {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   grid-template-columns: auto minmax(210px, 320px) auto;
   align-items: center;
   justify-self: center;
@@ -517,7 +518,8 @@
   top: calc(100% + 12px);
   right: 0;
   z-index: 80;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   width: min(390px, calc(100vw - 32px));
   max-height: min(560px, calc(100vh - 124px));
   overflow: hidden;
@@ -528,6 +530,7 @@
 }
 
 .notification-inbox-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -553,9 +556,17 @@
 }
 
 .notification-inbox-list {
+  flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.notification-inbox-panel > .notification-inbox-state {
+  flex: 0 0 auto;
 }
 
 .notification-inbox-row {
