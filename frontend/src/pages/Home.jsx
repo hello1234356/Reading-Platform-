@@ -39,6 +39,7 @@ import ModerationWarningCard from "../components/ModerationWarningCard";
 import ModerationStatusBar from "../components/ModerationStatusBar";
 import ModerationBlockedCard from "../components/ModerationBlockedCard";
 import RetryingImage from "../components/RetryingImage";
+import HomepageSpotlightCarousel from "../components/HomepageSpotlightCarousel";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -1445,30 +1446,10 @@ function Home() {
 
   return (
     <div className="home-page">
-      <section className="reading-room-hero" aria-labelledby="home-title">
-        <div className="daily-quote-panel">
-          <div className="daily-quote-meta">
-            <span>{new Intl.DateTimeFormat(undefined, {
-              month: "long",
-              day: "numeric",
-            }).format(new Date())}</span>
-          </div>
-          <blockquote>
-            <span aria-hidden="true">“</span>
-            <h1 id="home-title">{dailyQuote.quote}</h1>
-            <span aria-hidden="true">”</span>
-          </blockquote>
-          <div className="daily-quote-credit">
-            <p>{dailyQuote.author}</p>
-            <small>{dailyQuote.source}</small>
-          </div>
-          <div className="daily-quote-actions">
-            <button className="primary-button hero-action" type="button" onClick={() => openComposer()}>
-              Share Your Reading
-            </button>
-          </div>
-        </div>
-      </section>
+      <HomepageSpotlightCarousel
+        dailyQuote={dailyQuote}
+        onFallbackAction={() => openComposer()}
+      />
 
       <section
         className="grade-leaderboard-strip"

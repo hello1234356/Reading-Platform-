@@ -15,6 +15,7 @@ import {
   searchAdminClubs,
 } from "../lib/adminApi";
 import { useAuth } from "../hooks/useAuth";
+import HomepageBannerAdmin from "../components/HomepageBannerAdmin";
 
 const moderationFilters = ["pending", "concerning", "dismissed", "resolved", "all"];
 const submissionFilters = ["pending", "approved", "rejected"];
@@ -60,7 +61,7 @@ function getModerationErrorMessage(error) {
 }
 
 function AdminTabs({ activeTab, onChange, isOwner }) {
-  const tabs = ["moderation", "books", "clubs"];
+  const tabs = ["moderation", "books", "clubs", "banners"];
   if (isOwner) tabs.push("admins");
 
   return (
@@ -76,6 +77,8 @@ function AdminTabs({ activeTab, onChange, isOwner }) {
             ? "Book Verification"
             : tab === "clubs"
               ? "Club Activity"
+              : tab === "banners"
+                ? "Homepage Banners"
               : titleCase(tab)}
         </button>
       ))}
@@ -824,6 +827,7 @@ function Admin() {
       {activeTab === "moderation" ? <ModerationTab isOwner={isOwner} /> : null}
       {activeTab === "books" ? <BookVerificationTab isOwner={isOwner} /> : null}
       {activeTab === "clubs" ? <ClubActivityTab /> : null}
+      {activeTab === "banners" ? <HomepageBannerAdmin /> : null}
       {activeTab === "admins" && isOwner ? <AdminManagementTab /> : null}
     </section>
   );
