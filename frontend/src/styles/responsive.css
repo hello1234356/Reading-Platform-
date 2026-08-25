@@ -777,6 +777,11 @@
     grid-template-columns: 56px minmax(0, 1fr);
   }
 
+  .book-strip-content {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 8px;
+  }
+
   .book-cover {
     width: 52px;
   }
@@ -1212,6 +1217,75 @@
 
   .comment-form {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1020px) {
+  .nav-school-actions {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 460px) {
+  .nav-school-actions {
+    gap: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .notification-inbox-panel {
+    position: fixed;
+    top: 74px;
+    right: max(12px, env(safe-area-inset-right));
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
+    max-height: calc(100dvh - 92px - env(safe-area-inset-bottom));
+  }
+}
+
+/* Adapt search cards to their content column when desktop space is constrained. */
+@media (min-width: 641px) {
+  @container isbn-search-results (max-width: 1060px) {
+    .isbn-search-feedback .book-search-results {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .isbn-search-feedback .isbn-search-result {
+      padding: 22px;
+    }
+
+    .isbn-search-feedback .isbn-result-details-button {
+      grid-template-columns: 100px minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .isbn-search-feedback .isbn-result-cover,
+    .isbn-search-feedback .isbn-result-cover img {
+      width: 100px;
+    }
+
+    .isbn-search-feedback .isbn-result-actions {
+      align-items: end;
+      padding-left: 118px;
+    }
+
+    .isbn-search-feedback .isbn-shelf-choice {
+      flex: 0 1 240px;
+      min-width: 0;
+      width: auto;
+    }
+
+    .isbn-search-feedback .isbn-shelf-choice select {
+      width: 100%;
+    }
+
+    .isbn-search-feedback .isbn-result-actions .primary-button {
+      flex: 0 0 auto;
+      width: auto;
+      max-width: 100%;
+    }
   }
 }
 

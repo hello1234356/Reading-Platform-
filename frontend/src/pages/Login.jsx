@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { requireSupabase } from "../lib/supabase";
+import { isAllowedAccountEmail, normalizeAccountEmail } from "../lib/authEmailPolicy";
 import loginBackground from "../assets/login-background.png";
 import loginBackgroundPortrait from "../assets/login-background-portrait.png";
 
@@ -21,8 +22,9 @@ export default function Login() {
 
     try {
       const supabase = requireSupabase();
+      const normalizedEmail = normalizeAccountEmail(email);
 
-      if (!email.endsWith("@tsinglan.org")) {
+      if (!isAllowedAccountEmail(normalizedEmail)) {
         setMessage("Please use your Tsinglan school email.");
         return;
       }
@@ -34,7 +36,7 @@ export default function Login() {
 
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
         });
 
@@ -43,12 +45,12 @@ export default function Login() {
           return;
         }
 
-        setMessage("Account created. Check your school email to confirm it.");
+        setMessage("Account created. Check your email to confirm it.");
         return;
       }
 
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 

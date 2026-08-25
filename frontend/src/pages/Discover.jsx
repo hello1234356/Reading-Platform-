@@ -24,6 +24,7 @@ import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
 import StarRating from "../components/StarRating";
 import { createPost } from "../lib/postApi";
+import { getCatalogBookById } from "../lib/communityBooks";
 
 function getCoverUrl(isbn, size = "L") {
   return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
@@ -146,6 +147,7 @@ function Discover() {
   const { requireLogin } = useRequireLogin();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const bookDeepLinkHandledRef = useRef("");
   const searchHeroRef = useRef(null);
   const [query, setQuery] = useState(searchParams.get("search") || "");
   const [bookResults, setBookResults] = useState([]);
@@ -194,6 +196,23 @@ function Discover() {
     floatingSubmissionUnlocked &&
     query.trim() &&
     searchStatus === "success";
+
+  useEffect(() => {
+    const targetBookId = searchParams.get("bookId") || "";
+    if (!targetBookId || bookDeepLinkHandledRef.current === targetBookId) return;
+    bookDeepLinkHandledRef.current = targetBookId;
+    let cancelled = false;
+    async function openTargetBook() {
+      try {
+        const targetBook = await getCatalogBookById(targetBookId);
+        if (!cancelled && targetBook) await openBookDetails(targetBook);
+      } catch (error) {
+        if (!cancelled) console.error("Notification book target is unavailable:", error);
+      }
+    }
+    void openTargetBook();
+    return () => { cancelled = true; };
+  }, [searchParams]);
 
   async function refreshRecentFinishes({ showLoading = false } = {}) {
     if (showLoading) {

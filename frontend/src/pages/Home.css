@@ -1048,7 +1048,7 @@
 
 .book-strip {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) auto;
+  grid-template-columns: 72px minmax(0, 1fr);
   gap: 16px;
   align-items: center;
   width: calc(100% - 68px);
@@ -1060,6 +1060,14 @@
   background: linear-gradient(135deg, rgba(255, 250, 241, 0.9), rgba(244, 220, 123, 0.18));
   box-shadow: var(--pillow-shadow);
   text-align: left;
+}
+
+.book-strip-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+  align-items: start;
+  min-width: 0;
 }
 
 .book-cover {
@@ -1104,6 +1112,10 @@
   min-width: 0;
 }
 
+.feed-book-title-row {
+  min-width: 0;
+}
+
 .book-details p {
   color: var(--soft-gray);
   font-size: 11px;
@@ -1116,6 +1128,7 @@
   font-family: var(--heading);
   font-size: 17px;
   line-height: 1.05;
+  overflow-wrap: anywhere;
 }
 
 .book-details small {
@@ -1126,7 +1139,7 @@
 
 .bookmark-progress {
   position: relative;
-  width: min(100%, 320px);
+  width: 100%;
   height: 8px;
   margin-top: 6px;
   margin-left: 0;
@@ -1152,11 +1165,11 @@
 }
 
 .rating-display {
-  grid-column: -2 / -1;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   justify-self: end;
+  align-self: center;
   gap: 3px;
 }
 
@@ -1378,6 +1391,21 @@
 
 .comment-item {
   display: block;
+}
+
+.feed-card.notification-content-target,
+.comment-item.notification-content-target {
+  outline: 3px solid rgba(217, 183, 93, 0.52);
+  outline-offset: 4px;
+  background-color: rgba(244, 220, 123, 0.18);
+  transition: background-color 600ms ease, outline-color 600ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feed-card.notification-content-target,
+  .comment-item.notification-content-target {
+    transition: none;
+  }
 }
 
 .comment-content {

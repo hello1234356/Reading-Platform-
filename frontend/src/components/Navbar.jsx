@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { getAdminRole } from "../lib/adminApi";
 import { requireSupabase } from "../lib/supabase";
 import tsinglanLogo from "../assets/tsinglan-logo-official-alt.png";
+import NotificationInbox from "./NotificationInbox";
 
 const navItems = [
   { to: "/", label: "Reading" },
@@ -14,7 +15,7 @@ const navItems = [
 
 function Navbar() {
   const navigate = useNavigate();
-  const { isLoggedIn, loading } = useAuth();
+  const { user, isLoggedIn, loading } = useAuth();
   const [adminRole, setAdminRole] = useState(null);
 
   useEffect(() => {
@@ -131,11 +132,14 @@ function Navbar() {
       )}
     </div>
 
-    <img
-      className="school-logo"
-      src={tsinglanLogo}
-      alt="Tsinglan School"
-    />
+    <div className="nav-school-actions">
+      {isLoggedIn && user?.id ? <NotificationInbox userId={user.id} /> : null}
+      <img
+        className="school-logo"
+        src={tsinglanLogo}
+        alt="Tsinglan School"
+      />
+    </div>
   </nav>
 );
 }

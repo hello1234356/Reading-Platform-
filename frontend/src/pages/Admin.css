@@ -300,6 +300,72 @@
   background: rgba(170, 182, 150, 0.32);
 }
 
+.admin-status.approved {
+  background: rgba(170, 182, 150, 0.32);
+}
+
+.admin-status.review_required,
+.admin-status.error {
+  background: rgba(244, 220, 123, 0.42);
+}
+
+.admin-status.blocked {
+  background: rgba(239, 183, 165, 0.48);
+}
+
+.admin-risk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.admin-risk-grid span {
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: rgba(255, 253, 249, 0.68);
+  color: var(--mocha);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-evidence-details {
+  padding: 12px 14px;
+  border: 1px solid rgba(138, 106, 88, 0.12);
+  border-radius: 16px;
+  color: var(--charcoal);
+}
+
+.admin-evidence-details summary {
+  color: var(--mocha);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-evidence-details p,
+.admin-evidence-details dl {
+  margin-top: 12px;
+}
+
+.admin-evidence-details dl,
+.admin-evidence-details dl div {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-evidence-details dl {
+  gap: 10px;
+}
+
+.admin-evidence-details dt {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-evidence-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .admin-book-cover,
 .admin-book-cover img {
   width: 132px;
@@ -394,6 +460,47 @@
   color: var(--mocha);
   font-size: clamp(38px, 6vw, 72px);
   line-height: 0.95;
+}
+
+.admin-announcement-card {
+  width: min(100%, 680px);
+}
+
+.admin-announcement-form,
+.admin-announcement-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-announcement-form {
+  gap: 14px;
+}
+
+.admin-announcement-form label > span {
+  color: var(--mocha);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-announcement-form input,
+.admin-announcement-form textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(138, 106, 88, 0.16);
+  border-radius: 15px;
+  background: rgba(255, 253, 249, 0.84);
+  color: var(--charcoal);
+  font: inherit;
+}
+
+.admin-announcement-form textarea {
+  resize: vertical;
+}
+
+.admin-announcement-form input:focus,
+.admin-announcement-form textarea:focus {
+  border-color: rgba(170, 182, 150, 0.8);
+  outline: 3px solid rgba(244, 220, 123, 0.22);
 }
 
 @media (max-width: 760px) {

@@ -185,3 +185,15 @@ export async function searchCommunityBooks(searchTerm, limit = 20) {
     blockedCount: 0,
   };
 }
+
+export async function getCatalogBookById(bookId) {
+  const numericId = Number(bookId);
+  if (!Number.isSafeInteger(numericId) || numericId <= 0) return null;
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.from("books").select(`
+    id, title, author, isbn, genre, description, cover_url,
+    language, publisher, publication_year, source, external_id, created_at
+  `).eq("id", numericId).maybeSingle();
+  if (error) throw error;
+  return data ? mapCatalogBook(data) : null;
+}

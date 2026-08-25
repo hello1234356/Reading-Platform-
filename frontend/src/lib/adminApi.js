@@ -75,6 +75,32 @@ function mapModerationReport(row, profilesById) {
   };
 }
 
+function mapBookAssessment(row) {
+  const evidence = row.evidence && typeof row.evidence === "object" ? row.evidence : {};
+  return {
+    id: row.id,
+    bookId: row.book_id || null,
+    source: row.source || "",
+    externalId: row.external_id || "",
+    status: row.status || "review_required",
+    confidence: Number(row.confidence) || 0,
+    evidenceQuality: row.evidence_quality || "insufficient",
+    riskScores: row.risk_scores && typeof row.risk_scores === "object" ? row.risk_scores : {},
+    flags: Array.isArray(row.flags) ? row.flags : [],
+    summary: row.summary || "",
+    evidence,
+    title: evidence.title || row.books?.title || "Untitled",
+    author: Array.isArray(evidence.authors) && evidence.authors.length
+      ? evidence.authors.join(", ") : row.books?.author || "Unknown author",
+    coverUrl: row.books?.cover_url || "",
+    policyVersion: row.policy_version || "",
+    modelVersion: row.model_version || "",
+    manuallyReviewed: Boolean(row.manually_reviewed),
+    reviewedAt: row.reviewed_at || null,
+    updatedAt: row.updated_at,
+  };
+}
+
 function mapClub(row) {
   const members = Array.isArray(row.club_members) ? row.club_members : [];
 
@@ -257,6 +283,46 @@ export async function reviewModerationReport({ reportId, status, reviewerNote = 
 
   if (error) throw error;
   return data;
+}
+
+export async function getBookModerationAssessments(status = "review_required") {
+  const supabase = requireSupabase();
+  let query = supabase
+    .from("book_moderation_assessments")
+    .select(`
+      id, book_id, source, external_id, status, confidence, evidence_quality,
+      risk_scores, flags, summary, evidence, policy_version, model_version,
+      manually_reviewed, reviewed_at, updated_at,
+      books (title, author, cover_url)
+    `)
+    .order("updated_at", { ascending: false })
+    .limit(100);
+  if (status && status !== "all") query = query.eq("status", status);
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(mapBookAssessment);
+}
+
+export async function reviewBookModerationAssessment({ assessmentId, decision }) {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc("review_book_moderation_assessment", {
+    p_assessment_id: assessmentId,
+    p_decision: decision,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function broadcastNotification({ broadcastId, title, body, targetUrl = "" }) {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc("broadcast_notification", {
+    p_broadcast_id: broadcastId,
+    p_title: String(title || "").trim(),
+    p_body: String(body || "").trim(),
+    p_target_url: String(targetUrl || "").trim() || null,
+  });
+  if (error) throw error;
+  return { broadcastId: data?.broadcast_id || broadcastId, sentCount: Number(data?.sent_count) || 0 };
 }
 
 export async function searchAdminClubs(searchTerm = "") {

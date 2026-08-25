@@ -1,3 +1,5 @@
+import RecoveringBookCoverImage from "./RecoveringBookCoverImage";
+
 function BookDetailModal({
   book,
   loading,
@@ -33,11 +35,13 @@ function BookDetailModal({
         </button>
 
         <div className="book-detail-cover">
-          {book.coverUrl ? (
-            <img src={book.coverUrl} alt={`Cover of ${book.title}`} />
-          ) : (
-            <span>No cover available</span>
-          )}
+          <RecoveringBookCoverImage
+            book={book}
+            src={book.coverUrl}
+            alt={`Cover of ${book.title}`}
+            loading="lazy"
+            fallback={<span>No cover available</span>}
+          />
         </div>
 
         <section className="book-detail-copy">

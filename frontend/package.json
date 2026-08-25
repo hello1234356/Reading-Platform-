@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "backfill:book-metadata": "node scripts/backfill-book-metadata.mjs",
+    "backfill:book-moderation": "node scripts/backfill-book-moderation.mjs",
     "lint": "eslint .",
     "test": "node --test test/*.test.mjs",
     "preview": "vite preview"

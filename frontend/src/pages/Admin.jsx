@@ -3,13 +3,16 @@ import { Link, useNavigate } from "react-router-dom";
 import ProfileLink from "../components/ProfileLink";
 import {
   addAdmin,
+  broadcastNotification,
   deleteBookSubmission,
   deleteModerationReport,
   getAdminRole,
   getBookSubmissions,
+  getBookModerationAssessments,
   getModerationReports,
   listAdmins,
   moderateBookSubmission,
+  reviewBookModerationAssessment,
   removeAdmin,
   reviewModerationReport,
   searchAdminClubs,
@@ -19,6 +22,7 @@ import HomepageBannerAdmin from "../components/HomepageBannerAdmin";
 
 const moderationFilters = ["pending", "concerning", "dismissed", "resolved", "all"];
 const submissionFilters = ["pending", "approved", "rejected"];
+const bookAssessmentFilters = ["review_required", "approved", "blocked", "error", "all"];
 
 function formatDate(value) {
   if (!value) return "Unknown";
@@ -61,7 +65,7 @@ function getModerationErrorMessage(error) {
 }
 
 function AdminTabs({ activeTab, onChange, isOwner }) {
-  const tabs = ["moderation", "books", "clubs", "banners"];
+  const tabs = ["moderation", "books", "book-ai", "clubs", "banners", "announcements"];
   if (isOwner) tabs.push("admins");
 
   return (
@@ -75,6 +79,8 @@ function AdminTabs({ activeTab, onChange, isOwner }) {
         >
           {tab === "books"
             ? "Book Verification"
+            : tab === "book-ai"
+              ? "Book AI Review"
             : tab === "clubs"
               ? "Club Activity"
               : tab === "banners"
@@ -534,6 +540,123 @@ function BookVerificationTab({ isOwner }) {
   );
 }
 
+function BookAiModerationTab() {
+  const [filter, setFilter] = useState("review_required");
+  const [assessments, setAssessments] = useState([]);
+  const [status, setStatus] = useState("loading");
+  const [message, setMessage] = useState("");
+  const [savingId, setSavingId] = useState("");
+
+  async function loadAssessments(nextFilter = filter) {
+    setStatus("loading");
+    setMessage("");
+    try {
+      setAssessments(await getBookModerationAssessments(nextFilter));
+      setStatus("ready");
+    } catch (error) {
+      console.error("Failed to load book AI assessments:", error);
+      setMessage(error.message || "Could not load book AI assessments.");
+      setStatus("error");
+    }
+  }
+
+  useEffect(() => {
+    // This page follows the existing Admin queue loading convention.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAssessments(filter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  async function decide(assessmentId, decision) {
+    setSavingId(assessmentId);
+    setMessage("");
+    try {
+      await reviewBookModerationAssessment({ assessmentId, decision });
+      await loadAssessments(filter);
+    } catch (error) {
+      console.error("Failed to review book AI assessment:", error);
+      setMessage(error.message || "Could not save this review.");
+    } finally { setSavingId(""); }
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Book AI moderation review">
+      <p className="admin-muted">
+        Observe mode: these assessments do not control public book visibility.
+      </p>
+      <FilterTabs filters={bookAssessmentFilters} activeFilter={filter} onChange={setFilter} />
+      {message ? <p className="admin-error" role="alert">{message}</p> : null}
+      {status === "loading" ? <p className="admin-empty">Loading assessments...</p> : null}
+      {status === "ready" && assessments.length === 0 ? (
+        <p className="admin-empty">No book assessments in this queue.</p>
+      ) : null}
+      <div className="admin-card-list">
+        {assessments.map((assessment) => (
+          <article className="admin-card admin-book-card" key={assessment.id}>
+            <SubmissionCover submission={assessment} />
+            <div className="admin-book-info">
+              <div className="admin-card-heading">
+                <div className="admin-book-title-block">
+                  <h2>{assessment.title}</h2>
+                  <p className="admin-book-author">by {assessment.author}</p>
+                </div>
+                <span className={`admin-status ${assessment.status}`}>
+                  {titleCase(assessment.status)}
+                </span>
+              </div>
+              <div className="admin-meta-grid">
+                <span>Source: {titleCase(assessment.source)}</span>
+                <span>External ID: {assessment.externalId}</span>
+                <span>{formatConfidence(assessment.confidence)}</span>
+                <span>Evidence: {titleCase(assessment.evidenceQuality)}</span>
+                <span>Policy: {assessment.policyVersion}</span>
+                <span>Model: {assessment.modelVersion}</span>
+                {assessment.manuallyReviewed ? <span>Human reviewed</span> : null}
+              </div>
+              {assessment.summary ? <p className="admin-muted">AI summary: {assessment.summary}</p> : null}
+              <div className="admin-risk-grid" aria-label="Risk scores">
+                {Object.entries(assessment.riskScores).map(([dimension, score]) => (
+                  <span key={dimension}>{titleCase(dimension)}: {score}/4</span>
+                ))}
+              </div>
+              {assessment.flags.length ? (
+                <p className="admin-muted">Flags: {assessment.flags.join(", ")}</p>
+              ) : null}
+              <details className="admin-evidence-details">
+                <summary>Evidence used</summary>
+                {assessment.evidence.description ? <p>{assessment.evidence.description}</p> : null}
+                <dl>
+                  {Object.entries(assessment.evidence)
+                    .filter(([key, value]) => key !== "description" && value != null && value !== "" &&
+                      (!Array.isArray(value) || value.length > 0))
+                    .map(([key, value]) => (
+                      <div key={key}><dt>{titleCase(key)}</dt><dd>{
+                        typeof value === "object" ? JSON.stringify(value) : String(value)
+                      }</dd></div>
+                    ))}
+                </dl>
+              </details>
+              <div className="admin-actions">
+                <button className="primary-button" type="button"
+                  disabled={savingId === assessment.id}
+                  onClick={() => decide(assessment.id, "approve")}>Approve</button>
+                <button className="ghost-button" type="button"
+                  disabled={savingId === assessment.id}
+                  onClick={() => decide(assessment.id, "block")}>Block</button>
+                {assessment.manuallyReviewed ? (
+                  <button className="ghost-button" type="button"
+                    disabled={savingId === assessment.id}
+                    onClick={() => decide(assessment.id, "review_required")}>Return to review</button>
+                ) : null}
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ClubActivityTab() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -744,6 +867,76 @@ function AdminManagementTab() {
   );
 }
 
+function AnnouncementsTab() {
+  const [draft, setDraft] = useState({ title: "", body: "", targetUrl: "" });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  function updateDraft(field, value) {
+    setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  async function sendAnnouncement(event) {
+    event.preventDefault();
+    const target = draft.targetUrl.trim();
+    if (target && (!target.startsWith("/") || target.startsWith("//"))) {
+      setMessage("Destination must be an internal path such as /discover.");
+      return;
+    }
+    if (!window.confirm("Send this announcement to all LitShelf users?")) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const result = await broadcastNotification({
+        broadcastId: crypto.randomUUID(),
+        title: draft.title,
+        body: draft.body,
+        targetUrl: target,
+      });
+      setDraft({ title: "", body: "", targetUrl: "" });
+      setMessage(`Announcement sent to ${result.sentCount} user${result.sentCount === 1 ? "" : "s"}.`);
+    } catch (error) {
+      console.error("Failed to send announcement:", error);
+      setMessage(error.message || "Could not send this announcement.");
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Notification announcements">
+      <div className="admin-card admin-announcement-card">
+        <div>
+          <p className="eyebrow">All LitShelf users</p>
+          <h2>Send announcement</h2>
+          <p className="admin-muted">Each user will receive one inbox notification.</p>
+        </div>
+        <form className="admin-announcement-form" onSubmit={sendAnnouncement}>
+          <label>
+            <span>Title</span>
+            <input value={draft.title} maxLength="180" required
+              onChange={(event) => updateDraft("title", event.target.value)} />
+          </label>
+          <label>
+            <span>Message</span>
+            <textarea value={draft.body} maxLength="1000" required rows="5"
+              onChange={(event) => updateDraft("body", event.target.value)} />
+          </label>
+          <label>
+            <span>Optional destination</span>
+            <input value={draft.targetUrl} maxLength="500" placeholder="/discover"
+              onChange={(event) => updateDraft("targetUrl", event.target.value)} />
+          </label>
+          <div className="admin-actions">
+            <button className="primary-button" type="submit" disabled={saving}>
+              {saving ? "Sending..." : "Send to all users"}
+            </button>
+          </div>
+        </form>
+        {message ? <p className="admin-muted" role="status">{message}</p> : null}
+      </div>
+    </section>
+  );
+}
+
 function Admin() {
   const { loading, isLoggedIn } = useAuth();
   const [role, setRole] = useState(null);
@@ -826,8 +1019,10 @@ function Admin() {
 
       {activeTab === "moderation" ? <ModerationTab isOwner={isOwner} /> : null}
       {activeTab === "books" ? <BookVerificationTab isOwner={isOwner} /> : null}
+      {activeTab === "book-ai" ? <BookAiModerationTab /> : null}
       {activeTab === "clubs" ? <ClubActivityTab /> : null}
       {activeTab === "banners" ? <HomepageBannerAdmin /> : null}
+      {activeTab === "announcements" ? <AnnouncementsTab /> : null}
       {activeTab === "admins" && isOwner ? <AdminManagementTab /> : null}
     </section>
   );

@@ -3,7 +3,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
@@ -38,7 +38,8 @@ import ProfileLink from "../components/ProfileLink";
 import ModerationWarningCard from "../components/ModerationWarningCard";
 import ModerationStatusBar from "../components/ModerationStatusBar";
 import ModerationBlockedCard from "../components/ModerationBlockedCard";
-import RetryingImage from "../components/RetryingImage";
+import { resolveSocialTarget } from "../lib/socialTargets";
+import RecoveringBookCoverImage from "../components/RecoveringBookCoverImage";
 import HomepageSpotlightCarousel from "../components/HomepageSpotlightCarousel";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
@@ -242,6 +243,9 @@ function renderSpoilerText(text) {
 }
 
 function Home() {
+  const location = useLocation();
+  const { postId: routePostId } = useParams();
+  const notificationTargetHandledRef = useRef("");
   const navigate = useNavigate();
   const [initialHomeState] = useState(getInitialHomeState);
   const [dailyQuote] = useState(() => getDailyLiteraryQuote());
@@ -313,6 +317,13 @@ function Home() {
   );
   const [commentReplyTargets, setCommentReplyTargets] =
     useState({});
+  const socialTarget = resolveSocialTarget({
+    pathname: routePostId ? `/post/${routePostId}` : location.pathname,
+    search: location.search,
+  });
+  const targetPostId = socialTarget?.postId || "";
+  const targetCommentId = socialTarget?.commentId || "";
+  const targetReplyId = socialTarget?.replyId || "";
 
   useEffect(() => {
     let cancelled = false;
@@ -403,6 +414,54 @@ function Home() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (feedLoading || !targetPostId) return undefined;
+    const targetKey = `${targetPostId}:${targetCommentId}:${targetReplyId}`;
+    if (notificationTargetHandledRef.current === targetKey) return undefined;
+    const targetPost = posts.find((post) => String(post.id) === targetPostId);
+    if (!targetPost) {
+      // Deleted or unavailable content is a safe no-op.
+      notificationTargetHandledRef.current = targetKey;
+      return undefined;
+    }
+    const requestedContentId = targetReplyId || targetCommentId;
+    const requestedContent = requestedContentId
+      ? targetPost.comments.find((comment) => String(comment.id) === requestedContentId)
+      : null;
+    if (requestedContentId) {
+      if (!expandedCommentPostIds.has(targetPost.id)) {
+        // Revealing a folded target is part of synchronizing the URL with the rendered feed.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setExpandedCommentPostIds((current) => new Set(current).add(targetPost.id));
+        return undefined;
+      }
+    }
+
+    let highlightTimer;
+    const frame = window.requestAnimationFrame(() => {
+      const element = document.getElementById(
+        requestedContent
+          ? `${requestedContent.isReply ? "reply" : "comment"}-${requestedContent.id}`
+          : targetCommentId && document.getElementById(`comment-${targetCommentId}`)
+            ? `comment-${targetCommentId}`
+            : `feed-post-${targetPostId}`,
+      );
+      if (!element) return;
+      notificationTargetHandledRef.current = targetKey;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      element.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+      element.focus({ preventScroll: true });
+      element.classList.add("notification-content-target");
+      highlightTimer = window.setTimeout(() => {
+        element.classList.remove("notification-content-target");
+      }, reducedMotion ? 0 : 2200);
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (highlightTimer) window.clearTimeout(highlightTimer);
+    };
+  }, [feedLoading, posts, expandedCommentPostIds, targetPostId, targetCommentId, targetReplyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -559,6 +618,7 @@ function Home() {
 
   function beginCommentReply({
     postId,
+    commentId,
     userId,
     username,
     commenterName,
@@ -570,6 +630,7 @@ function Home() {
     setCommentReplyTargets((current) => ({
       ...current,
       [postId]: {
+        commentId,
         userId,
         username:
           String(username || "")
@@ -635,6 +696,8 @@ function Home() {
           comment,
           mentionedUserId:
             replyTarget?.userId || null,
+          parentCommentId:
+            replyTarget?.commentId || null,
           allowModerationWarning: false,
         });
 
@@ -670,6 +733,8 @@ function Home() {
           text: comment,
           mentionedUserId:
             replyTarget?.userId || null,
+          parentCommentId:
+            replyTarget?.commentId || null,
           message: error.message,
         });
 
@@ -719,6 +784,7 @@ function Home() {
       postId,
       text,
       mentionedUserId,
+      parentCommentId,
     } = moderationWarning;
 
     setModerationConfirming(true);
@@ -732,6 +798,8 @@ function Home() {
           comment: text,
           mentionedUserId:
             mentionedUserId || null,
+          parentCommentId:
+            parentCommentId || null,
           allowModerationWarning: true,
         });
 
@@ -1442,7 +1510,7 @@ function Home() {
     (a, b) =>
       b.booksRead - a.booksRead ||
       a.tieOrder - b.tieOrder,
-);
+  );
 
   return (
     <div className="home-page">
@@ -1607,7 +1675,8 @@ function Home() {
             </p>
           ) : (
             posts.map((post) => (
-              <article className="feed-card sea" key={post.id}>
+              <article className="feed-card sea" id={`feed-post-${post.id}`}
+                tabIndex="-1" key={post.id}>
                 <header className="feed-card-header">
                   <div className="avatar-stack">
                     <ProfileLink
@@ -1654,64 +1723,83 @@ function Home() {
                   className="book-strip"
                   onClick={() =>
                     openBookDetails({
+                      bookId: post.bookId,
                       title: post.book,
                       author: post.author,
                       isbn: post.isbn,
+                      source: post.source,
+                      externalId: post.externalId,
+                      googleBooksId: post.googleBooksId,
+                      storedCoverUrl: post.storedCoverUrl,
                       coverUrl: post.coverUrl,
                     })
                   }
                 >                  
                   <div className="book-cover" aria-hidden="true">
-                    <RetryingImage
+                    <RecoveringBookCoverImage
+                      book={post}
                       src={post.coverUrl}
                       alt=""
                       loading="lazy"
                       fallback={<span>{post.book}</span>}
+                      onRepaired={(repairedCoverUrl) => {
+                        setPosts((currentPosts) => currentPosts.map((currentPost) => (
+                          currentPost.bookId === post.bookId
+                            ? {
+                                ...currentPost,
+                                coverUrl: repairedCoverUrl,
+                                storedCoverUrl: repairedCoverUrl,
+                              }
+                            : currentPost
+                        )));
+                      }}
                     />
                   </div>
 
-                  <div className="book-details">
-                    <p>{post.genre}</p>
-                    <div className="feed-book-title-row">
-                      <strong>{post.book}</strong>
-                    </div>                    
-                    <small>{post.author}</small>
-                    <small>
-                      {post.progress}% through the book
-                    </small>
+                  <div className="book-strip-content">
+                    <div className="book-details">
+                      <p>{post.genre}</p>
+                      <div className="feed-book-title-row">
+                        <strong>{post.book}</strong>
+                      </div>
+                      <small>{post.author}</small>
+                      <small>
+                        {post.progress}% through the book
+                      </small>
 
-                    <div
-                      className="bookmark-progress"
-                      aria-label={`${post.progress}% complete`}
-                    >
-                      <span
-                        style={{
-                          width: `${Math.min(
-                            Math.max(post.progress, 0),
-                            100,
-                          )}%`,
-                        }}
-                      />
+                      <div
+                        className="bookmark-progress"
+                        aria-label={`${post.progress}% complete`}
+                      >
+                        <span
+                          style={{
+                            width: `${Math.min(
+                              Math.max(post.progress, 0),
+                              100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="rating-display">
-                    {post.postType === "review" && (
-                      <StarRating rating={post.rating} />
-                    )}
-                    <div
-                      className="rating"
-                      aria-label={
-                        post.rating > 0
-                          ? `${post.rating} out of 5 open books`
-                          : "No rating"
-                      }
-                    >
-                      {post.rating > 0
-                        ? `${post.rating} / 5`
-                        : post.postType === "review"
-                          ? "Finished"
-                          : "In Progress"}
+                    <div className="rating-display">
+                      {post.postType === "review" && (
+                        <StarRating rating={post.rating} />
+                      )}
+                      <div
+                        className="rating"
+                        aria-label={
+                          post.rating > 0
+                            ? `${post.rating} out of 5 open books`
+                            : "No rating"
+                        }
+                      >
+                        {post.rating > 0
+                          ? `${post.rating} / 5`
+                          : post.postType === "review"
+                            ? "Finished"
+                            : "In Progress"}
+                      </div>
                     </div>
                   </div>
                   </button>
@@ -1771,7 +1859,9 @@ function Home() {
                       : post.comments.slice(-3)
                   ).map((comment) => (
                     <div
-                      className="comment-item"
+                      className={comment.isReply ? "comment-item comment-reply" : "comment-item"}
+                      id={`${comment.isReply ? "reply" : "comment"}-${comment.id}`}
+                      tabIndex={-1}
                       key={comment.id}
                     >
                       <div className="comment-content">
@@ -1804,6 +1894,7 @@ function Home() {
                             onClick={() =>
                               beginCommentReply({
                                 postId: post.id,
+                                commentId: comment.id,
                                 userId: comment.userId,
                                 username:
                                   comment.commenterUsername,

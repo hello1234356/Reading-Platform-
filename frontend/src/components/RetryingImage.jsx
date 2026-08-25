@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { getNextImageErrorState } from "../lib/imageRetryState";
 
-function RetryingImage({ src, fallback = null, onError, ...imageProps }) {
+function RetryingImage({ src, fallback = null, onError, onFinalError, ...imageProps }) {
   const [errorState, setErrorState] = useState({
     src: null,
     attempts: 0,
@@ -19,12 +20,9 @@ function RetryingImage({ src, fallback = null, onError, ...imageProps }) {
     // cannot remain visible while React mounts the retry or fallback.
     event.currentTarget.style.display = "none";
     onError?.(event);
-
-    setErrorState({
-      src,
-      attempts: currentErrorState.attempts + 1,
-      failed: currentErrorState.attempts >= 1,
-    });
+    const nextErrorState = getNextImageErrorState(src, currentErrorState.attempts);
+    if (nextErrorState.finalFailure) onFinalError?.();
+    setErrorState(nextErrorState);
   }
 
   return (

@@ -60,6 +60,8 @@ function mapComment(row) {
     id: row.id,
     userId: row.user_id,
     text: row.comment,
+    parentCommentId: row.parent_comment_id || null,
+    isReply: Boolean(row.parent_comment_id),
 
     commenterName:
       getPublicDisplayName(row.profiles),
@@ -120,6 +122,7 @@ function mapPost(row, currentUserId = null) {
     externalId: book?.external_id || "",
     googleBooksId:
       book?.source === "google_books" ? book.external_id || "" : "",
+    storedCoverUrl: book?.cover_url || "",
     coverUrl: getPreferredGoogleBooksCoverUrl(
       book?.cover_url,
       book?.isbn,
@@ -177,6 +180,7 @@ const FEED_SELECT = `
     post_id,
     user_id,
     mentioned_user_id,
+    parent_comment_id,
     comment,
     created_at,
 
@@ -344,6 +348,7 @@ export async function addPostComment({
   userId,
   comment,
   mentionedUserId = null,
+  parentCommentId = null,
   allowModerationWarning = false,
 }) {
   if (!postId) {
@@ -371,6 +376,7 @@ export async function addPostComment({
       user_id: userId,
       mentioned_user_id:
         mentionedUserId || null,
+      parent_comment_id: parentCommentId || null,
       comment: cleanedComment,
     })
     .select(`
@@ -378,6 +384,7 @@ export async function addPostComment({
       post_id,
       user_id,
       mentioned_user_id,
+      parent_comment_id,
       comment,
       created_at,
 

@@ -240,6 +240,8 @@
 .isbn-search-feedback {
   display: grid;
   gap: 14px;
+  container-name: isbn-search-results;
+  container-type: inline-size;
 }
 
 .isbn-search-message {
