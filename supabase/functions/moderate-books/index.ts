@@ -5,7 +5,8 @@ import { planBookAssessments, safeEvidenceForStorage, selectEffectiveAssessments
   type EvidencePacket } from "./evidence.ts";
 import { applyEnrichmentFailurePolicy, applyPolicy, MODERATION_MODE,
   POLICY_VERSION, reviewCategory, reviewReason, shouldEnrichBook } from "./policy.ts";
-import { verifyProviderEvidence } from "./providerEvidence.ts";
+import { ProviderEvidenceError, PROVIDER_EVIDENCE_TTL_MS,
+  trustedCachedProviderEvidence, verifyProviderEvidence } from "./providerEvidence.ts";
 
 import { moderationIdentity, validateRequestBody, type BatchClassificationValidation,
   type Classification, type IncomingBook } from "./schema.ts";
@@ -198,27 +199,101 @@ Deno.serve(async (request) => {
     }
   }
 
-  // Client metadata is untrusted. Replace it with an exact provider record (or
-  // a database-bound community/ISBN.work row) before it can reach DeepSeek or
-  // the shared durable moderation cache.
+  // Provider evidence has its own seven-day trust lifecycle, independent of
+  // moderation policy versions. Only service-role cache rows or assessment
+  // evidence previously marked by the canonical verifier can bypass a fetch.
+  const evidenceNow = Date.now();
+  const evidenceNowIso = new Date(evidenceNow).toISOString();
+  const providerPackets = unknownPackets.filter((packet) =>
+    packet.source === "google_books" || packet.source === "open_library");
+  const providerSources = [...new Set(providerPackets.map((packet) => packet.source))];
+  const providerExternalIds = [...new Set(providerPackets.map((packet) => packet.externalId))];
+  let evidenceCacheRows: Record<string, unknown>[] = [];
+  if (providerPackets.length) {
+    const { data, error } = await service.from("book_provider_evidence_cache")
+      .select("source,external_id,evidence,verified_at,expires_at")
+      .in("source", providerSources).in("external_id", providerExternalIds)
+      .gt("expires_at", evidenceNowIso);
+    if (error) {
+      console.error("Provider evidence cache lookup failed; continuing with verification", {
+        failureCode: "evidence_cache_lookup_failed", message: error.message,
+      });
+    } else {
+      evidenceCacheRows = data || [];
+    }
+  }
+  const providerEvidenceCache = new Map(evidenceCacheRows.map((row) => [
+    moderationIdentity(String(row.source || ""), String(row.external_id || "")),
+    row.evidence,
+  ]));
+
+  // Bootstrap the dedicated cache from recent evidence already attested and
+  // persisted by an earlier policy version. Policy decisions themselves are
+  // never reused across versions here.
+  const assessmentEvidenceCache = new Map<string, unknown>();
+  [...(cachedRows || [])]
+    .sort((first, second) => Date.parse(String(second.updated_at || "")) -
+      Date.parse(String(first.updated_at || "")))
+    .forEach((row) => {
+      const updatedAt = Date.parse(String(row.updated_at || ""));
+      if (!Number.isFinite(updatedAt) || evidenceNow - updatedAt > PROVIDER_EVIDENCE_TTL_MS) return;
+      const identity = moderationIdentity(String(row.source || ""), String(row.external_id || ""));
+      if (!assessmentEvidenceCache.has(identity)) assessmentEvidenceCache.set(identity, row.evidence);
+    });
+
+  // Client metadata is untrusted. Replace it with a trusted cache entry, an
+  // exact provider record, or a database-bound community/ISBN.work row before
+  // it can reach DeepSeek or the shared durable moderation cache.
+  let evidenceCacheHits = 0;
+  let providerVerificationCalls = 0;
   const verifiedPackets = await Promise.all(unknownPackets.map(async (packet) => {
     const identity = moderationIdentity(packet.source, packet.externalId);
     try {
-      return await verifyProviderEvidence(packet);
+      const trusted = trustedCachedProviderEvidence(
+        packet,
+        providerEvidenceCache.get(identity) ?? assessmentEvidenceCache.get(identity),
+      );
+      if (trusted) {
+        evidenceCacheHits += 1;
+        return trusted;
+      }
+      providerVerificationCalls += 1;
+      const verified = await verifyProviderEvidence(packet);
+      if (packet.source === "google_books" || packet.source === "open_library") {
+        const verifiedAt = new Date().toISOString();
+        const expiresAt = new Date(Date.now() + PROVIDER_EVIDENCE_TTL_MS).toISOString();
+        const { error: evidenceWriteError } = await service
+          .from("book_provider_evidence_cache")
+          .upsert({ source: packet.source, external_id: packet.externalId,
+            evidence: safeEvidenceForStorage(verified), verified_at: verifiedAt,
+            expires_at: expiresAt }, { onConflict: "source,external_id" });
+        if (evidenceWriteError) console.error("Provider evidence cache write failed", {
+          identity, failureCode: "evidence_cache_persistence_failed",
+          message: evidenceWriteError.message,
+        });
+      }
+      return verified;
     } catch (error) {
+      const failureCode = error instanceof ProviderEvidenceError
+        ? error.code : "evidence_verification_failed";
       console.error("Book provider evidence verification failed", {
-        identity, failureCode: "evidence_verification_failed",
+        identity, failureCode,
         message: error instanceof Error ? error.message : "Provider evidence lookup failed.",
       });
       resultByIdentity.set(identity, {
         source: packet.source, externalId: packet.externalId, status: "error",
         confidence: 0, evidenceQuality: packet.evidenceQuality,
-        failureCode: "evidence_verification_failed",
+        failureCode,
         policyVersion: POLICY_VERSION, cached: false,
       });
       return null;
     }
   }));
+  console.info("Book provider evidence verification completed", {
+    requested: unknownPackets.length, cacheHits: evidenceCacheHits,
+    providerCalls: providerVerificationCalls,
+    verified: verifiedPackets.filter(Boolean).length,
+  });
   // Sparse verified packets still reach the classifier so reliable prior
   // knowledge can identify exact works.
   const eligible = verifiedPackets.filter((packet): packet is EvidencePacket => Boolean(packet));

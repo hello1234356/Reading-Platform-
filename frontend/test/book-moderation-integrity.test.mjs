@@ -5,7 +5,11 @@ import {
   canonicalExternalId,
   validateRequestBody,
 } from "../../supabase/functions/moderate-books/schema.ts";
-import { verifyProviderEvidence } from "../../supabase/functions/moderate-books/providerEvidence.ts";
+import {
+  MAX_GOOGLE_EVIDENCE_CONCURRENCY,
+  trustedCachedProviderEvidence,
+  verifyProviderEvidence,
+} from "../../supabase/functions/moderate-books/providerEvidence.ts";
 import {
   CURRENT_BOOK_MODERATION_POLICY_VERSION,
   resolveEffectiveBookModerationRows,
@@ -61,14 +65,134 @@ test("Google evidence replaces client-controlled metadata before classification"
       language: "en", industryIdentifiers: [{ type: "ISBN_13", identifier: "9780000000001" }],
     } });
   };
-  const verified = await verifyProviderEvidence(packet());
+  const verified = await verifyProviderEvidence(packet(), { googleApiKey: "server-key" });
   assert.equal(requested.length, 1);
   assert.match(requested[0], /volumes\/canonical-google-id/);
+  assert.equal(new URL(requested[0]).searchParams.get("key"), "server-key");
   assert.equal(verified.title, "Canonical Provider Title");
   assert.deepEqual(verified.authors, ["Canonical Author"]);
   assert.doesNotMatch(verified.description, /Ignore prior instructions/);
   assert.notEqual(verified.evidenceQuality, "high");
   assert.deepEqual(verified.providerMetadata, { canonicalProvider: "google_books" });
+});
+
+test("missing server-side Google key fails safely without making a request", async () => {
+  globalThis.Deno = { env: { get() { return undefined; } } };
+  let calls = 0;
+  await assert.rejects(verifyProviderEvidence(packet(), {
+    fetchImpl: async () => {
+      calls += 1;
+      return jsonResponse({});
+    },
+  }), (error) => error.code === "evidence_verification_unconfigured");
+  assert.equal(calls, 0);
+});
+
+test("trusted canonical evidence is reusable without trusting client metadata", async () => {
+  const canonical = {
+    title: "Canonical Provider Title",
+    authors: ["Canonical Author"],
+    description: "Canonical provider description.",
+    categories: ["Fiction"], subjects: [], publisher: "Publisher",
+    publicationYear: 2020, isbn: "9780000000001", language: "en",
+    providerMetadata: { canonicalProvider: "google_books" },
+  };
+  const reused = trustedCachedProviderEvidence(packet(), canonical);
+  assert.equal(reused?.title, "Canonical Provider Title");
+  assert.doesNotMatch(reused?.description || "", /Ignore prior instructions/);
+  assert.equal(trustedCachedProviderEvidence(packet(), {
+    ...canonical, providerMetadata: {},
+  }), null);
+  assert.equal(trustedCachedProviderEvidence(packet(), {
+    ...canonical, providerMetadata: { canonicalProvider: "open_library" },
+  }), null);
+});
+
+test("Google evidence verification limits concurrency to two", async () => {
+  let active = 0;
+  let maximumActive = 0;
+  const fetchImpl = async (url) => {
+    active += 1;
+    maximumActive = Math.max(maximumActive, active);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    active -= 1;
+    const id = new URL(String(url)).pathname.split("/").at(-1);
+    return jsonResponse({ id, volumeInfo: { title: `Canonical ${id}` } });
+  };
+  const books = Array.from({ length: 8 }, (_, index) => packet({
+    externalId: `concurrency-${index + 1}`,
+  }));
+  const verified = await Promise.all(books.map((book) => verifyProviderEvidence(book, {
+    googleApiKey: "server-key", fetchImpl,
+  })));
+  assert.equal(verified.length, 8);
+  assert.equal(maximumActive, MAX_GOOGLE_EVIDENCE_CONCURRENCY);
+});
+
+test("Google 429 retries use bounded backoff and preserve a rate-limit code", async () => {
+  let calls = 0;
+  const delays = [];
+  const eventual = await verifyProviderEvidence(packet({ externalId: "eventual" }), {
+    googleApiKey: "server-key",
+    random: () => 0.5,
+    sleep: async (milliseconds) => delays.push(milliseconds),
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls < 3) return new Response("{}", {
+        status: 429, headers: { "content-type": "application/json", "retry-after": "0.1" },
+      });
+      return jsonResponse({ id: "eventual", volumeInfo: { title: "Eventually verified" } });
+    },
+  });
+  assert.equal(eventual.title, "Eventually verified");
+  assert.equal(calls, 3);
+  assert.deepEqual(delays, [250, 500]);
+
+  calls = 0;
+  await assert.rejects(verifyProviderEvidence(packet({ externalId: "limited" }), {
+    googleApiKey: "server-key", random: () => 0.5, sleep: async () => {},
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response("{}", { status: 429,
+        headers: { "content-type": "application/json" } });
+    },
+  }), (error) => error.code === "evidence_verification_rate_limited");
+  assert.equal(calls, 3);
+});
+
+test("provider identity and malformed response failures retain their layer", async () => {
+  await assert.rejects(verifyProviderEvidence(packet({ externalId: "missing" }), {
+    googleApiKey: "server-key",
+    fetchImpl: async () => jsonResponse({}, 404),
+  }), (error) => error.code === "provider_identity_not_found");
+  await assert.rejects(verifyProviderEvidence(packet({ externalId: "malformed" }), {
+    googleApiKey: "server-key",
+    fetchImpl: async () => new Response("not json", {
+      status: 200, headers: { "content-type": "application/json" },
+    }),
+  }), (error) => error.code === "evidence_verification_invalid_response");
+});
+
+test("one evidence failure does not poison verified siblings or reach classification", async () => {
+  const books = ["good-one", "missing", "good-two"].map((externalId) =>
+    packet({ externalId }));
+  const settled = await Promise.allSettled(books.map((book) => verifyProviderEvidence(book, {
+    googleApiKey: "server-key",
+    fetchImpl: async (url) => {
+      const id = new URL(String(url)).pathname.split("/").at(-1);
+      return id === "missing"
+        ? jsonResponse({}, 404)
+        : jsonResponse({ id, volumeInfo: { title: `Canonical ${id}` } });
+    },
+  })));
+  const eligible = settled.flatMap((result) => result.status === "fulfilled"
+    ? [result.value] : []);
+  const classifierCalls = [];
+  if (eligible.length) classifierCalls.push(eligible.map((book) => book.externalId));
+
+  assert.deepEqual(classifierCalls, [["good-one", "good-two"]]);
+  assert.equal(settled[1].status, "rejected");
+  assert.equal(settled[1].reason.code, "provider_identity_not_found");
 });
 
 test("Open Library evidence uses the exact work and canonical author endpoint", async () => {
@@ -162,6 +286,30 @@ test("integrity migration rate-limits spend and enforces moderated writes", asyn
   assert.match(sql, /ranked\.authority_rank = 1[\s\S]*ranked\.status = p_status/);
   assert.match(sql, /event_type = 'user_reported_block'/);
   assert.match(sql, /grant execute on function public\.list_effective_book_moderation_assessments[\s\S]*to authenticated/);
+});
+
+test("provider evidence cache is service-controlled and policy-version independent", async () => {
+  const [sql, index] = await Promise.all([
+    readFile(new URL(
+      "../../supabase/migrations/202608260002_book_provider_evidence_cache.sql",
+      import.meta.url,
+    ), "utf8"),
+    readFile(new URL(
+      "../../supabase/functions/moderate-books/index.ts",
+      import.meta.url,
+    ), "utf8"),
+  ]);
+  assert.match(sql, /create table if not exists public\.book_provider_evidence_cache/);
+  assert.match(sql, /primary key \(source, external_id\)/);
+  assert.match(sql, /enable row level security/);
+  assert.match(sql, /revoke all[\s\S]*from anon, authenticated/);
+  assert.match(sql, /grant select, insert, update, delete[\s\S]*to service_role/);
+  assert.match(index, /book_provider_evidence_cache/);
+  assert.match(index, /\[\.\.\.\(cachedRows \|\| \[\]\)\]/);
+  assert.match(index, /PROVIDER_EVIDENCE_TTL_MS/);
+  assert.match(index, /failureCode = error instanceof ProviderEvidenceError/);
+  assert.match(index, /const eligible = verifiedPackets\.filter/);
+  assert.match(index, /classifyBooks\(eligible\)/);
 });
 
 test("catalog creation uses attested server evidence instead of client inserts", async () => {
