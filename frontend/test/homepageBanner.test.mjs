@@ -109,6 +109,34 @@ test("spotlight uses stable landscape ratios and responsive mobile imagery", asy
   assert.match(migration, /mobile_image_position_x numeric/);
 });
 
+test("spotlight media fills the shared public and admin banner geometry", async () => {
+  const [css, adminCss] = await Promise.all([
+    readFile(new URL("../src/components/HomepageSpotlightCarousel.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/HomepageBannerAdmin.css", import.meta.url), "utf8"),
+  ]);
+  const viewportRule = css.match(/\.reading-room-hero\.homepage-spotlight-carousel\s*\{([^}]*)\}/)?.[1] || "";
+  const trackRule = css.match(/\.homepage-spotlight-track\s*\{([^}]*)\}/)?.[1] || "";
+  const slideRule = css.match(/\.homepage-spotlight-slide\s*\{([^}]*)\}/)?.[1] || "";
+  const mediaRule = css.match(/\.homepage-spotlight-picture,\s*\.homepage-spotlight-image,\s*\.homepage-spotlight-overlay\s*\{([^}]*)\}/)?.[1] || "";
+  const paginationRule = css.match(/\.homepage-spotlight-pagination\s*\{([^}]*)\}/)?.[1] || "";
+  const arrowRule = css.match(/\.homepage-spotlight-arrow\s*\{([^}]*)\}/)?.[1] || "";
+
+  assert.match(viewportRule, /overflow:\s*hidden/);
+  assert.match(trackRule, /display:\s*flex/);
+  assert.match(trackRule, /height:\s*100%/);
+  assert.match(trackRule, /flex-wrap:\s*nowrap/);
+  assert.match(slideRule, /flex:\s*0 0 100%/);
+  assert.match(slideRule, /width:\s*100%/);
+  assert.match(slideRule, /height:\s*100%/);
+  assert.match(mediaRule, /position:\s*absolute/);
+  assert.match(mediaRule, /inset:\s*0/);
+  assert.match(mediaRule, /width:\s*100%/);
+  assert.match(mediaRule, /height:\s*100%/);
+  assert.match(paginationRule, /position:\s*absolute/);
+  assert.match(arrowRule, /position:\s*absolute/);
+  assert.match(adminCss, /\.homepage-banner-preview\s*\{[\s\S]*?overflow:\s*hidden/);
+});
+
 test("banner photographs remain color-accurate during horizontal transitions", async () => {
   const [carousel, css] = await Promise.all([
     readFile(new URL("../src/components/HomepageSpotlightCarousel.jsx", import.meta.url), "utf8"),
