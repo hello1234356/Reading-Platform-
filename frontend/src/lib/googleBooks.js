@@ -392,18 +392,20 @@ export async function searchGoogleBooks(searchTerm, maxResults = 20, options = {
         cacheGoogleBookResult(result);
       });
 
-      if (
-        index === 0 &&
-        hasStrongGoogleBooksMatch(
-          Array.from(resultsById.values()),
-          normalizedSearchTerm,
-        )
-      ) {
-        break;
+      const hasRunBroadAndExactTitle = index >= 1;
+
+    if (
+      hasRunBroadAndExactTitle &&
+      hasStrongGoogleBooksMatch(
+        Array.from(resultsById.values()),
+        normalizedSearchTerm,
+      )
+    ) {
+      break;
       }
     }
 
-    const results = Array.from(resultsById.values()).slice(0, maxResults);
+    const results = Array.from(resultsById.values());
     if (debug) console.debug("[book-search] GOOGLE ACTUAL RESPONSE", {
       itemCount: results.length,
       titles: results.slice(0, 10).map((result) => ({

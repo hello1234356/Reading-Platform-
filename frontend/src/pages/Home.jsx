@@ -43,6 +43,8 @@ import ModerationBlockedCard from "../components/ModerationBlockedCard";
 import { resolveSocialTarget } from "../lib/socialTargets";
 import RecoveringBookCoverImage from "../components/RecoveringBookCoverImage";
 import HomepageSpotlightCarousel from "../components/HomepageSpotlightCarousel";
+import BookCoverImage from "../components/BookCoverImage";
+import BookCoverPlaceholder from "../components/BookCoverPlaceholder";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -1867,7 +1869,7 @@ function Home() {
                 {trackedBooks.map((book) => (
                   <article className="tracked-book-entry" key={getTrackedBookKey(book)}>
                     <div className="tracked-book-card home-tracked-book">
-                      <img src={book.coverUrl || getCoverUrl(book.isbn)} alt="" loading="lazy" />
+                      <BookCoverImage src={book.coverUrl || getCoverUrl(book.isbn)} alt="" loading="lazy" />
                       <div>
                         <p>{book.author}</p>
                         <strong>{book.title}</strong>
@@ -2091,7 +2093,7 @@ function Home() {
                       src={post.coverUrl}
                       alt=""
                       loading="lazy"
-                      fallback={<span>{post.book}</span>}
+                      fallback={<BookCoverPlaceholder decorative />}
                       onRepaired={(repairedCoverUrl) => {
                         setPosts((currentPosts) => currentPosts.map((currentPost) => (
                           currentPost.bookId === post.bookId
@@ -2742,7 +2744,7 @@ function Home() {
                 <div className="modal-preview">
                   <div className="tracked-cover" aria-hidden="true">
                     {selectedComposerBook ? (
-                      <img
+                      <BookCoverImage
                         src={getBookCoverSource(selectedComposerBook)}
                         alt=""
                         loading="lazy"

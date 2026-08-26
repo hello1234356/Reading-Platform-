@@ -1,4 +1,5 @@
 import RecoveringBookCoverImage from "./RecoveringBookCoverImage";
+import BookCoverPlaceholder from "./BookCoverPlaceholder";
 import { getBookSourceLabel } from "../lib/bookSource.js";
 
 function BookDetailModal({
@@ -41,7 +42,7 @@ function BookDetailModal({
             src={book.coverUrl}
             alt={`Cover of ${book.title}`}
             loading="lazy"
-            fallback={<span>No cover available</span>}
+            fallback={<BookCoverPlaceholder decorative />}
           />
         </div>
 

@@ -4,6 +4,7 @@ import { requireSupabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
+import BookCoverImage from "../components/BookCoverImage";
 import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
 import { getOpenLibraryIsbnCoverUrl } from "../lib/openLibraryBooks";
 import {
@@ -934,7 +935,7 @@ function Profile() {
                 aria-label={`${book.title} by ${book.author}`}
                 onClick={() => openBookDetails(book)}
               >
-                <img
+                <BookCoverImage
                   src={book.coverUrl || getCoverUrl(book.isbn)}
                   alt=""
                   loading="lazy"
@@ -1093,17 +1094,12 @@ function Profile() {
                       aria-label={`${book.title} by ${book.author}`}
                       onClick={() => openBookDetails(book)}
                     >
-                      {book.coverUrl || book.isbn ? (
-                        <img
-                          src={book.coverUrl || getCoverUrl(book.isbn)}
-                          alt={`Cover of ${book.title}`}
-                          loading="eager"
-                        />
-                      ) : (
-                        <div className="profile-reading-list-placeholder">
-                          No cover
-                        </div>
-                      )}
+                      <BookCoverImage
+                        src={book.coverUrl || getCoverUrl(book.isbn)}
+                        alt={`Cover of ${book.title}`}
+                        decorative
+                        loading="eager"
+                      />
                     </button>
                   </div>
                 ))}
@@ -1164,14 +1160,10 @@ function Profile() {
                   onClick={() => openBookDetails(book)}
                   aria-label={`Open details for ${book.title}`}
                 >
-                  {book.coverUrl || book.isbn ? (
-                    <img
-                      src={book.coverUrl || getCoverUrl(book.isbn)}
-                      alt={`Cover of ${book.title}`}
-                    />
-                  ) : (
-                    <span>No cover</span>
-                  )}
+                  <BookCoverImage
+                    src={book.coverUrl || getCoverUrl(book.isbn)}
+                    alt=""
+                  />
                 </button>
 
                 <div className="profile-tracker-copy">
@@ -1282,7 +1274,7 @@ function Profile() {
                 aria-label={`View or edit your review of ${review.book}`}
               >
                 <div className="profile-review-media">
-                  <img
+                  <BookCoverImage
                     src={review.coverUrl || getCoverUrl(review.isbn)}
                     alt=""
                     loading="lazy"
@@ -1363,15 +1355,11 @@ function Profile() {
         key={club.id}
       >
         <span className="profile-club-cover">
-          {club.coverUrl || club.isbn ? (
-            <img
-              src={club.coverUrl || getCoverUrl(club.isbn)}
-              alt=""
-              loading="lazy"
-            />
-          ) : (
-            club.bookTitle?.slice(0, 1) || "L"
-          )}
+          <BookCoverImage
+            src={club.coverUrl || getCoverUrl(club.isbn)}
+            alt=""
+            loading="lazy"
+          />
         </span>
 
         <div>
@@ -1636,17 +1624,12 @@ function Profile() {
                   key={book.bookId || book.isbn}
                   onClick={() => addFavoriteBook(book)}
                 >
-                  {book.coverUrl || book.isbn ? (
-                    <img
-                      src={book.coverUrl || getCoverUrl(book.isbn)}
-                      alt={`Cover of ${book.title}`}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="profile-reading-list-placeholder">
-                      No cover
-                    </div>
-                  )}
+                  <BookCoverImage
+                    src={book.coverUrl || getCoverUrl(book.isbn)}
+                    alt={`Cover of ${book.title}`}
+                    decorative
+                    loading="lazy"
+                  />
 
                   <span>
                     <strong>{book.title}</strong>

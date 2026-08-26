@@ -23,6 +23,7 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import HomepageBannerAdmin from "../components/HomepageBannerAdmin";
 import { requireSupabase } from "../lib/supabase";
+import BookCoverImage from "../components/BookCoverImage";
 
 const moderationFilters = ["pending", "concerning", "dismissed", "resolved", "all"];
 const submissionFilters = ["pending", "approved", "rejected"];
@@ -166,24 +167,13 @@ function subscribeToAdminTable(tableName, onChange) {
 }
 
 function SubmissionCover({ submission }) {
-  const [coverFailed, setCoverFailed] = useState(false);
-
-  if (submission.coverUrl && !coverFailed) {
-    return (
-      <div className="admin-book-cover">
-        <img
-          src={submission.coverUrl}
-          alt={`Cover of ${submission.title}`}
-          loading="lazy"
-          onError={() => setCoverFailed(true)}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="admin-book-cover empty" aria-label="Cover unavailable">
-      <span>Cover unavailable</span>
+    <div className="admin-book-cover">
+      <BookCoverImage
+        src={submission.coverUrl}
+        alt={`Cover of ${submission.title}`}
+        loading="lazy"
+      />
     </div>
   );
 }

@@ -23,6 +23,8 @@ import {
 } from "../lib/openLibraryBooks";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
+import BookCoverImage from "../components/BookCoverImage";
+import BookCoverPlaceholder from "../components/BookCoverPlaceholder";
 import BookModerationStatus from "../components/BookModerationStatus";
 import ReviewModal from "../components/ReviewModal";
 import StarRating from "../components/StarRating";
@@ -41,17 +43,6 @@ function getEditorPickCoverUrl(book) {
   );
 }
 
-function hideBrokenCover(event, isbn) {
-  const fallbackUrl = getOpenLibraryIsbnCoverUrl(isbn);
-
-  if (fallbackUrl && event.currentTarget.src !== fallbackUrl) {
-    event.currentTarget.src = fallbackUrl;
-    return;
-  }
-
-  event.currentTarget.hidden = true;
-}
-
 function EditorPickCover({ book, featured = false }) {
   const [coverSrc, setCoverSrc] = useState(getEditorPickCoverUrl(book));
   const [hasImage, setHasImage] = useState(Boolean(coverSrc));
@@ -64,7 +55,8 @@ function EditorPickCover({ book, featured = false }) {
     setHasImage(Boolean(nextCoverSrc));
   }, [book]);
 
-  function handleCoverError() {
+  function handleCoverError(event) {
+    event.currentTarget.style.display = "none";
     const openLibraryCoverUrl = getOpenLibraryIsbnCoverUrl(book?.isbn);
 
     if (openLibraryCoverUrl && coverSrc !== openLibraryCoverUrl) {
@@ -92,7 +84,7 @@ function EditorPickCover({ book, featured = false }) {
           onError={handleCoverError}
         />
       ) : null}
-      {!hasImage ? <span>{book.title}</span> : null}
+      {!hasImage ? <BookCoverPlaceholder decorative /> : null}
     </div>
   );
 }
@@ -683,16 +675,12 @@ async function submitMissingBook(event) {
                   }
                 >
                   <div className="recent-finish-cover" aria-hidden="true">
-                    {(book.coverUrl || book.isbn) ? (
-                      <img
-                        src={book.coverUrl || getCoverUrl(book.isbn, "M")}
-                        alt=""
-                        loading="lazy"
-                        onError={(event) => hideBrokenCover(event, book.isbn)}
-                      />
-                    ) : (
-                      <span>{book.title}</span>
-                    )}
+                    <BookCoverImage
+                      src={book.coverUrl || getCoverUrl(book.isbn, "M")}
+                      fallbackSrc={getOpenLibraryIsbnCoverUrl(book.isbn)}
+                      alt=""
+                      loading="lazy"
+                    />
                   </div>
                   <div>
                     <strong>{book.title}</strong>
@@ -738,11 +726,11 @@ async function submitMissingBook(event) {
                           aria-label={`View details for ${book.title}`}
                         >
                           <div className="isbn-result-cover">
-                            {book.coverUrl ? (
-                              <img src={book.coverUrl} alt={`Cover of ${book.title}`} />
-                            ) : (
-                              <span>No cover available</span>
-                            )}
+                            <BookCoverImage
+                              src={book.coverUrl}
+                              alt={`Cover of ${book.title}`}
+                              decorative
+                            />
                           </div>
                           <div>
                             <p className="eyebrow">

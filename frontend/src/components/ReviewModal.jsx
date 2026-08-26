@@ -1,5 +1,6 @@
 import { RatingPicker } from "./StarRating";
 import { getGoogleBooksCoverUrl } from "../lib/googleBooks";
+import BookCoverImage from "./BookCoverImage";
 
 function ReviewModal({
   book,
@@ -37,17 +38,12 @@ function ReviewModal({
         <h2>Rate & review?</h2>
         <form onSubmit={onSubmit}>
           <div className="modal-preview">
-            {book.coverUrl || book.isbn ? (
-              <img
-                className="review-modal-cover"
-                src={book.coverUrl || getGoogleBooksCoverUrl(book.isbn)}
-                alt={`Cover of ${book.title}`}
-              />
-            ) : (
-              <div className="tracked-cover" aria-hidden="true">
-                <span>{book.title}</span>
-              </div>
-            )}
+            <BookCoverImage
+              className="review-modal-cover"
+              src={book.coverUrl || getGoogleBooksCoverUrl(book.isbn)}
+              alt={`Cover of ${book.title}`}
+              decorative
+            />
             <p>
               <strong>{book.title}</strong>
               <small>{book.author}</small>

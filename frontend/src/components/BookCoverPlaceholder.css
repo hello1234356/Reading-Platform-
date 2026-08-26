@@ -1,0 +1,49 @@
+.book-cover-placeholder {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.25rem, 8%, 0.55rem);
+  overflow: hidden;
+  color: rgb(133, 107, 91);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.24), transparent 55%),
+    var(--linen, #eee4d2);
+  border: 1px solid rgba(133, 107, 91, 0.24);
+  border-radius: inherit;
+  text-align: center;
+}
+
+.book-cover-placeholder-mark {
+  width: clamp(0.8rem, 27%, 1.65rem);
+  aspect-ratio: 0.72;
+  border: 1.5px solid currentColor;
+  border-radius: 0.18rem 0.18rem 0.1rem 0.1rem;
+  opacity: 0.78;
+}
+
+.book-cover-placeholder-mark::after {
+  display: block;
+  width: 32%;
+  height: 42%;
+  margin: -1px auto 0;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+  content: "";
+}
+
+.book-cover-placeholder-label {
+  max-width: 90%;
+  overflow: hidden;
+  font-size: clamp(0.48rem, 12%, 0.72rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

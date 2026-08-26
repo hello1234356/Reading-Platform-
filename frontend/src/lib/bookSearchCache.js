@@ -21,16 +21,18 @@ function getCacheKey(provider, normalizedQuery) {
   return `${provider}:${normalizedQuery}`;
 }
 
-function normalizeCachedPayload(payload, limit) {
+function normalizeCachedPayload(payload) {
   const results = Array.isArray(payload?.results)
-    ? payload.results.slice(0, limit)
+    ? payload.results
     : [];
 
   return {
     results,
     blockedCount: Number(payload?.blockedCount) || 0,
-    // Older cache rows were always populated by the app's 20-result search.
-    coveredLimit: Math.max(1, Math.min(Number(payload?.coveredLimit) || 20, 20)),
+    coveredLimit: Math.max(
+      1,
+      Math.min(Number(payload?.coveredLimit) || 20, 20)
+    ),
   };
 }
 
@@ -42,7 +44,7 @@ export async function readSharedBookSearchCache(provider, searchTerm, limit = 20
   const memoryEntry = memoryCache.get(cacheKey);
 
   if (memoryEntry?.expiresAt > Date.now()) {
-    const cached = normalizeCachedPayload(memoryEntry.payload, limit);
+    const cached = normalizeCachedPayload(memoryEntry.payload);
     if (cached.coveredLimit >= limit) return cached;
   }
 
@@ -60,13 +62,13 @@ export async function readSharedBookSearchCache(provider, searchTerm, limit = 20
   if (error) throw error;
   if (!data) return null;
 
-  const payload = normalizeCachedPayload(data.result_json, 20);
+  const payload = normalizeCachedPayload(data.result_json);
   memoryCache.set(cacheKey, {
     payload,
     expiresAt: new Date(data.expires_at).getTime(),
   });
 
-  const cached = normalizeCachedPayload(payload, limit);
+  const cached = normalizeCachedPayload(payload);
   return cached.coveredLimit >= limit ? cached : null;
 }
 
@@ -78,7 +80,7 @@ export async function writeSharedBookSearchCache(
   const normalizedQuery = normalizeBookSearchQuery(searchTerm);
   if (!normalizedQuery) return null;
 
-  const normalizedPayload = normalizeCachedPayload(payload, 20);
+  const normalizedPayload = normalizeCachedPayload(payload);
   const supabase = requireSupabase();
   const { data, error } = await supabase.rpc("cache_book_search", {
     p_normalized_query: normalizedQuery,
@@ -155,7 +157,10 @@ export async function searchWithSharedCache({
         bypassProviderCache });
       throw error;
     }
-    const payload = { ...normalizeCachedPayload(fetched, limit), coveredLimit: limit };
+    const payload = {
+      ...normalizeCachedPayload(fetched),
+      coveredLimit: limit,
+    };
     onCacheDiagnostic({ provider, query: normalizeBookSearchQuery(searchTerm),
       cacheHit: false, resultCount: payload.results.length,
       actualProviderFetchPerformed: true, bypassProviderCache });
