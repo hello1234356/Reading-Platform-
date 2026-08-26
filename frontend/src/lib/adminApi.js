@@ -321,16 +321,82 @@ export async function reviewBookModerationAssessment({ assessmentId, decision })
   return data;
 }
 
-export async function broadcastNotification({ broadcastId, title, body, targetUrl = "" }) {
+export async function searchAnnouncementRecipients(searchTerm) {
   const supabase = requireSupabase();
-  const { data, error } = await supabase.rpc("broadcast_notification", {
-    p_broadcast_id: broadcastId,
+  const { data, error } = await supabase.rpc("search_announcement_recipients", {
+    p_query: String(searchTerm || "").trim(),
+    p_limit: 8,
+  });
+  if (error) throw error;
+  return (data || []).map((profile) => ({
+    id: profile.id,
+    username: profile.username || "",
+    fullName: profile.full_name || "",
+    avatarUrl: profile.avatar_url || "",
+  }));
+}
+
+export async function sendTargetedAdminNotification({
+  messageId,
+  recipientId,
+  title,
+  body,
+  targetUrl = "",
+}) {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc("send_targeted_admin_notification", {
+    p_message_id: messageId,
+    p_recipient_id: recipientId,
     p_title: String(title || "").trim(),
     p_body: String(body || "").trim(),
     p_target_url: String(targetUrl || "").trim() || null,
   });
   if (error) throw error;
-  return { broadcastId: data?.broadcast_id || broadcastId, sentCount: Number(data?.sent_count) || 0 };
+  return data;
+}
+
+export async function savePublicAnnouncement({
+  announcementId = null,
+  title,
+  body,
+  targetUrl = "",
+  startsAt = null,
+  endsAt = null,
+  isActive = true,
+}) {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.rpc("save_public_announcement", {
+    p_announcement_id: announcementId,
+    p_title: String(title || "").trim(),
+    p_body: String(body || "").trim(),
+    p_target_url: String(targetUrl || "").trim() || null,
+    p_starts_at: startsAt,
+    p_ends_at: endsAt,
+    p_is_active: Boolean(isActive),
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function getPublicAnnouncementsForAdmin() {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase.from("public_announcements").select(`
+    id, title, body, target_url, starts_at, ends_at, is_active,
+    legacy_broadcast_id, created_at, updated_at
+  `).order("created_at", { ascending: false }).limit(50);
+  if (error) throw error;
+  return (data || []).map((announcement) => ({
+    id: announcement.id,
+    title: announcement.title || "",
+    body: announcement.body || "",
+    targetUrl: announcement.target_url || "",
+    startsAt: announcement.starts_at,
+    endsAt: announcement.ends_at || null,
+    isActive: Boolean(announcement.is_active),
+    legacyBroadcastId: announcement.legacy_broadcast_id || "",
+    createdAt: announcement.created_at,
+    updatedAt: announcement.updated_at,
+  }));
 }
 
 export async function searchAdminClubs(searchTerm = "") {

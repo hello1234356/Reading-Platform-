@@ -31,6 +31,7 @@ function mapNotification(row) {
   });
   return {
     id: row.id,
+    itemKind: row.item_kind || "personal",
     type: row.type,
     title: row.title || "Notification",
     body: row.body || "",
@@ -51,28 +52,29 @@ function mapNotification(row) {
 
 export async function getNotifications() {
   const supabase = requireSupabase();
-  const { data, error } = await supabase.from("notifications").select(`
-    id, type, title, body, target_url, target_type, post_id, comment_id, reply_id,
-    is_read, created_at,
-    actor:profiles!notifications_actor_id_fkey (id, username, full_name, avatar_url)
-  `).order("created_at", { ascending: false }).limit(NOTIFICATION_LIMIT);
+  const { data, error } = await supabase.rpc("get_notification_inbox", {
+    p_limit: NOTIFICATION_LIMIT,
+  });
   if (error) throw error;
   return (data || []).map(mapNotification);
 }
 
 export async function getUnreadNotificationCount() {
   const supabase = requireSupabase();
-  const { count, error } = await supabase.from("notifications")
-    .select("id", { count: "exact", head: true }).eq("is_read", false);
+  const { data, error } = await supabase.rpc("get_unread_notification_count");
   if (error) throw error;
-  return count || 0;
+  return Number(data) || 0;
 }
 
-export async function markNotificationRead(notificationId) {
+export async function markNotificationRead(notification) {
   const supabase = requireSupabase();
-  const { error } = await supabase.rpc("mark_notification_read", {
-    p_notification_id: notificationId,
-  });
+  const isPublicAnnouncement = notification?.itemKind === "public_announcement";
+  const { error } = await supabase.rpc(
+    isPublicAnnouncement ? "mark_public_announcement_read" : "mark_notification_read",
+    isPublicAnnouncement
+      ? { p_announcement_id: notification.id }
+      : { p_notification_id: notification.id },
+  );
   if (error) throw error;
 }
 
@@ -85,10 +87,17 @@ export async function markAllNotificationsRead() {
 export function subscribeToNotifications(userId, onChange) {
   if (!userId) return () => {};
   const supabase = requireSupabase();
-  const channel = supabase.channel(`notifications:${userId}`).on(
-    "postgres_changes",
-    { event: "*", schema: "public", table: "notifications", filter: `recipient_id=eq.${userId}` },
-    onChange,
-  ).subscribe();
+  const channel = supabase.channel(`notifications:${userId}`)
+    .on("postgres_changes", {
+      event: "*", schema: "public", table: "notifications", filter: `recipient_id=eq.${userId}`,
+    }, onChange)
+    .on("postgres_changes", {
+      event: "*", schema: "public", table: "public_announcements",
+    }, onChange)
+    .on("postgres_changes", {
+      event: "*", schema: "public", table: "public_announcement_reads",
+      filter: `user_id=eq.${userId}`,
+    }, onChange)
+    .subscribe();
   return () => { void supabase.removeChannel(channel); };
 }

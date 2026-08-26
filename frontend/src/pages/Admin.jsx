@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import ProfileLink from "../components/ProfileLink";
 import {
   addAdmin,
-  broadcastNotification,
   deleteBookSubmission,
   deleteModerationReport,
   getAdminRole,
@@ -15,7 +14,11 @@ import {
   reviewBookModerationAssessment,
   removeAdmin,
   reviewModerationReport,
+  getPublicAnnouncementsForAdmin,
+  savePublicAnnouncement,
   searchAdminClubs,
+  searchAnnouncementRecipients,
+  sendTargetedAdminNotification,
 } from "../lib/adminApi";
 import { useAuth } from "../hooks/useAuth";
 import HomepageBannerAdmin from "../components/HomepageBannerAdmin";
@@ -907,12 +910,97 @@ function AdminManagementTab() {
 }
 
 function AnnouncementsTab() {
-  const [draft, setDraft] = useState({ title: "", body: "", targetUrl: "" });
+  const [mode, setMode] = useState("everyone");
+  const [draft, setDraft] = useState({
+    announcementId: null,
+    title: "",
+    body: "",
+    targetUrl: "",
+    startsAt: "",
+    endsAt: "",
+    isActive: true,
+  });
+  const [recipientQuery, setRecipientQuery] = useState("");
+  const [recipientResults, setRecipientResults] = useState([]);
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
+  const [announcements, setAnnouncements] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState("");
 
   function updateDraft(field, value) {
     setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function toDatetimeLocal(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  async function loadAnnouncements() {
+    try {
+      setAnnouncements(await getPublicAnnouncementsForAdmin());
+    } catch (error) {
+      console.error("Failed to load public announcements:", error);
+      setMessage(error.message || "Could not load public announcements.");
+    }
+  }
+
+  useEffect(() => {
+    // Load the small Admin announcement history for editing/deactivation.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAnnouncements();
+  }, []);
+
+  async function findRecipient() {
+    const query = recipientQuery.trim();
+    if (!query) {
+      setRecipientResults([]);
+      return;
+    }
+    setSearching(true);
+    setMessage("");
+    try {
+      setRecipientResults(await searchAnnouncementRecipients(query));
+    } catch (error) {
+      console.error("Failed to search announcement recipients:", error);
+      setMessage(error.message || "Could not search users.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function resetDraft(nextMode = mode) {
+    setDraft({
+      announcementId: null,
+      title: "",
+      body: "",
+      targetUrl: "",
+      startsAt: "",
+      endsAt: "",
+      isActive: true,
+    });
+    setMode(nextMode);
+    setRecipientQuery("");
+    setRecipientResults([]);
+    setSelectedRecipient(null);
+  }
+
+  function editAnnouncement(announcement) {
+    setMode("everyone");
+    setDraft({
+      announcementId: announcement.id,
+      title: announcement.title,
+      body: announcement.body,
+      targetUrl: announcement.targetUrl,
+      startsAt: toDatetimeLocal(announcement.startsAt),
+      endsAt: toDatetimeLocal(announcement.endsAt),
+      isActive: announcement.isActive,
+    });
+    setMessage("Editing public announcement.");
   }
 
   async function sendAnnouncement(event) {
@@ -922,18 +1010,55 @@ function AnnouncementsTab() {
       setMessage("Destination must be an internal path such as /discover.");
       return;
     }
-    if (!window.confirm("Send this announcement to all LitShelf users?")) return;
+
+    if (mode === "specific" && !selectedRecipient?.id) {
+      setMessage("Choose the specific user who should receive this message.");
+      return;
+    }
+
+    let startsAt = null;
+    let endsAt = null;
+    if (mode === "everyone") {
+      startsAt = draft.startsAt ? new Date(draft.startsAt).toISOString() : new Date().toISOString();
+      endsAt = draft.endsAt ? new Date(draft.endsAt).toISOString() : null;
+      if (endsAt && new Date(endsAt) <= new Date(startsAt)) {
+        setMessage("Visible until must be later than visible from.");
+        return;
+      }
+    }
+
+    const confirmation = mode === "everyone"
+      ? `${draft.announcementId ? "Update" : "Publish"} this announcement for everyone?`
+      : `Send this message only to @${selectedRecipient.username || selectedRecipient.fullName}?`;
+    if (!window.confirm(confirmation)) return;
     setSaving(true);
     setMessage("");
     try {
-      const result = await broadcastNotification({
-        broadcastId: crypto.randomUUID(),
-        title: draft.title,
-        body: draft.body,
-        targetUrl: target,
-      });
-      setDraft({ title: "", body: "", targetUrl: "" });
-      setMessage(`Announcement sent to ${result.sentCount} user${result.sentCount === 1 ? "" : "s"}.`);
+      if (mode === "everyone") {
+        await savePublicAnnouncement({
+          announcementId: draft.announcementId,
+          title: draft.title,
+          body: draft.body,
+          targetUrl: target,
+          startsAt,
+          endsAt,
+          isActive: draft.isActive,
+        });
+        resetDraft("everyone");
+        setMessage("Public announcement saved as one global announcement.");
+        await loadAnnouncements();
+      } else {
+        await sendTargetedAdminNotification({
+          messageId: crypto.randomUUID(),
+          recipientId: selectedRecipient.id,
+          title: draft.title,
+          body: draft.body,
+          targetUrl: target,
+        });
+        const recipientLabel = selectedRecipient.username || selectedRecipient.fullName;
+        resetDraft("specific");
+        setMessage(`Message sent only to @${recipientLabel}.`);
+      }
     } catch (error) {
       console.error("Failed to send announcement:", error);
       setMessage(error.message || "Could not send this announcement.");
@@ -944,11 +1069,51 @@ function AnnouncementsTab() {
     <section className="admin-panel" aria-label="Notification announcements">
       <div className="admin-card admin-announcement-card">
         <div>
-          <p className="eyebrow">All LitShelf users</p>
-          <h2>Send announcement</h2>
-          <p className="admin-muted">Each user will receive one inbox notification.</p>
+          <p className="eyebrow">Notification delivery</p>
+          <h2>{mode === "everyone" ? "Public announcement" : "Targeted admin message"}</h2>
+          <p className="admin-muted">Public announcements are stored once and remain visible to
+            current and future users while active. Targeted messages go only to the selected user.</p>
         </div>
         <form className="admin-announcement-form" onSubmit={sendAnnouncement}>
+          <fieldset className="admin-announcement-mode">
+            <legend>Send to</legend>
+            <label><input type="radio" name="announcement-audience" value="specific"
+              checked={mode === "specific"} onChange={() => resetDraft("specific")} />
+              Specific user</label>
+            <label><input type="radio" name="announcement-audience" value="everyone"
+              checked={mode === "everyone"} onChange={() => resetDraft("everyone")} />
+              Everyone</label>
+          </fieldset>
+          {mode === "specific" ? (
+            <div className="admin-recipient-picker">
+              <label>
+                <span>Find user by username or name</span>
+                <span className="admin-recipient-search-row">
+                  <input value={recipientQuery} maxLength="100"
+                    onChange={(event) => setRecipientQuery(event.target.value)} />
+                  <button className="ghost-button" type="button" disabled={searching}
+                    onClick={findRecipient}>{searching ? "Searching..." : "Find user"}</button>
+                </span>
+              </label>
+              {selectedRecipient ? (
+                <p className="admin-muted">Recipient: <strong>@{
+                  selectedRecipient.username || selectedRecipient.fullName
+                }</strong></p>
+              ) : null}
+              {recipientResults.length ? (
+                <div className="admin-recipient-results" aria-label="Matching users">
+                  {recipientResults.map((recipient) => (
+                    <button type="button" key={recipient.id}
+                      className={selectedRecipient?.id === recipient.id ? "selected" : ""}
+                      onClick={() => setSelectedRecipient(recipient)}>
+                      <strong>@{recipient.username || "reader"}</strong>
+                      <span>{recipient.fullName || "LitShelf reader"}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <label>
             <span>Title</span>
             <input value={draft.title} maxLength="180" required
@@ -964,13 +1129,56 @@ function AnnouncementsTab() {
             <input value={draft.targetUrl} maxLength="500" placeholder="/discover"
               onChange={(event) => updateDraft("targetUrl", event.target.value)} />
           </label>
+          {mode === "everyone" ? (
+            <div className="admin-announcement-schedule">
+              <label>
+                <span>Visible from</span>
+                <input type="datetime-local" value={draft.startsAt}
+                  onChange={(event) => updateDraft("startsAt", event.target.value)} />
+              </label>
+              <label>
+                <span>Visible until (optional)</span>
+                <input type="datetime-local" value={draft.endsAt}
+                  onChange={(event) => updateDraft("endsAt", event.target.value)} />
+              </label>
+              <label className="admin-announcement-active">
+                <input type="checkbox" checked={draft.isActive}
+                  onChange={(event) => updateDraft("isActive", event.target.checked)} />
+                <span>Active</span>
+              </label>
+            </div>
+          ) : null}
           <div className="admin-actions">
             <button className="primary-button" type="submit" disabled={saving}>
-              {saving ? "Sending..." : "Send to all users"}
+              {saving ? "Saving..." : mode === "everyone"
+                ? draft.announcementId ? "Update public announcement" : "Publish for everyone"
+                : "Send to specific user"}
             </button>
+            {draft.announcementId ? (
+              <button className="ghost-button" type="button"
+                onClick={() => resetDraft("everyone")}>Cancel edit</button>
+            ) : null}
           </div>
         </form>
         {message ? <p className="admin-muted" role="status">{message}</p> : null}
+      </div>
+      <div className="admin-announcement-history">
+        <h2>Public announcements</h2>
+        {announcements.length === 0 ? (
+          <p className="admin-empty">No public announcements yet.</p>
+        ) : announcements.map((announcement) => (
+          <article className="admin-card" key={announcement.id}>
+            <div className="admin-card-heading">
+              <div><h3>{announcement.title}</h3><p className="admin-muted">{
+                announcement.isActive ? "Active" : "Inactive"
+              } · visible {formatDate(announcement.startsAt)}{
+                announcement.endsAt ? ` until ${formatDate(announcement.endsAt)}` : " with no expiry"
+              }</p></div>
+              <button className="ghost-button" type="button"
+                onClick={() => editAnnouncement(announcement)}>Edit</button>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   );

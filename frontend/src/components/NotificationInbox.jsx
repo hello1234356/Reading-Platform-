@@ -112,10 +112,12 @@ function NotificationInbox({ userId }) {
 
   async function openNotification(item) {
     if (!item.isRead) {
-      setItems((current) => current.map((entry) => entry.id === item.id
+      setItems((current) => current.map((entry) => (
+        entry.id === item.id && entry.itemKind === item.itemKind
+      )
         ? { ...entry, isRead: true } : entry));
       setUnreadCount((count) => Math.max(0, count - 1));
-      try { await markNotificationRead(item.id); }
+      try { await markNotificationRead(item); }
       catch (error) { console.error("Failed to mark notification read:", error); void refresh(); }
     }
     setOpen(false);
@@ -159,7 +161,7 @@ function NotificationInbox({ userId }) {
           ) : null}
           <div className="notification-inbox-list">
             {items.map((item) => (
-              <button key={item.id} type="button"
+              <button key={`${item.itemKind}:${item.id}`} type="button"
                 className={`notification-inbox-row notification-inbox-row--${item.type}${
                   item.isRead ? "" : " unread"
                 }`}

@@ -9,12 +9,19 @@ const unreadResetMigrationUrl = new URL(
   "../../supabase/migrations/202608250009_reset_all_notifications_unread.sql",
   import.meta.url,
 );
+const publicAnnouncementMigrationUrl = new URL(
+  "../../supabase/migrations/202608260001_public_announcements.sql",
+  import.meta.url,
+);
 const navbarUrl = new URL("../src/components/Navbar.jsx", import.meta.url);
 const inboxUrl = new URL("../src/components/NotificationInbox.jsx", import.meta.url);
 const navbarCssUrl = new URL("../src/components/Navbar.css", import.meta.url);
 const responsiveCssUrl = new URL("../src/styles/responsive.css", import.meta.url);
 const homeUrl = new URL("../src/pages/Home.jsx", import.meta.url);
 const discoverUrl = new URL("../src/pages/Discover.jsx", import.meta.url);
+const notificationApiUrl = new URL("../src/lib/notificationApi.js", import.meta.url);
+const adminApiUrl = new URL("../src/lib/adminApi.js", import.meta.url);
+const adminUrl = new URL("../src/pages/Admin.jsx", import.meta.url);
 
 test("notification destinations accept only bounded internal paths", () => {
   assert.equal(safeNotificationTarget("/discover?search=history"), "/discover?search=history");
@@ -77,11 +84,90 @@ test("book outcomes notify only on actual status transitions", async () => {
   assert.match(sql, /book_submission_rejected/);
 });
 
-test("announcement fanout is admin-only and retry-deduplicated", async () => {
-  const sql = await readFile(migrationUrl, "utf8");
-  assert.match(sql, /if not public\.is_admin\(\)/i);
-  assert.match(sql, /from public\.profiles[\s\S]*on conflict \(dedupe_key\) do nothing/i);
-  assert.match(sql, /admin_broadcast:' \|\| p_broadcast_id::text \|\| ':' \|\| profiles\.id::text/i);
+test("Everyone creates one global announcement without enumerating profiles", async () => {
+  const sql = await readFile(publicAnnouncementMigrationUrl, "utf8");
+  const compatibilityRpc = sql.match(
+    /create or replace function public\.broadcast_notification[\s\S]*?\n\$\$;/i,
+  )?.[0] || "";
+  assert.match(compatibilityRpc, /public\.save_public_announcement/i);
+  assert.match(compatibilityRpc, /'announcement_count', 1/i);
+  assert.doesNotMatch(compatibilityRpc, /from public\.profiles/i);
+  assert.doesNotMatch(compatibilityRpc, /insert into public\.notifications/i);
+});
+
+test("public announcements use sparse independent read state and active windows", async () => {
+  const sql = await readFile(publicAnnouncementMigrationUrl, "utf8");
+  assert.match(sql, /create table if not exists public\.public_announcements/i);
+  assert.match(sql, /create table if not exists public\.public_announcement_reads/i);
+  assert.match(sql, /primary key \(announcement_id, user_id\)/i);
+  assert.match(sql, /is_active\s+and starts_at <= now\(\)\s+and \(ends_at is null or ends_at > now\(\)\)/i);
+  assert.match(sql, /using \(user_id = auth\.uid\(\)\)/i);
+  assert.match(sql, /with check \(user_id = auth\.uid\(\)\)/i);
+  assert.doesNotMatch(sql, /insert into public\.public_announcement_reads[\s\S]{0,200}from public\.profiles/i);
+});
+
+test("combined inbox and badge include active unread public announcements", async () => {
+  const sql = await readFile(publicAnnouncementMigrationUrl, "utf8");
+  assert.match(sql, /create or replace function public\.get_notification_inbox/i);
+  assert.match(sql, /from public\.notifications[\s\S]*union all[\s\S]*from public\.public_announcements/i);
+  assert.match(sql, /create or replace function public\.get_unread_notification_count/i);
+  assert.match(sql, /not exists \([\s\S]*from public\.public_announcement_reads/i);
+  assert.match(sql, /on conflict \(announcement_id, user_id\)\s+do update set read_at/i);
+});
+
+test("targeted admin messages use only the selected profile UUID", async () => {
+  const sql = await readFile(publicAnnouncementMigrationUrl, "utf8");
+  const targetedRpc = sql.match(
+    /create or replace function public\.send_targeted_admin_notification[\s\S]*?\n\$\$;/i,
+  )?.[0] || "";
+  assert.match(targetedRpc, /if not public\.is_admin\(\)/i);
+  assert.match(targetedRpc, /where id = p_recipient_id/i);
+  assert.match(targetedRpc, /p_recipient_id, 'admin_announcement'/i);
+  assert.doesNotMatch(targetedRpc, /from public\.profiles as profiles/i);
+});
+
+test("legacy broadcast is reconstructed once and duplicate copies are suppressed", async () => {
+  const sql = await readFile(publicAnnouncementMigrationUrl, "utf8");
+  assert.match(sql, /latest_legacy_broadcast[\s\S]*limit 1/i);
+  assert.match(sql, /legacy_broadcast_id/i);
+  assert.match(sql, /where migrated\.legacy_broadcast_id::text = notification\.entity_id/i);
+  assert.match(sql, /notification\.is_read[\s\S]*on conflict \(announcement_id, user_id\) do nothing/i);
+  assert.doesNotMatch(sql, /delete from public\.notifications/i);
+});
+
+test("announcement tables are protected and participate in existing realtime", async () => {
+  const sql = await readFile(publicAnnouncementMigrationUrl, "utf8");
+  assert.match(sql, /alter table public\.public_announcements enable row level security/i);
+  assert.match(sql, /revoke all on table public\.public_announcements from anon, authenticated/i);
+  assert.match(sql, /public\.is_admin\(\)[\s\S]*is_active/i);
+  assert.doesNotMatch(sql, /grant (?:insert|update|delete) on table public\.public_announcements to authenticated/i);
+  assert.match(sql, /alter publication supabase_realtime add table public\.public_announcements/i);
+  assert.match(sql, /alter publication supabase_realtime add table public\.public_announcement_reads/i);
+});
+
+test("frontend combines announcement reads, badge count, and realtime refreshes", async () => {
+  const api = await readFile(notificationApiUrl, "utf8");
+  assert.match(api, /rpc\("get_notification_inbox"/);
+  assert.match(api, /rpc\("get_unread_notification_count"/);
+  assert.match(api, /notification\?\.itemKind === "public_announcement"/);
+  assert.match(api, /"mark_public_announcement_read"/);
+  assert.match(api, /table: "public_announcements"/);
+  assert.match(api, /table: "public_announcement_reads"[\s\S]*filter: `user_id=eq\.\$\{userId\}`/);
+});
+
+test("Admin composer keeps targeted and Everyone delivery paths distinct", async () => {
+  const [api, admin] = await Promise.all([
+    readFile(adminApiUrl, "utf8"),
+    readFile(adminUrl, "utf8"),
+  ]);
+  assert.match(api, /rpc\("send_targeted_admin_notification"[\s\S]*p_recipient_id: recipientId/);
+  assert.match(api, /rpc\("save_public_announcement"/);
+  assert.match(admin, /Specific user/);
+  assert.match(admin, /Everyone/);
+  assert.match(admin, /await sendTargetedAdminNotification\([\s\S]*recipientId: selectedRecipient\.id/);
+  assert.match(admin, /await savePublicAnnouncement\([\s\S]*startsAt,[\s\S]*endsAt/);
+  assert.match(admin, /getPublicAnnouncementsForAdmin/);
+  assert.match(admin, /editAnnouncement\(announcement\)/);
 });
 
 test("navbar mailbox placement, bounded inbox, and accessibility are explicit", async () => {
@@ -133,7 +219,7 @@ test("navbar mailbox placement, bounded inbox, and accessibility are explicit", 
 test("notification clicks persist read state before navigating", async () => {
   const inbox = await readFile(inboxUrl, "utf8");
   const handler = inbox.match(/async function openNotification\(item\) \{([\s\S]*?)\n  \}/)?.[1] || "";
-  assert.ok(handler.indexOf("await markNotificationRead(item.id)") < handler.indexOf("navigate(item.targetUrl)"));
+  assert.ok(handler.indexOf("await markNotificationRead(item)") < handler.indexOf("navigate(item.targetUrl)"));
   assert.match(handler, /setUnreadCount\(\(count\) => Math\.max\(0, count - 1\)\)/);
 });
 

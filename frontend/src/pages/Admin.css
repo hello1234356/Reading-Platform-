@@ -503,6 +503,93 @@
   outline: 3px solid rgba(244, 220, 123, 0.22);
 }
 
+.admin-announcement-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.admin-announcement-mode legend {
+  width: 100%;
+  margin-bottom: 3px;
+  color: var(--mocha);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-announcement-mode label,
+.admin-announcement-active {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--charcoal);
+  font-weight: 800;
+}
+
+.admin-announcement-mode input,
+.admin-announcement-active input {
+  width: auto;
+  padding: 0;
+}
+
+.admin-recipient-picker,
+.admin-announcement-history {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-recipient-search-row {
+  display: flex;
+  gap: 8px;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.admin-recipient-search-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.admin-recipient-results {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-recipient-results button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(138, 106, 88, 0.16);
+  border-radius: 13px;
+  background: rgba(255, 253, 249, 0.84);
+  color: var(--charcoal);
+  text-align: left;
+}
+
+.admin-recipient-results button.selected {
+  border-color: rgba(138, 106, 88, 0.52);
+  background: rgba(244, 220, 123, 0.2);
+}
+
+.admin-announcement-schedule {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-announcement-active {
+  grid-column: 1 / -1;
+}
+
+.admin-announcement-history {
+  width: min(100%, 680px);
+}
+
 @media (max-width: 760px) {
   .admin-card-grid,
   .admin-book-card,
@@ -510,6 +597,15 @@
   .admin-row-card,
   .admin-add-form {
     grid-template-columns: 1fr;
+  }
+
+  .admin-announcement-schedule {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-recipient-search-row {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .admin-book-cover,
