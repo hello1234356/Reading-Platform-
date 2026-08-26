@@ -10,7 +10,7 @@ const unreadResetMigrationUrl = new URL(
   import.meta.url,
 );
 const publicAnnouncementMigrationUrl = new URL(
-  "../../supabase/migrations/202608260001_public_announcements.sql",
+  "../../supabase/migrations/202608260004_public_announcements.sql",
   import.meta.url,
 );
 const navbarUrl = new URL("../src/components/Navbar.jsx", import.meta.url);

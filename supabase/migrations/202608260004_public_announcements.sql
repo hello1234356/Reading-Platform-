@@ -65,7 +65,8 @@ revoke all on table public.public_announcements from anon, authenticated;
 revoke all on table public.public_announcement_reads from anon, authenticated;
 grant select on table public.public_announcements to authenticated;
 grant select, insert, update on table public.public_announcement_reads to authenticated;
-
+drop policy if exists "Users read visible public announcements"
+on public.public_announcements;
 create policy "Users read visible public announcements"
 on public.public_announcements for select to authenticated
 using (
@@ -76,15 +77,20 @@ using (
     and (ends_at is null or ends_at > now())
   )
 );
-
+drop policy if exists "Users read own public announcement state"
+on public.public_announcement_reads;
 create policy "Users read own public announcement state"
 on public.public_announcement_reads for select to authenticated
 using (user_id = auth.uid());
 
+drop policy if exists "Users create own public announcement state"
+on public.public_announcement_reads;
 create policy "Users create own public announcement state"
 on public.public_announcement_reads for insert to authenticated
 with check (user_id = auth.uid());
 
+drop policy if exists "Users update own public announcement state"
+on public.public_announcement_reads;
 create policy "Users update own public announcement state"
 on public.public_announcement_reads for update to authenticated
 using (user_id = auth.uid())
