@@ -1,18 +1,13 @@
 import { Link, useParams } from "react-router-dom";
 import { recommendationLists } from "../data/recommendationLists";
-import { getGoogleBooksCoverUrl } from "../lib/googleBooks";
 import BookCoverImage from "../components/BookCoverImage";
-
-function getCoverUrl(isbn) {
-  return getGoogleBooksCoverUrl(isbn);
-}
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function getSectionCoverUrl(section) {
-  return section.coverUrl || getCoverUrl(section.isbn);
+  return String(section.coverUrl || "").trim();
 }
 
 function SectionCover({ section }) {

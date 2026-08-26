@@ -184,12 +184,6 @@ function normalizeDescription(description = "") {
     .trim();
 }
 
-export function getGoogleBooksCoverUrl(isbn, zoom = 2) {
-  const normalizedIsbn = normalizeIsbn(isbn);
-  if (!normalizedIsbn) return "";
-  return `https://books.google.com/books/content?id=ISBN${encodeURIComponent(normalizedIsbn)}&printsec=frontcover&img=1&zoom=${zoom}&source=gbs_api`;
-}
-
 export function getPreferredGoogleBooksCoverUrl(coverUrl) {
   const storedCoverUrl = String(coverUrl || "").trim();
 
@@ -471,10 +465,7 @@ export async function getGoogleBooksBookDetails(book) {
     title: book?.title || book?.book || "Untitled",
     author: book?.author || "Unknown author",
     isbn: book?.isbn || "",
-    coverUrl: getPreferredGoogleBooksCoverUrl(
-      book?.coverUrl,
-      book?.isbn,
-    ),
+    coverUrl: getPreferredGoogleBooksCoverUrl(book?.coverUrl),
     description: book?.description || "",
     googleBooksId: book?.googleBooksId || "",
   };

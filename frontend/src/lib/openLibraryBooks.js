@@ -38,12 +38,6 @@ function getOpenLibraryCoverUrl(book, size = "L") {
   return "";
 }
 
-export function getOpenLibraryIsbnCoverUrl(isbn, size = "L") {
-  const normalizedIsbn = normalizeIsbn(isbn);
-  if (!normalizedIsbn) return "";
-  return `https://covers.openlibrary.org/b/isbn/${normalizedIsbn}-${size}.jpg?default=false`;
-}
-
 function mapOpenLibraryDoc(doc) {
   const isbn = normalizeIsbn(firstValue(doc.isbn));
   const openLibraryKey = doc.key || "";

@@ -6,7 +6,6 @@ import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
 import {
-  getGoogleBooksCoverUrl,
   getPreferredGoogleBooksCoverUrl,
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
@@ -18,73 +17,27 @@ import { createLatestRequestGate } from "../lib/bookSearchRelevance";
 import { getBookSourceLabel } from "../lib/bookSource.js";
 import { submitBookSubmission } from "../lib/bookSubmissions";
 import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
-import {
-  getOpenLibraryIsbnCoverUrl,
-} from "../lib/openLibraryBooks";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import BookCoverImage from "../components/BookCoverImage";
-import BookCoverPlaceholder from "../components/BookCoverPlaceholder";
 import BookModerationStatus from "../components/BookModerationStatus";
 import ReviewModal from "../components/ReviewModal";
 import StarRating from "../components/StarRating";
 import { createPost } from "../lib/postApi";
 import { getCatalogBookById } from "../lib/communityBooks";
 
-function getCoverUrl(isbn, size = "L") {
-  return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
-}
-
 function getEditorPickCoverUrl(book) {
-  return (
-    String(book?.coverUrl || "").trim() ||
-    getOpenLibraryIsbnCoverUrl(book?.isbn) ||
-    getCoverUrl(book?.isbn)
-  );
+  return String(book?.coverUrl || "").trim();
 }
 
 function EditorPickCover({ book, featured = false }) {
-  const [coverSrc, setCoverSrc] = useState(getEditorPickCoverUrl(book));
-  const [hasImage, setHasImage] = useState(Boolean(coverSrc));
-
-  useEffect(() => {
-    const nextCoverSrc = getEditorPickCoverUrl(book);
-    // Synchronize state when a different editor pick is rendered.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCoverSrc(nextCoverSrc);
-    setHasImage(Boolean(nextCoverSrc));
-  }, [book]);
-
-  function handleCoverError(event) {
-    event.currentTarget.style.display = "none";
-    const openLibraryCoverUrl = getOpenLibraryIsbnCoverUrl(book?.isbn);
-
-    if (openLibraryCoverUrl && coverSrc !== openLibraryCoverUrl) {
-      setCoverSrc(openLibraryCoverUrl);
-      return;
-    }
-
-    const googleCoverUrl = getCoverUrl(book?.isbn);
-
-    if (googleCoverUrl && coverSrc !== googleCoverUrl) {
-      setCoverSrc(googleCoverUrl);
-      return;
-    }
-
-    setHasImage(false);
-  }
-
   return (
     <div className={featured ? "discovery-book-cover featured" : "discovery-book-cover"} aria-hidden="true">
-      {hasImage ? (
-        <img
-          src={coverSrc}
-          alt=""
-          loading="lazy"
-          onError={handleCoverError}
-        />
-      ) : null}
-      {!hasImage ? <BookCoverPlaceholder decorative /> : null}
+      <BookCoverImage
+        src={getEditorPickCoverUrl(book)}
+        alt=""
+        loading="lazy"
+      />
     </div>
   );
 }
@@ -413,7 +366,6 @@ function Discover() {
           bookId: savedLibraryBook.book.id,
           coverUrl: getPreferredGoogleBooksCoverUrl(
             book.coverUrl || savedLibraryBook.book.cover_url,
-            book.isbn || savedLibraryBook.book.isbn,
           ),
         });
         setReviewDraft({ rating: 5, review: "", visibility: "private" });
@@ -676,8 +628,7 @@ async function submitMissingBook(event) {
                 >
                   <div className="recent-finish-cover" aria-hidden="true">
                     <BookCoverImage
-                      src={book.coverUrl || getCoverUrl(book.isbn, "M")}
-                      fallbackSrc={getOpenLibraryIsbnCoverUrl(book.isbn)}
+                      src={book.coverUrl}
                       alt=""
                       loading="lazy"
                     />

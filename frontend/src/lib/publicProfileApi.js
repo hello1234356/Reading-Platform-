@@ -1,12 +1,5 @@
 import { requireSupabase } from "./supabase";
-import {
-  getGoogleBooksCoverUrl,
-  getPreferredGoogleBooksCoverUrl,
-} from "./googleBooks";
-
-function getCoverUrl(isbn) {
-  return getGoogleBooksCoverUrl(isbn);
-}
+import { getPreferredGoogleBooksCoverUrl } from "./googleBooks";
 
 export async function getPublicProfile(userId) {
   if (!userId) {
@@ -78,10 +71,7 @@ export async function getPublicProfile(userId) {
       String(book.isbn),
       {
         ...book,
-        coverUrl: getPreferredGoogleBooksCoverUrl(
-          book.cover_url,
-          book.isbn,
-        ),
+        coverUrl: getPreferredGoogleBooksCoverUrl(book.cover_url),
       },
     ]),
   );
@@ -97,7 +87,7 @@ export async function getPublicProfile(userId) {
         isbn,
         title: "Favorite book",
         author: "Unknown author",
-        coverUrl: getCoverUrl(isbn),
+        coverUrl: "",
       }
     );
   });

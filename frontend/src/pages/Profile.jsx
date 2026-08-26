@@ -6,7 +6,6 @@ import BookDetailModal from "../components/BookDetailModal";
 import ReviewModal from "../components/ReviewModal";
 import BookCoverImage from "../components/BookCoverImage";
 import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
-import { getOpenLibraryIsbnCoverUrl } from "../lib/openLibraryBooks";
 import {
   getUserLibrary,
   moveLibraryBook,
@@ -38,10 +37,6 @@ const USERNAME_CHARACTER_LIMIT = 20;
 
 function countDisplayCharacters(value = "") {
   return Array.from(String(value).trim()).length;
-}
-
-function getCoverUrl(isbn) {
-  return getOpenLibraryIsbnCoverUrl(isbn);
 }
 
 function TrophyIcon() {
@@ -444,7 +439,7 @@ function Profile() {
         isbn,
         title: "Favorite book",
         author: "Unknown author",
-        coverUrl: getCoverUrl(isbn),
+        coverUrl: "",
       };
     });
   }, [
@@ -936,7 +931,7 @@ function Profile() {
                 onClick={() => openBookDetails(book)}
               >
                 <BookCoverImage
-                  src={book.coverUrl || getCoverUrl(book.isbn)}
+                  src={book.coverUrl}
                   alt=""
                   loading="lazy"
                 />
@@ -1095,7 +1090,7 @@ function Profile() {
                       onClick={() => openBookDetails(book)}
                     >
                       <BookCoverImage
-                        src={book.coverUrl || getCoverUrl(book.isbn)}
+                        src={book.coverUrl}
                         alt={`Cover of ${book.title}`}
                         decorative
                         loading="eager"
@@ -1161,7 +1156,7 @@ function Profile() {
                   aria-label={`Open details for ${book.title}`}
                 >
                   <BookCoverImage
-                    src={book.coverUrl || getCoverUrl(book.isbn)}
+                    src={book.coverUrl}
                     alt=""
                   />
                 </button>
@@ -1275,7 +1270,7 @@ function Profile() {
               >
                 <div className="profile-review-media">
                   <BookCoverImage
-                    src={review.coverUrl || getCoverUrl(review.isbn)}
+                    src={review.coverUrl}
                     alt=""
                     loading="lazy"
                   />
@@ -1356,7 +1351,7 @@ function Profile() {
       >
         <span className="profile-club-cover">
           <BookCoverImage
-            src={club.coverUrl || getCoverUrl(club.isbn)}
+            src={club.coverUrl}
             alt=""
             loading="lazy"
           />
@@ -1625,7 +1620,7 @@ function Profile() {
                   onClick={() => addFavoriteBook(book)}
                 >
                   <BookCoverImage
-                    src={book.coverUrl || getCoverUrl(book.isbn)}
+                    src={book.coverUrl}
                     alt={`Cover of ${book.title}`}
                     decorative
                     loading="lazy"

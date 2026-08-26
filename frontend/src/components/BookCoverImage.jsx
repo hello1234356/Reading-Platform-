@@ -1,20 +1,23 @@
 import { useState } from "react";
 import BookCoverPlaceholder from "./BookCoverPlaceholder";
+import {
+  getBookCoverSourceAfterError,
+  normalizeBookCoverSource,
+} from "../lib/bookCoverSource";
 
 function BookCoverImage({
   src,
-  fallbackSrc = "",
   alt = "",
   className = "",
   decorative = alt === "",
   onError,
   ...imageProps
 }) {
-  const sourceKey = `${src || ""}\n${fallbackSrc || ""}`;
-  const [imageState, setImageState] = useState({ sourceKey, src: src || "" });
+  const sourceKey = normalizeBookCoverSource(src);
+  const [imageState, setImageState] = useState({ sourceKey, src: sourceKey });
   const currentState = imageState.sourceKey === sourceKey
     ? imageState
-    : { sourceKey, src: src || "" };
+    : { sourceKey, src: sourceKey };
 
   if (!currentState.src) {
     return <BookCoverPlaceholder className={className} decorative={decorative} />;
@@ -24,10 +27,7 @@ function BookCoverImage({
     event.currentTarget.style.display = "none";
     onError?.(event);
 
-    const nextSrc = currentState.src === src && fallbackSrc && fallbackSrc !== src
-      ? fallbackSrc
-      : "";
-    setImageState({ sourceKey, src: nextSrc });
+    setImageState({ sourceKey, src: getBookCoverSourceAfterError() });
   }
 
   return (

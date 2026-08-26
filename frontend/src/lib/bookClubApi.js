@@ -99,12 +99,10 @@ function mapClub(row, currentUserId = null) {
     isbn: row.books?.isbn || "",
     bookCoverUrl: getPreferredGoogleBooksCoverUrl(
       row.books?.cover_url,
-      row.books?.isbn,
     ),
 
     coverUrl: getPreferredGoogleBooksCoverUrl(
       row.cover_url || row.books?.cover_url,
-      row.books?.isbn,
     ),
 
     creatorName: getPublicDisplayName(row.creator_profile),

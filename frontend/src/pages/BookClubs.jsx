@@ -7,10 +7,6 @@ import {
 import { requireSupabase } from "../lib/supabase";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useRequireLogin } from "../hooks/useRequireLogin";
-import {
-  getGoogleBooksCoverUrl,
-} from "../lib/googleBooks";
-import { getOpenLibraryIsbnCoverUrl } from "../lib/openLibraryBooks";
 import BookCoverImage from "../components/BookCoverImage";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import {
@@ -46,10 +42,6 @@ function getDefaultSchedule(duration = "4 weeks") {
     { week: "Week 3", milestone: "Deepen", pages: "Middle section", note: "Discuss characters, conflict, and pace." },
     { week: "Week 4", milestone: "Close", pages: "Final pages", note: `Finish, reflect, and close the ${duration} circle.` },
   ];
-}
-
-function getCoverUrl(isbn, size = "L") {
-  return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
 }
 
 function getClubActivityLabel(lastActivityAt) {
@@ -1441,8 +1433,7 @@ const filteredClubs = clubs.filter((club) => {
           <div className="club-locked-card">
             <div className="club-detail-cover" aria-hidden="true">
               <BookCoverImage
-                src={lockedClub.coverUrl || getCoverUrl(lockedClub.isbn)}
-                fallbackSrc={getOpenLibraryIsbnCoverUrl(lockedClub.isbn)}
+                src={lockedClub.coverUrl}
                 alt=""
                 loading="lazy"
               />
@@ -1470,8 +1461,7 @@ const filteredClubs = clubs.filter((club) => {
           <div className="club-room-heading">
             <div className="club-room-cover" aria-hidden="true">
               <BookCoverImage
-                src={activeClub.coverUrl || getCoverUrl(activeClub.isbn)}
-                fallbackSrc={getOpenLibraryIsbnCoverUrl(activeClub.isbn)}
+                src={activeClub.coverUrl}
                 alt=""
                 loading="lazy"
               />
@@ -1747,8 +1737,7 @@ const filteredClubs = clubs.filter((club) => {
               <article className={`club-card ${club.tone}`} key={club.id}>
                 <div className="club-cover" aria-hidden="true">
                   <BookCoverImage
-                    src={club.coverUrl || getCoverUrl(club.isbn)}
-                    fallbackSrc={getOpenLibraryIsbnCoverUrl(club.isbn)}
+                    src={club.coverUrl}
                     alt=""
                     loading="lazy"
                   />
@@ -1860,8 +1849,7 @@ const filteredClubs = clubs.filter((club) => {
               <p className="eyebrow">Before You Join</p>
             <div className="club-detail-cover" aria-hidden="true">
               <BookCoverImage
-                src={detailClub.coverUrl || getCoverUrl(detailClub.isbn)}
-                fallbackSrc={getOpenLibraryIsbnCoverUrl(detailClub.isbn)}
+                src={detailClub.coverUrl}
                 alt=""
                 loading="lazy"
               />
@@ -2159,7 +2147,6 @@ const filteredClubs = clubs.filter((club) => {
                         >
                           <BookCoverImage
                             src={book.coverUrl}
-                            fallbackSrc={getOpenLibraryIsbnCoverUrl(book.isbn)}
                             alt=""
                             loading="lazy"
                           />
@@ -2291,8 +2278,7 @@ const filteredClubs = clubs.filter((club) => {
               <aside className="create-club-preview" aria-label="Selected book preview">
                 <div className="club-detail-cover">
                   <BookCoverImage
-                    src={previewBook.coverUrl || getCoverUrl(previewBook.isbn)}
-                    fallbackSrc={getOpenLibraryIsbnCoverUrl(previewBook.isbn)}
+                    src={previewBook.coverUrl}
                     alt=""
                     loading="lazy"
                   />
