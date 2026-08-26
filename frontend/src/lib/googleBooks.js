@@ -190,15 +190,14 @@ export function getGoogleBooksCoverUrl(isbn, zoom = 2) {
   return `https://books.google.com/books/content?id=ISBN${encodeURIComponent(normalizedIsbn)}&printsec=frontcover&img=1&zoom=${zoom}&source=gbs_api`;
 }
 
-export function getPreferredGoogleBooksCoverUrl(coverUrl, isbn, zoom = 2) {
+export function getPreferredGoogleBooksCoverUrl(coverUrl) {
   const storedCoverUrl = String(coverUrl || "").trim();
 
-  if (storedCoverUrl) {
-    return secureImageUrl(storedCoverUrl);
-  }
-
-  return getGoogleBooksCoverUrl(isbn, zoom);
+  return storedCoverUrl
+    ? secureImageUrl(storedCoverUrl)
+    : "";
 }
+
 
 export function mapGoogleBooksResult(result) {
   const info = result?.volumeInfo || {};
@@ -217,7 +216,7 @@ export function mapGoogleBooksResult(result) {
     coverUrl: secureImageUrl(
       info.imageLinks?.thumbnail ||
       info.imageLinks?.smallThumbnail ||
-      getGoogleBooksCoverUrl(isbn),
+      "",
     ),
     description: normalizeDescription(info.description),
     publisher: info.publisher || "",
