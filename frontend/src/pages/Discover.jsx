@@ -10,7 +10,12 @@ import {
   getPreferredGoogleBooksCoverUrl,
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
+import {
+  applyBookModerationUpdate,
+  moderateBookSearchResults,
+} from "../lib/bookModerationApi.js";
 import { createLatestRequestGate } from "../lib/bookSearchRelevance";
+import { getBookSourceLabel } from "../lib/bookSource.js";
 import { submitBookSubmission } from "../lib/bookSubmissions";
 import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
 import {
@@ -101,13 +106,6 @@ function simplifySearchTerm(searchTerm) {
 
 function getInternalBookId(book) {
   return book?.bookId || book?.id || "";
-}
-
-function getSourceLabel(book) {
-  if (book?.source === "community") return "LitShelf";
-  if (book?.source === "open_library") return "Open Library";
-  if (book?.source === "isbn_work") return "ISBN.work";
-  return "Google";
 }
 
 const initialSubmissionDraft = {
@@ -282,15 +280,8 @@ function Discover() {
       setSearchMessage("");
       void searchResult.startModeration((key, moderationStatus, details = {}) => {
         if (!bookSearchGateRef.current.isCurrent(requestId)) return;
-        setBookResults((current) => current.map((book) => book.moderationKey === key
-          ? {
-            ...book,
-            moderationStatus,
-            moderationFailureCode: details.failureCode || "",
-            moderationPolicyVersion:
-              details.policyVersion || book.moderationPolicyVersion || "",
-          }
-          : book));
+        setBookResults((current) => current.map((book) =>
+          applyBookModerationUpdate(book, key, moderationStatus, details)));
       });
     } catch (error) {
       if (!bookSearchGateRef.current.isCurrent(requestId)) return;
@@ -516,6 +507,17 @@ async function openBookDetails(book) {
   }
 }
 
+async function retryBookModeration(book) {
+  const key = book.moderationKey;
+  setBookResults((current) => current.map((item) => item.moderationKey === key
+    ? { ...item, moderationStatus: "checking", moderationFailureCode: "" }
+    : item));
+  await moderateBookSearchResults([book], (updateKey, moderationStatus, details = {}) => {
+    setBookResults((current) => current.map((item) =>
+      applyBookModerationUpdate(item, updateKey, moderationStatus, details)));
+  });
+}
+
 function openSubmissionForm() {
   if (!requireLogin()) return;
 
@@ -732,7 +734,6 @@ async function submitMissingBook(event) {
 	                    <button
                           className="isbn-result-details-button"
                           type="button"
-                          disabled={!isModerationApproved}
                           onClick={() => openBookDetails(book)}
                           aria-label={`View details for ${book.title}`}
                         >
@@ -745,7 +746,7 @@ async function submitMissingBook(event) {
                           </div>
                           <div>
                             <p className="eyebrow">
-                              {getSourceLabel(book)}
+                              {getBookSourceLabel(book)}
                             </p>
                             <h2>{book.title}</h2>
                             <p className="isbn-result-author">{book.author}</p>
@@ -753,7 +754,7 @@ async function submitMissingBook(event) {
                             {book.isbn ? <small>ISBN {book.isbn}</small> : null}
                           </div>
                         </button>
-	                      <BookModerationStatus book={book} />
+	                      <BookModerationStatus book={book} onRetry={retryBookModeration} />
 	                      <div className="isbn-result-actions">
                           <label className="isbn-shelf-choice">
                             <span>Add to</span>
@@ -782,7 +783,9 @@ async function submitMissingBook(event) {
                             ? "Adding..."
                             : isSaved
                               ? "Added to Reading List"
-                              : "Add to My Shelf"}
+                              : book.moderationStatus === "checking"
+                                ? "Add to Shelf — checking…"
+                                : "Add to My Shelf"}
 	                      </button>
 	                    </div>
 	                  </article>

@@ -7,13 +7,15 @@ import {
 import { isLikelyIsbn } from "./isbnBookProviders";
 import { searchOpenLibraryBooks } from "./openLibraryBooks";
 import {
-  normalizeCommunityBookIsbn,
   searchCatalogBooks,
 } from "./communityBooks";
 import { searchWithSharedCache } from "./bookSearchCache";
 import { searchCatalogAndExternal, searchGoogleWithQuotaFallback } from "./bookSearchPolicy";
 import { initializeBookModerationResults, moderateBookSearchResults } from "./bookModerationApi";
 import { rankBookSearchResults } from "./bookSearchRelevance";
+import { mergeBookResults } from "./bookSearchMerge.js";
+
+export { mergeBookResults };
 
 export function isChineseBookSearch(searchTerm) {
   return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(
@@ -72,50 +74,6 @@ async function searchNonChineseExternalBooks(searchTerm, limit, options = {}) {
       code: error.code || error.googleStatus || "google_provider_unavailable",
     }),
   });
-}
-
-function getProviderKey(book) {
-  if (book?.source === "google_books" && book.googleBooksId) {
-    return `google_books:${book.googleBooksId}`;
-  }
-
-  if (book?.source === "open_library") {
-    const externalId = book.openLibraryKey || book.editionKey || book.externalId || "";
-    if (externalId) return `open_library:${externalId}`;
-  }
-
-  if (book?.source === "isbn_work" && book.isbn) {
-    return `isbn_work:${normalizeCommunityBookIsbn(book.isbn)}`;
-  }
-
-  if (book?.source && book?.externalId) {
-    return `${book.source}:${book.externalId}`;
-  }
-
-  return "";
-}
-
-export function mergeBookResults(preferredResults = [], additionalResults = []) {
-  const mergedResults = [];
-  const seenIsbns = new Set();
-  const seenProviderKeys = new Set();
-
-  preferredResults.concat(additionalResults).forEach((book) => {
-    const isbn = normalizeCommunityBookIsbn(book.isbn);
-    const providerKey = getProviderKey(book);
-
-    if ((isbn && seenIsbns.has(isbn)) || (providerKey && seenProviderKeys.has(providerKey))) {
-      return;
-    }
-
-    if (isbn) seenIsbns.add(isbn);
-    if (providerKey) seenProviderKeys.add(providerKey);
-    mergedResults.push(book);
-  });
-
-  // Ranking happens after every provider/catalog candidate has been merged.
-  // Slicing here lets provider order discard a later exact catalog/title match.
-  return mergedResults;
 }
 
 async function searchChineseBooks(searchTerm, limit, options = {}) {

@@ -8,7 +8,9 @@ import {
 } from "../src/lib/bookSearchCache.js";
 import { searchGoogleWithQuotaFallback } from "../src/lib/bookSearchPolicy.js";
 import { searchCatalogAndExternal } from "../src/lib/bookSearchPolicy.js";
-import { filterRelevantCatalogBooks } from "../src/lib/communityBooks.js";
+import { filterRelevantCatalogBooks, mapCatalogBook } from "../src/lib/communityBooks.js";
+import { mergeBookResults } from "../src/lib/bookSearchMerge.js";
+import { getBookSourceLabel } from "../src/lib/bookSource.js";
 import {
   searchGoogleBooks,
   shouldFallbackFromGoogleBooks,
@@ -427,15 +429,74 @@ test("single-word title relevance uses token boundaries", () => {
 });
 
 test("all catalog and provider candidates are merged before final ranking", async () => {
-  const source = await readFile(new URL("../src/lib/bookSearch.js", import.meta.url), "utf8");
-  assert.match(source, /Ranking happens after[\s\S]*return mergedResults;/);
-  assert.doesNotMatch(source, /return mergedResults\.slice\(0, limit\)/);
+  const [source, mergeSource] = await Promise.all([
+    readFile(new URL("../src/lib/bookSearch.js", import.meta.url), "utf8"),
+    readFile(new URL("../src/lib/bookSearchMerge.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(mergeSource, /Ranking happens only after[\s\S]*return mergedResults;/);
+  assert.doesNotMatch(mergeSource, /return mergedResults\.slice\(0, limit\)/);
   assert.match(source, /searchCatalogBooks\(searchTerm, limit\)/);
   const candidates = Array.from({ length: 20 }, (_, index) => ({
     title: `Weak provider result ${index}`, author: "Unknown",
   })).concat([{ title: "Harry Potter and the Philosopher's Stone", author: "J. K. Rowling" }]);
   const ranked = rankBookSearchResults("harry potter", candidates, 20);
   assert.equal(ranked[0].title, "Harry Potter and the Philosopher's Stone");
+});
+
+test("live and materialized Pride and Prejudice merge by provider identity", () => {
+  const catalog = mapCatalogBook({
+    id: 123, source: "open_library", external_id: "/works/OL66554W",
+    isbn: "9780141439518", title: "Pride and Prejudice", author: "Jane Austen",
+    description: "Stored catalog description.",
+  });
+  const live = {
+    source: "open_library", externalId: "/works/OL66554W",
+    openLibraryKey: "/works/OL66554W", isbn: "9780141439518",
+    title: "Pride and Prejudice", author: "Jane Austen",
+  };
+  const merged = mergeBookResults([live], [catalog]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].source, "open_library");
+  assert.equal(merged[0].externalId, "/works/OL66554W");
+  assert.equal(merged[0].bookId, 123);
+  assert.equal(merged[0].description, "Stored catalog description.");
+  assert.equal(getBookSourceLabel(merged[0]), "Open Library");
+});
+
+test("stored provenance controls labels and missing provenance is not invented as community", () => {
+  const openLibrary = mapCatalogBook({ id: 1, source: "open_library",
+    external_id: "/works/OL1W", title: "Provider-only catalog book" });
+  const google = mapCatalogBook({ id: 2, source: "google_books",
+    external_id: "google-2", title: "Cached provider book" });
+  const community = mapCatalogBook({ id: 3, source: "community",
+    external_id: "book:3", title: "Unique user submission" });
+  const unknownLegacy = mapCatalogBook({ id: 4, source: null,
+    external_id: null, title: "Old catalog row" });
+  assert.equal(getBookSourceLabel(openLibrary), "Open Library");
+  assert.equal(getBookSourceLabel(google), "Google Books");
+  assert.equal(getBookSourceLabel(community), "LitShelf");
+  assert.equal(unknownLegacy.source, "legacy_catalog");
+  assert.equal(getBookSourceLabel(unknownLegacy), "Catalog record");
+});
+
+test("trusted materialization persists provider provenance and submissions create community", async () => {
+  const [integrity, submissions] = await Promise.all([
+    readFile(new URL(
+      "../../supabase/migrations/202608250012_book_moderation_integrity.sql",
+      import.meta.url,
+    ), "utf8"),
+    readFile(new URL(
+      "../../supabase/migrations/202608210002_community_book_moderation_foundation.sql",
+      import.meta.url,
+    ), "utf8"),
+  ]);
+  const materialize = integrity.match(
+    /create or replace function public\.materialize_approved_book[\s\S]*?\n\$\$;/i,
+  )?.[0] || "";
+  assert.match(materialize, /p_source,\s+p_external_id,/i);
+  assert.match(materialize, /where source = p_source and external_id = p_external_id/i);
+  assert.doesNotMatch(materialize, /'community'/i);
+  assert.match(submissions, /target_submission\.cover_url,\s+'community',\s+null/i);
 });
 
 test("metadata RPC is authenticated and only fills missing fields", async () => {

@@ -1,4 +1,5 @@
 import { requireSupabase } from "./supabase.js";
+import { normalizeStoredBookSource } from "./bookSource.js";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
@@ -17,9 +18,9 @@ function normalizeSearchText(value) {
     .replace(/\s+/g, " ");
 }
 
-function mapCatalogBook(row) {
-  const source = row.source || "community";
-  const externalId = row.external_id || "";
+export function mapCatalogBook(row) {
+  const source = normalizeStoredBookSource(row.source);
+  const externalId = source === "legacy_catalog" ? "" : row.external_id || "";
 
   return {
     source,

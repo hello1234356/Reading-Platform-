@@ -1,4 +1,5 @@
 import RecoveringBookCoverImage from "./RecoveringBookCoverImage";
+import { getBookSourceLabel } from "../lib/bookSource.js";
 
 function BookDetailModal({
   book,
@@ -46,13 +47,7 @@ function BookDetailModal({
 
         <section className="book-detail-copy">
           <p className="eyebrow">
-            {book.source === "community"
-              ? "LitShelf"
-              : book.source === "open_library"
-              ? "Open Library"
-              : book.source === "isbn_work"
-                ? "Chinese ISBN database"
-                : "Google Books"}
+            {getBookSourceLabel(book)}
           </p>
           <h2 id="book-detail-title">{book.title}</h2>
           <p className="book-detail-author">{book.author}</p>

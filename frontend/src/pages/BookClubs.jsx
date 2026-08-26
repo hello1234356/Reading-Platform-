@@ -13,6 +13,11 @@ import {
 import { getOpenLibraryIsbnCoverUrl } from "../lib/openLibraryBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import {
+  applyBookModerationUpdate,
+  moderateBookSearchResults,
+} from "../lib/bookModerationApi.js";
+import { getBookSourceLabel } from "../lib/bookSource.js";
+import {
   archiveInactiveBookClubs,
   createBookClub,
   createClubPost,
@@ -440,15 +445,8 @@ const filteredClubs = clubs.filter((club) => {
         );
         void searchResult.startModeration((key, moderationStatus, details = {}) => {
           if (requestId !== bookSearchRequestRef.current) return;
-          setBookSearchResults((current) => current.map((book) => book.moderationKey === key
-            ? {
-              ...book,
-              moderationStatus,
-              moderationFailureCode: details.failureCode || "",
-              moderationPolicyVersion:
-                details.policyVersion || book.moderationPolicyVersion || "",
-            }
-            : book));
+          setBookSearchResults((current) => current.map((book) =>
+            applyBookModerationUpdate(book, key, moderationStatus, details)));
         });
       } catch (error) {
         if (requestId !== bookSearchRequestRef.current) return;
@@ -463,6 +461,19 @@ const filteredClubs = clubs.filter((club) => {
 
     return () => window.clearTimeout(timeout);
   }, [isCreateOpen, newClub.bookTitle, selectedClubBook]);
+
+  async function retryBookModeration(book) {
+    const requestId = bookSearchRequestRef.current;
+    const key = book.moderationKey;
+    setBookSearchResults((current) => current.map((item) => item.moderationKey === key
+      ? { ...item, moderationStatus: "checking", moderationFailureCode: "" }
+      : item));
+    await moderateBookSearchResults([book], (updateKey, moderationStatus, details = {}) => {
+      if (requestId !== bookSearchRequestRef.current) return;
+      setBookSearchResults((current) => current.map((item) =>
+        applyBookModerationUpdate(item, updateKey, moderationStatus, details)));
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -2173,14 +2184,12 @@ const filteredClubs = clubs.filter((club) => {
                           <small>
                             {book.author}
                             {book.firstPublished ? ` / ${book.firstPublished}` : ""}
-                            {book.source === "community" ? " / LitShelf" : ""}
-                            {book.source === "open_library" ? " / Open Library" : ""}
-                            {book.source === "isbn_work" ? " / Chinese ISBN database" : ""}
+                            {` / ${getBookSourceLabel(book)}`}
                             {" "}
                             {book.isbn ? `/ ISBN ${book.isbn}` : ""}
                           </small>
                         </button>
-                        <BookModerationStatus book={book} />
+                        <BookModerationStatus book={book} onRetry={retryBookModeration} />
                       </div>
                     ))}
                   </div>

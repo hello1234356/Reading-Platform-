@@ -2,8 +2,9 @@ import { useState } from "react";
 import { reportBlockedBookModeration } from "../lib/bookModerationReports.js";
 import { getBookModerationPresentation } from "../lib/bookModerationStatus.js";
 
-function BookModerationStatus({ book }) {
+function BookModerationStatus({ book, onRetry }) {
   const [reportState, setReportState] = useState("idle");
+  const [retryState, setRetryState] = useState("idle");
   const presentation = getBookModerationPresentation(book);
 
   if (!presentation) return null;
@@ -23,12 +24,38 @@ function BookModerationStatus({ book }) {
     }
   }
 
+  async function retryCheck(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!onRetry || retryState === "retrying") return;
+    setRetryState("retrying");
+    try {
+      await onRetry(book);
+      setRetryState("idle");
+    } catch (error) {
+      console.error("Could not retry book moderation:", error);
+      setRetryState("error");
+    }
+  }
+
   return (
     <div
       className={`book-moderation-state ${presentation.kind}`}
       role={presentation.kind === "technical_error" ? "alert" : "status"}
     >
-      <span>{presentation.message}</span>
+      {presentation.kind === "checking" ? (
+        <span className="book-moderation-spinner" aria-hidden="true" />
+      ) : null}
+      <span className="book-moderation-copy">
+        <strong>{presentation.message}</strong>
+        <span>{presentation.detail}</span>
+      </span>
+      {presentation.retryActionLabel && onRetry ? (
+        <button className="book-moderation-retry-action" type="button"
+          disabled={retryState === "retrying"} onClick={retryCheck}>
+          {retryState === "retrying" ? "Retrying…" : presentation.retryActionLabel}
+        </button>
+      ) : null}
       {presentation.reportActionLabel && reportState !== "sent" ? (
         <>
           {" "}
@@ -48,6 +75,9 @@ function BookModerationStatus({ book }) {
       ) : null}
       {reportState === "error" ? (
         <span className="book-moderation-report-error"> Couldn&apos;t send that message. Try again.</span>
+      ) : null}
+      {retryState === "error" ? (
+        <span className="book-moderation-report-error"> Retry couldn&apos;t start. Try again shortly.</span>
       ) : null}
     </div>
   );

@@ -81,7 +81,8 @@ test("frontend renders checking cards before asynchronous moderation and keeps d
     readFile(new URL("../../frontend/src/pages/Admin.jsx", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/lib/adminApi.js", import.meta.url), "utf8"),
   ]);
-  assert.match(api, /MODERATION_BATCH_SIZE = 10/);
+  assert.match(api, /MODERATION_BATCH_SIZE = 5/);
+  assert.match(api, /MAX_CONCURRENT_MODERATION_BATCHES = 2/);
   assert.match(api, /body: \{ books: batch, cacheOnly \}/);
   assert.match(api, /await invoke\(unique, true/);
   assert.match(api, /await invoke\(requiringAi, false/);
@@ -91,9 +92,15 @@ test("frontend renders checking cards before asynchronous moderation and keeps d
   assert.doesNotMatch(search, /await (?:enforce|moderate)BookSearchResults/);
   assert.match(discover, /<BookModerationStatus book=\{book\}/);
   assert.match(clubs, /<BookModerationStatus book=\{book\}/);
-  assert.match(status, /Checking with our bookish gatekeepers… 📚/);
+  assert.match(status, /Our bookish gatekeepers are checking this book/);
+  assert.match(status, /Add to Shelf will unlock automatically/);
   assert.match(status, /taking a closer look at this one/);
-  assert.match(status, /temporarily unavailable/);
+  assert.match(status, /couldn't finish checking this book/);
+  assert.match(status, /Retry check/);
+  assert.doesNotMatch(discover,
+    /className="isbn-result-details-button"[\s\S]{0,180}disabled=\{!isModerationApproved\}/);
+  assert.match(discover, /onRetry=\{retryBookModeration\}/);
+  assert.match(discover, /Add to Shelf — checking…/);
   assert.doesNotMatch(discover, /moderationStatus === "blocked"[\s\S]*\.filter/);
   assert.doesNotMatch(clubs, /moderationStatus === "blocked"[\s\S]*\.filter/);
   assert.match(admin, /only approved books can be opened or used/);

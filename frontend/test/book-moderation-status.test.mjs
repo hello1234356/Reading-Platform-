@@ -9,7 +9,9 @@ import {
 test("checking uses the bookish gatekeeper message", () => {
   assert.deepEqual(getBookModerationPresentation("checking"), {
     kind: "checking",
-    message: "Checking with our bookish gatekeepers… 📚",
+    message: "📚 Our bookish gatekeepers are checking this book.",
+    detail: "Add to Shelf will unlock automatically when the check finishes.",
+    retryActionLabel: "",
     reportActionLabel: "",
   });
 });
@@ -24,7 +26,9 @@ test("review-required uses the closer-look message without an internal reason", 
     reasonForReview: "internal policy reason",
   }), {
     kind: "review_required",
-    message: "Our bookish gatekeepers are taking a closer look at this one. Check back soon!",
+    message: "📚 Our bookish gatekeepers are taking a closer look at this one.",
+    detail: "An admin needs to review it before it can be added to a shelf.",
+    retryActionLabel: "",
     reportActionLabel: "",
   });
 });
@@ -34,11 +38,12 @@ test("final blocked and manually rejected decisions offer the admin-report actio
     const presentation = getBookModerationPresentation(status);
     assert.equal(presentation.kind, "blocked");
     assert.equal(presentation.message,
-      "The book gatekeepers have gatekept this one. Think we've made a mistake?");
+      "The book gatekeepers have gatekept this one.");
+    assert.equal(presentation.detail, "Think we've made a mistake?");
     assert.equal(presentation.reportActionLabel, "Message the admin team");
   });
   assert.equal(
-    `${BOOK_MODERATION_MESSAGES.blocked} ${BOOK_MODERATION_MESSAGES.reportAction}.`,
+    `${BOOK_MODERATION_MESSAGES.blocked} ${BOOK_MODERATION_MESSAGES.blockedDetail} ${BOOK_MODERATION_MESSAGES.reportAction}.`,
     "The book gatekeepers have gatekept this one. Think we've made a mistake? Message the admin team.",
   );
 });
@@ -56,7 +61,10 @@ test("technical errors use temporary-unavailable language", () => {
     });
     assert.equal(presentation.kind, "technical_error");
     assert.equal(presentation.message,
-      "Our bookish gatekeepers are temporarily unavailable. Try again in a moment.");
+      "⚠️ Our bookish gatekeepers couldn't finish checking this book.");
+    assert.equal(presentation.detail,
+      "You can still view the book. Try the check again in a moment.");
+    assert.equal(presentation.retryActionLabel, "Retry check");
     assert.equal(presentation.reportActionLabel, "");
   });
 });

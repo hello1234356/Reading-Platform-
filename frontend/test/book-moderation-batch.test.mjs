@@ -8,7 +8,11 @@ import {
 import { planBookAssessments } from "../../supabase/functions/moderate-books/evidence.ts";
 import { applyPolicy } from "../../supabase/functions/moderate-books/policy.ts";
 import {
+  applyBookModerationUpdate,
   initializeBookModerationResults,
+  invokeModerationBatches,
+  MAX_CONCURRENT_MODERATION_BATCHES,
+  MODERATION_BATCH_SIZE,
   moderateBookSearchResults,
   uniqueModerationBooks,
 } from "../src/lib/bookModerationApi.js";
@@ -390,6 +394,60 @@ test("provider cards enter checking synchronously and exact identities deduplica
   assert.equal(cards.length, 2);
   assert.ok(cards.every((card) => card.moderationStatus === "checking"));
   assert.equal(uniqueModerationBooks(cards).length, 1);
+});
+
+test("twenty unknown books use four five-book batches with at most two concurrent", async () => {
+  const books = Array.from({ length: 20 }, (_, index) => book(index + 1));
+  const active = new Set();
+  const started = [];
+  const completed = [];
+  const releases = [];
+  let maxActive = 0;
+  const pipeline = invokeModerationBatches(books, false, (results, _data, context) => {
+    completed.push({ batchId: context.batchId, count: results.length });
+  }, async (batch, context) => {
+    started.push(context.batchId);
+    active.add(context.batchId);
+    maxActive = Math.max(maxActive, active.size);
+    await new Promise((resolve) => releases.push(() => {
+      active.delete(context.batchId);
+      resolve();
+    }));
+    return { data: { results: batch.map((item) => ({
+      source: item.source, externalId: item.externalId, status: "approved",
+    })) } };
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(MODERATION_BATCH_SIZE, 5);
+  assert.equal(MAX_CONCURRENT_MODERATION_BATCHES, 2);
+  assert.deepEqual(started, ["ai-1", "ai-2"]);
+  releases.shift()();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(completed.length, 1);
+  assert.deepEqual(started, ["ai-1", "ai-2", "ai-3"]);
+  while (releases.length) {
+    releases.shift()();
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  await pipeline;
+  assert.equal(maxActive, 2);
+  assert.equal(completed.length, 4);
+  assert.ok(completed.every(({ count }) => count === 5));
+});
+
+test("approved moderation is monotonic against later technical failure", () => {
+  const checking = initializeBookModerationResults([book(1)])[0];
+  const approved = applyBookModerationUpdate(
+    checking, checking.moderationKey, "approved", { batchId: "ai-1" },
+  );
+  const lateFailure = applyBookModerationUpdate(
+    approved, approved.moderationKey, "failed",
+    { failureCode: "edge_request_failed", batchId: "ai-2" },
+  );
+  assert.equal(approved.moderationStatus, "approved");
+  assert.equal(approved.moderationFailureCode, "");
+  assert.strictEqual(lateFailure, approved);
 });
 
 test("cached decisions update without an AI call", async () => {

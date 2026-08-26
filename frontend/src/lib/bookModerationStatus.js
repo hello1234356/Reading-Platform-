@@ -1,11 +1,16 @@
 export const BOOK_MODERATION_MESSAGES = Object.freeze({
-  checking: "Checking with our bookish gatekeepers… 📚",
+  checking: "📚 Our bookish gatekeepers are checking this book.",
+  checkingDetail: "Add to Shelf will unlock automatically when the check finishes.",
   reviewRequired:
-    "Our bookish gatekeepers are taking a closer look at this one. Check back soon!",
+    "📚 Our bookish gatekeepers are taking a closer look at this one.",
+  reviewRequiredDetail: "An admin needs to review it before it can be added to a shelf.",
   blocked:
-    "The book gatekeepers have gatekept this one. Think we've made a mistake?",
+    "The book gatekeepers have gatekept this one.",
+  blockedDetail: "Think we've made a mistake?",
   technicalError:
-    "Our bookish gatekeepers are temporarily unavailable. Try again in a moment.",
+    "⚠️ Our bookish gatekeepers couldn't finish checking this book.",
+  technicalErrorDetail: "You can still view the book. Try the check again in a moment.",
+  retryAction: "Retry check",
   reportAction: "Message the admin team",
 });
 
@@ -56,6 +61,8 @@ export function getBookModerationPresentation(value = {}) {
     return {
       kind: "technical_error",
       message: BOOK_MODERATION_MESSAGES.technicalError,
+      detail: BOOK_MODERATION_MESSAGES.technicalErrorDetail,
+      retryActionLabel: BOOK_MODERATION_MESSAGES.retryAction,
       reportActionLabel: "",
     };
   }
@@ -64,6 +71,8 @@ export function getBookModerationPresentation(value = {}) {
     return {
       kind: "review_required",
       message: BOOK_MODERATION_MESSAGES.reviewRequired,
+      detail: BOOK_MODERATION_MESSAGES.reviewRequiredDetail,
+      retryActionLabel: "",
       reportActionLabel: "",
     };
   }
@@ -72,6 +81,8 @@ export function getBookModerationPresentation(value = {}) {
     return {
       kind: "blocked",
       message: BOOK_MODERATION_MESSAGES.blocked,
+      detail: BOOK_MODERATION_MESSAGES.blockedDetail,
+      retryActionLabel: "",
       reportActionLabel: BOOK_MODERATION_MESSAGES.reportAction,
     };
   }
@@ -79,6 +90,8 @@ export function getBookModerationPresentation(value = {}) {
   return {
     kind: "checking",
     message: BOOK_MODERATION_MESSAGES.checking,
+    detail: BOOK_MODERATION_MESSAGES.checkingDetail,
+    retryActionLabel: "",
     reportActionLabel: "",
   };
 }

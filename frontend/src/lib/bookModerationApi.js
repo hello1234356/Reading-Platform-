@@ -1,6 +1,13 @@
 import { requireSupabase } from "./supabase.js";
 
-const MODERATION_BATCH_SIZE = 10;
+export const MODERATION_BATCH_SIZE = 5;
+export const MAX_CONCURRENT_MODERATION_BATCHES = 2;
+const MODERATION_CACHE_BATCH_SIZE = 10;
+
+const now = () => globalThis.performance?.now?.() ?? Date.now();
+const debugTiming = (label, details) => {
+  if (import.meta.env?.DEV) console.debug(`[book-search] ${label}`, details);
+};
 
 function canonicalOpenLibraryId(value) {
   const raw = String(value || "").trim();
@@ -72,28 +79,76 @@ export function initializeBookModerationResults(books) {
     moderationKey: moderationIdentityForBook(book).key || `invalid:${index}` }));
 }
 
-async function invokeBatches(books, cacheOnly, onBatch) {
-  const supabase = requireSupabase();
-  for (let index = 0; index < books.length; index += MODERATION_BATCH_SIZE) {
-    const batch = books.slice(index, index + MODERATION_BATCH_SIZE);
-    try {
-      const { data, error } = await supabase.functions.invoke("moderate-books", {
-        body: { books: batch, cacheOnly },
-      });
-      if (error) throw error;
-      onBatch(Array.isArray(data?.results) ? data.results : [], data || {}, {
-        requestedBooks: batch,
-      });
-    } catch (error) {
-      onBatch([], {}, { requestedBooks: batch, error });
+export async function invokeModerationBatches(books, cacheOnly, onBatch, invokeBatch) {
+  const batches = [];
+  const batchSize = cacheOnly ? MODERATION_CACHE_BATCH_SIZE : MODERATION_BATCH_SIZE;
+  for (let index = 0; index < books.length; index += batchSize) {
+    batches.push(books.slice(index, index + batchSize));
+  }
+  if (!batches.length) return;
+
+  const supabase = invokeBatch ? null : requireSupabase();
+  const callBatch = invokeBatch || ((batch) => supabase.functions.invoke("moderate-books", {
+    body: { books: batch, cacheOnly },
+  }));
+  let nextBatchIndex = 0;
+
+  async function worker() {
+    while (nextBatchIndex < batches.length) {
+      const batchIndex = nextBatchIndex;
+      nextBatchIndex += 1;
+      const batch = batches[batchIndex];
+      const batchId = `${cacheOnly ? "cache" : "ai"}-${batchIndex + 1}`;
+      const batchStartedAt = now();
+      let data = null;
+      let error = null;
+      debugTiming(`${batchId} started`, { batchId, count: batch.length });
+      try {
+        const response = await callBatch(batch, { cacheOnly, batchId, batchIndex });
+        data = response?.data;
+        error = response?.error || null;
+        if (error) throw error;
+        onBatch(Array.isArray(data?.results) ? data.results : [], data || {}, {
+          requestedBooks: batch, batchId, batchIndex,
+        });
+      } catch (caught) {
+        error = caught;
+        onBatch([], data || {}, { requestedBooks: batch, batchId, batchIndex, error });
+      } finally {
+        debugTiming(`${batchId} finished`, { batchId, count: batch.length,
+          durationMs: now() - batchStartedAt, failed: Boolean(error) });
+      }
     }
   }
+
+  await Promise.all(Array.from(
+    { length: Math.min(MAX_CONCURRENT_MODERATION_BATCHES, batches.length) },
+    () => worker(),
+  ));
 }
 
-const now = () => globalThis.performance?.now?.() ?? Date.now();
-const debugTiming = (label, details) => {
-  if (import.meta.env?.DEV) console.debug(`[book-search] ${label}`, details);
-};
+async function invokeBatches(books, cacheOnly, onBatch) {
+  return invokeModerationBatches(books, cacheOnly, onBatch);
+}
+
+export function shouldApplyModerationTransition(previousStatus, nextStatus) {
+  return !(String(previousStatus || "").toLowerCase() === "approved" &&
+    String(nextStatus || "").toLowerCase() !== "approved");
+}
+
+export function applyBookModerationUpdate(book, key, moderationStatus, details = {}) {
+  if (book.moderationKey !== key ||
+    !shouldApplyModerationTransition(book.moderationStatus, moderationStatus)) {
+    return book;
+  }
+  const next = { ...book, moderationStatus,
+    moderationFailureCode: moderationStatus === "approved" ? "" : details.failureCode || "",
+    moderationPolicyVersion: details.policyVersion || book.moderationPolicyVersion || "" };
+  debugTiming("moderation transition", { moderationKey: key,
+    previousStatus: book.moderationStatus || "checking", newStatus: moderationStatus,
+    failureCode: next.moderationFailureCode, batchId: details.batchId || "" });
+  return next;
+}
 
 export async function moderateBookSearchResults(
   books,
@@ -102,6 +157,8 @@ export async function moderateBookSearchResults(
   invoke = invokeBatches,
 ) {
   const startedAt = now();
+  debugTiming("provider results rendered", { durationMs: providerDurationMs,
+    resultCount: books.length });
   const unique = uniqueModerationBooks(books);
   books.filter((book) => !toModerationBook(book)).forEach((book) => onUpdate(
     book.moderationKey, "failed", { failureCode: "invalid_identity" },
@@ -126,7 +183,9 @@ export async function moderateBookSearchResults(
         if (result.cached && unknown.has(key)) {
           cachedCount += 1;
           unknown.delete(key);
-          onUpdate(key, result.status === "error" ? "failed" : result.status, result);
+          onUpdate(key, result.status === "error" ? "failed" : result.status, {
+            ...result, batchId: context.batchId,
+          });
         }
       });
     });
@@ -138,12 +197,18 @@ export async function moderateBookSearchResults(
   const requiringAi = [...unknown.values()];
   debugTiming("cache", { providerDurationMs, cacheDurationMs, cachedCount,
     requiringAi: requiringAi.length, firstResultsRenderedMs: providerDurationMs });
-  if (!requiringAi.length) return;
+  debugTiming("cache decisions applied", { durationMs: cacheDurationMs, cachedCount });
+  if (!requiringAi.length) {
+    debugTiming("all moderation completed", { durationMs: now() - startedAt,
+      requiringAi: 0 });
+    return;
+  }
 
   const aiStartedAt = now();
   const unresolved = new Map(requiringAi.map((book) => [
     `${book.source}\u0000${book.externalId}`, book,
   ]));
+  let firstApprovedLogged = false;
   try {
     await invoke(requiringAi, false, (results, _data, context = {}) => {
       const requestedKeys = new Set((context.requestedBooks || []).map((book) =>
@@ -152,7 +217,8 @@ export async function moderateBookSearchResults(
         requestedKeys.forEach((key) => {
           if (!unresolved.has(key)) return;
           unresolved.delete(key);
-          onUpdate(key, "failed", { failureCode: "edge_request_failed" });
+          onUpdate(key, "failed", { failureCode: "edge_request_failed",
+            batchId: context.batchId });
         });
         debugTiming("AI batch failed", { failureCode: "edge_request_failed",
           count: requestedKeys.size, error: context.error });
@@ -168,13 +234,20 @@ export async function moderateBookSearchResults(
           debugTiming("moderation result failed", { source: result.source,
             externalId: result.externalId, failureCode: result.failureCode || "moderation_error" });
         }
-        onUpdate(key,
-          result.status === "error" ? "failed" : result.status, result);
+        const nextStatus = result.status === "error" ? "failed" : result.status;
+        if (nextStatus === "approved" && !firstApprovedLogged) {
+          firstApprovedLogged = true;
+          debugTiming("first approved result available", {
+            durationMs: now() - startedAt, batchId: context.batchId,
+          });
+        }
+        onUpdate(key, nextStatus, { ...result, batchId: context.batchId });
       });
       requestedKeys.forEach((key) => {
         if (!unresolved.has(key) || returnedKeys.has(key)) return;
         unresolved.delete(key);
-        onUpdate(key, "failed", { failureCode: "moderation_response_incomplete" });
+        onUpdate(key, "failed", { failureCode: "moderation_response_incomplete",
+          batchId: context.batchId });
       });
     });
   } catch (error) {
@@ -190,5 +263,7 @@ export async function moderateBookSearchResults(
     unresolved.clear();
     debugTiming("AI", { aiBatchDurationMs: now() - aiStartedAt,
       totalBackgroundDurationMs: now() - startedAt, requiringAi: requiringAi.length });
+    debugTiming("all moderation completed", { durationMs: now() - startedAt,
+      requiringAi: requiringAi.length });
   }
 }
