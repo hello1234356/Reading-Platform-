@@ -35,11 +35,28 @@ on public.public_announcements(is_active, starts_at, ends_at);
 create index if not exists public_announcement_reads_user_idx
 on public.public_announcement_reads(user_id, announcement_id);
 
+-- Keep this migration independent of historical helper functions. Some remote
+-- projects were initialized from an older schema snapshot that does not have
+-- public.set_updated_at().
+create or replace function public.set_public_announcement_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+revoke all on function public.set_public_announcement_updated_at()
+from public, anon, authenticated;
+
 drop trigger if exists public_announcements_set_updated_at
 on public.public_announcements;
 create trigger public_announcements_set_updated_at
 before update on public.public_announcements
-for each row execute function public.set_updated_at();
+for each row execute function public.set_public_announcement_updated_at();
 
 alter table public.public_announcements enable row level security;
 alter table public.public_announcement_reads enable row level security;

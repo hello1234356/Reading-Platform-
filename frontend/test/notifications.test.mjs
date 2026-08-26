@@ -137,6 +137,9 @@ test("legacy broadcast is reconstructed once and duplicate copies are suppressed
 
 test("announcement tables are protected and participate in existing realtime", async () => {
   const sql = await readFile(publicAnnouncementMigrationUrl, "utf8");
+  assert.match(sql, /create or replace function public\.set_public_announcement_updated_at\(\)/i);
+  assert.match(sql, /execute function public\.set_public_announcement_updated_at\(\)/i);
+  assert.doesNotMatch(sql, /execute function public\.set_updated_at\(\)/i);
   assert.match(sql, /alter table public\.public_announcements enable row level security/i);
   assert.match(sql, /revoke all on table public\.public_announcements from anon, authenticated/i);
   assert.match(sql, /public\.is_admin\(\)[\s\S]*is_active/i);
