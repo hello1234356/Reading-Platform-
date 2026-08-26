@@ -1,9 +1,35 @@
 import { persistMissingBookMetadataSafely } from "./bookMetadataApi.js";
-import { buildGoogleBooksSearchUrl } from "./googleBooksSearchConfig.js";
+import {
+  buildGoogleBooksSearchUrl,
+  detectSearchLanguage,
+} from "./googleBooksSearchConfig.js";
 export { buildGoogleBooksSearchUrl, detectSearchLanguage } from "./googleBooksSearchConfig.js";
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
+}
+
+export const BLOCKED_BOOK_CATEGORY_MESSAGE =
+  "This book category is currently unavailable. Stay tuned for future updates.";
+
+export function isBlockedGoogleBooksCategoryText(text) {
+  return false;
+}
+
+export function isBlockedGoogleBooksResult(result) {
+  return false;
+}
+
+export function filterGoogleBooksResults(results = []) {
+  const allowedResults = [];
+  let blockedCount = 0;
+
+  results.forEach((result) => {
+    if (isBlockedGoogleBooksResult(result)) blockedCount += 1;
+    else allowedResults.push(result);
+  });
+
+  return { allowedResults, blockedCount };
 }
 
 function getApiKey() {
@@ -208,13 +234,83 @@ export function mapGoogleBooksResult(result) {
   };
 }
 
+function getGoogleBooksSearchQueries(searchTerm) {
+  const query = String(searchTerm || "").trim();
+  if (!query || /^isbn:/i.test(query)) return [query];
+
+  const queries = [query];
+  const words = query.split(/\s+/).filter(Boolean);
+  const looksLikePlainTitle =
+    query.length >= 3 &&
+    query.length <= 90 &&
+    !/[:"()]/.test(query) &&
+    !/\b(?:inauthor|intitle|inpublisher|subject|isbn):/i.test(query);
+
+  if (looksLikePlainTitle) {
+    queries.push(`intitle:"${query}"`);
+
+    if (words.length >= 4) {
+      const preferredSplit = Math.min(4, words.length - 1);
+      const splitPoints = Array.from(
+        new Set([preferredSplit, 3, 2]),
+      ).filter((splitPoint) => splitPoint > 0 && splitPoint < words.length);
+
+      splitPoints.forEach((splitPoint) => {
+        const possibleTitle = words.slice(0, splitPoint).join(" ");
+        const possibleAuthor = words.slice(splitPoint).join(" ");
+
+        queries.push(`intitle:"${possibleTitle}" inauthor:"${possibleAuthor}"`);
+        queries.push(`intitle:"${possibleTitle}"`);
+      });
+    }
+  }
+
+  return Array.from(new Set(queries)).slice(0, 8);
+}
+
+function normalizeSearchMatchText(value = "") {
+  return String(value)
+    .toLocaleLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasStrongGoogleBooksMatch(results = [], searchTerm = "") {
+  const query = normalizeSearchMatchText(searchTerm);
+  if (!query) return true;
+
+  return results.some((result) => {
+    const info = result?.volumeInfo || {};
+    const title = normalizeSearchMatchText(info.title);
+    const authors = normalizeSearchMatchText((info.authors || []).join(" "));
+    const combined = normalizeSearchMatchText(
+      `${info.title || ""} ${authors}`,
+    );
+
+    return (
+      title === query ||
+      (
+        query.includes(title) &&
+        title.length >= 8 &&
+        combined.includes(query.slice(title.length).trim())
+      ) ||
+      combined.includes(query)
+    );
+  });
+}
+
 export async function searchGoogleBooks(searchTerm, maxResults = 20, options = {}) {
   const apiKey = options.apiKey ?? getApiKey();
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const debug = options.debug ?? Boolean(import.meta.env?.DEV);
+
   if (debug) console.debug("[book-search] google configuration", {
     googleBooksApiKeyConfigured: Boolean(apiKey),
   });
+
   if (!apiKey) {
     const error = new Error(
       "Google Books search needs an API key. Add VITE_GOOGLE_BOOKS_API_KEY to frontend/.env.local, then restart the app.",
@@ -230,60 +326,91 @@ export async function searchGoogleBooks(searchTerm, maxResults = 20, options = {
 
   const normalizedSearchTerm = String(searchTerm || "").trim();
   const request = (async () => {
-    const url = buildGoogleBooksSearchUrl(normalizedSearchTerm, maxResults, apiKey);
-    let response;
-    try {
-      response = await fetchImpl(url);
-    } catch (cause) {
-      const error = new Error("Google Books could not be reached.");
-      error.code = "google_network_error";
-      error.shouldFallback = true;
-      error.actualProviderFetchPerformed = true;
-      error.cause = cause;
-      if (debug) console.debug("[book-search] GOOGLE FAILED", {
-        status: null, code: error.code, fallbackEligible: true,
-      });
-      throw error;
-    }
-    if (!response.ok) {
+    const resultsById = new Map();
+    const queries = getGoogleBooksSearchQueries(normalizedSearchTerm);
+    const searchLanguage = detectSearchLanguage(normalizedSearchTerm);
+
+    for (let index = 0; index < queries.length; index += 1) {
+      const query = queries[index];
+      const url = buildGoogleBooksSearchUrl(query, maxResults, apiKey);
+      if (!searchLanguage) url.searchParams.delete("langRestrict");
+
+      let response;
       try {
-        await throwGoogleBooksError(response);
-      } catch (error) {
+        response = await fetchImpl(url);
+      } catch (cause) {
+        const error = new Error("Google Books could not be reached.");
+        error.code = "google_network_error";
+        error.shouldFallback = true;
+        error.actualProviderFetchPerformed = true;
+        error.cause = cause;
         if (debug) console.debug("[book-search] GOOGLE FAILED", {
-          status: error.status || response.status, code: error.googleStatus || error.code || "google_http_error",
-          fallbackEligible: shouldFallbackFromGoogleBooks(error),
+          status: null,
+          code: error.code,
+          fallbackEligible: true,
         });
         throw error;
       }
+
+      if (!response.ok) {
+        try {
+          await throwGoogleBooksError(response);
+        } catch (error) {
+          if (debug) console.debug("[book-search] GOOGLE FAILED", {
+            status: error.status || response.status,
+            code: error.googleStatus || error.code || "google_http_error",
+            fallbackEligible: shouldFallbackFromGoogleBooks(error),
+          });
+          throw error;
+        }
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (cause) {
+        const error = new Error("Google Books returned an invalid response.");
+        error.code = "google_invalid_response";
+        error.shouldFallback = true;
+        error.actualProviderFetchPerformed = true;
+        error.cause = cause;
+        throw error;
+      }
+
+      if (!data || typeof data !== "object" ||
+        (data.items != null && !Array.isArray(data.items))) {
+        const error = new Error("Google Books returned an invalid response.");
+        error.code = "google_invalid_response";
+        error.shouldFallback = true;
+        error.actualProviderFetchPerformed = true;
+        throw error;
+      }
+
+      (data.items || []).forEach((result) => {
+        if (!result?.id || resultsById.has(result.id)) return;
+        resultsById.set(result.id, result);
+        cacheGoogleBookResult(result);
+      });
+
+      if (
+        index === 0 &&
+        hasStrongGoogleBooksMatch(
+          Array.from(resultsById.values()),
+          normalizedSearchTerm,
+        )
+      ) {
+        break;
+      }
     }
-    let data;
-    try {
-      data = await response.json();
-    } catch (cause) {
-      const error = new Error("Google Books returned an invalid response.");
-      error.code = "google_invalid_response";
-      error.shouldFallback = true;
-      error.actualProviderFetchPerformed = true;
-      error.cause = cause;
-      throw error;
-    }
-    if (!data || typeof data !== "object" ||
-      (data.items != null && !Array.isArray(data.items))) {
-      const error = new Error("Google Books returned an invalid response.");
-      error.code = "google_invalid_response";
-      error.shouldFallback = true;
-      error.actualProviderFetchPerformed = true;
-      throw error;
-    }
-    const results = data.items || [];
+
+    const results = Array.from(resultsById.values()).slice(0, maxResults);
     if (debug) console.debug("[book-search] GOOGLE ACTUAL RESPONSE", {
-      status: response.status, itemCount: results.length,
+      itemCount: results.length,
       titles: results.slice(0, 10).map((result) => ({
         title: result?.volumeInfo?.title || "",
         author: result?.volumeInfo?.authors?.join(", ") || "",
       })),
     });
-    results.forEach((result) => cacheGoogleBookResult(result));
     return results;
   })();
   return request;

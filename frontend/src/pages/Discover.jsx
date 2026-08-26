@@ -165,7 +165,7 @@ function Discover() {
   const [reviewDraft, setReviewDraft] = useState({
     rating: 5,
     review: "",
-    visibility: "public",
+    visibility: "private",
   });
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewError, setReviewError] = useState("");
@@ -424,7 +424,7 @@ function Discover() {
             book.isbn || savedLibraryBook.book.isbn,
           ),
         });
-        setReviewDraft({ rating: 5, review: "", visibility: "public" });
+        setReviewDraft({ rating: 5, review: "", visibility: "private" });
         setReviewError("");
       }
 	  } catch (error) {
@@ -479,7 +479,7 @@ async function submitReview(event) {
     }
 	
 	    setReviewBook(null);
-	    setReviewDraft({ rating: 5, review: "", visibility: "public" });
+	    setReviewDraft({ rating: 5, review: "", visibility: "private" });
       await refreshRecentFinishes();
 	    setSearchMessage(`${reviewBook.title} was added to Read with your review.`);
   } catch (error) {

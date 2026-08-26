@@ -80,8 +80,8 @@ function ReviewModal({
                   onChange({ ...draft, visibility: event.target.value })
                 }
               >
-                <option value="public">Public - post to feed</option>
-                <option value="private">Private - save to my profile only</option>
+                <option value="private">Private - Save To My Profile Only</option>
+                <option value="public">Yes - Share To The Public Feed</option>
               </select>
             </label>
           ) : null}

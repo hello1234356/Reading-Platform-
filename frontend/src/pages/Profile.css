@@ -350,9 +350,126 @@
 
 .profile-shelf-overview,
 .profile-reviews,
-.profile-reading-list {
+.profile-reading-list,
+.profile-reading-tracker {
   display: grid;
   gap: 16px;
+}
+
+.profile-reading-tracker {
+  padding: 10px 0 8px;
+}
+
+.profile-tracker-list {
+  display: grid;
+  gap: 14px;
+}
+
+.profile-tracker-book {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) repeat(2, minmax(110px, 132px));
+  align-items: center;
+  gap: 18px;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(138, 106, 88, 0.12);
+}
+
+.profile-tracker-book:last-child {
+  border-bottom: 0;
+}
+
+.profile-tracker-cover {
+  width: 74px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px 20px 20px 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.profile-tracker-cover img,
+.profile-tracker-cover span {
+  width: 74px;
+  aspect-ratio: 2 / 3;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  object-fit: cover;
+  background: var(--linen);
+  color: var(--soft-gray);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 12px 22px rgba(89, 67, 49, 0.12);
+}
+
+.profile-tracker-copy {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.profile-tracker-copy small {
+  color: var(--soft-gray);
+  font-weight: 900;
+}
+
+.profile-tracker-copy strong {
+  color: var(--mocha);
+  font-family: var(--heading);
+  font-size: clamp(25px, 4vw, 36px);
+  line-height: 0.98;
+  overflow-wrap: anywhere;
+}
+
+.profile-tracker-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  max-width: 460px;
+}
+
+.profile-tracker-progress span {
+  color: var(--terracotta);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.profile-tracker-input {
+  justify-self: end;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgba(138, 106, 88, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 250, 241, 0.76);
+  box-shadow: inset 0 -2px 0 rgba(244, 220, 123, 0.2);
+}
+
+.profile-tracker-input span,
+.profile-tracker-input small {
+  color: var(--soft-gray);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.profile-tracker-input input {
+  width: 38px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mocha);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  text-align: right;
+  outline: none;
 }
 
 .profile-reviews {

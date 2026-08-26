@@ -74,8 +74,9 @@
   min-width: 30px;
   height: 30px;
   min-height: 30px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 50%;
   padding: 0;
@@ -86,6 +87,11 @@
   font-weight: 900;
   line-height: 1;
   transform: translateY(-50%);
+}
+
+.nav-search button > * {
+  display: block;
+  line-height: 1;
 }
 
 .nav-link,
@@ -175,7 +181,8 @@
   grid-template-columns:
     minmax(285px, 1fr)
     minmax(680px, auto)
-    minmax(240px, 1fr);
+    minmax(52px, auto)
+    minmax(170px, 1fr);
 
   align-items: center;
   gap: 24px;
@@ -289,8 +296,9 @@
   height: 30px;
   min-height: 30px;
 
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
   border: 0;
   border-radius: 50%;
@@ -387,7 +395,7 @@
 }
 
 .school-logo {
-  grid-column: 3;
+  grid-column: 4;
   justify-self: end;
 
   display: block;
@@ -398,11 +406,125 @@
   object-fit: contain;
 }
 
+.admin-notification-center {
+  position: relative;
+  grid-column: 3;
+  justify-self: end;
+}
+
+.admin-notification-trigger {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 250, 241, 0.86);
+  color: var(--mocha);
+  font-family: var(--button);
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow: var(--pillow-shadow);
+}
+
+.admin-notification-trigger > span {
+  transform: translateY(-1px);
+}
+
+.admin-notification-trigger strong {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  min-width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border: 3px solid var(--paper);
+  border-radius: 999px;
+  background: #d84f45;
+  color: var(--paper);
+  font-size: 12px;
+  line-height: 1;
+  box-shadow: 0 8px 16px rgba(137, 62, 50, 0.24);
+}
+
+.admin-notification-popover {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 40;
+  width: min(320px, calc(100vw - 28px));
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(138, 106, 88, 0.14);
+  border-radius: 26px;
+  background: rgba(255, 250, 241, 0.98);
+  box-shadow: 0 24px 60px rgba(89, 67, 49, 0.18);
+}
+
+.admin-notification-popover h2 {
+  margin: 0;
+  color: var(--deep-mocha);
+  font-family: var(--heading);
+  font-size: 30px;
+  line-height: 0.95;
+}
+
+.admin-notification-popover button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--butter);
+  color: var(--mocha);
+  font-family: var(--button);
+  font-weight: 900;
+}
+
+.admin-notification-popover ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-notification-popover li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(138, 106, 88, 0.1);
+  color: var(--warm-ink);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.admin-notification-popover li:last-child {
+  border-bottom: 0;
+}
+
+.admin-notification-popover li strong {
+  color: var(--terracotta);
+}
+
+.admin-notification-popover small {
+  color: var(--soft-gray);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .site-nav-admin {
   grid-template-columns:
     minmax(250px, 1fr)
     minmax(0, auto)
-    minmax(190px, 1fr);
+    minmax(52px, auto)
+    minmax(140px, 1fr);
 }
 
 .site-nav-admin .nav-center {

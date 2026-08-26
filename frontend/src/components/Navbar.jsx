@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getAdminRole } from "../lib/adminApi";
+import {
+  getAdminNotificationSummary,
+  getAdminRole,
+} from "../lib/adminApi";
 import { requireSupabase } from "../lib/supabase";
 import tsinglanLogo from "../assets/tsinglan-logo-official-alt.png";
 import NotificationInbox from "./NotificationInbox";
@@ -17,6 +20,15 @@ function Navbar() {
   const navigate = useNavigate();
   const { user, isLoggedIn, loading } = useAuth();
   const [adminRole, setAdminRole] = useState(null);
+  const [adminNotificationsOpen, setAdminNotificationsOpen] =
+    useState(false);
+  const adminNotificationRef = useRef(null);
+  const [adminNotifications, setAdminNotifications] = useState({
+    moderationCount: 0,
+    bookSubmissionCount: 0,
+    clubMessageCount: 0,
+    total: 0,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +56,88 @@ function Navbar() {
       cancelled = true;
     };
   }, [isLoggedIn, loading]);
+
+  useEffect(() => {
+    if (!adminRole) {
+      setAdminNotificationsOpen(false);
+      setAdminNotifications({
+        moderationCount: 0,
+        bookSubmissionCount: 0,
+        clubMessageCount: 0,
+        total: 0,
+      });
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadAdminNotifications() {
+      try {
+        const summary = await getAdminNotificationSummary();
+        if (!cancelled) setAdminNotifications(summary);
+      } catch (error) {
+        console.error("Failed to load admin notifications:", error);
+      }
+    }
+
+    loadAdminNotifications();
+
+    const supabase = requireSupabase();
+    const channel = supabase
+      .channel("admin-navbar-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "moderation_reports",
+        },
+        loadAdminNotifications,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "book_submissions",
+        },
+        loadAdminNotifications,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "club_message_moderation_reports",
+        },
+        loadAdminNotifications,
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [adminRole]);
+
+  useEffect(() => {
+    if (!adminNotificationsOpen) return undefined;
+
+    function closeAdminNotifications(event) {
+      if (
+        adminNotificationRef.current &&
+        !adminNotificationRef.current.contains(event.target)
+      ) {
+        setAdminNotificationsOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", closeAdminNotifications);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeAdminNotifications);
+    };
+  }, [adminNotificationsOpen]);
 
   const visibleNavItems = adminRole
     ? [...navItems, { to: "/admin", label: "Admin" }]
@@ -113,7 +207,7 @@ function Navbar() {
         />
 
         <button type="submit" aria-label="Search">
-          ⌕
+          <span aria-hidden="true">⌕</span>
         </button>
       </form>
 
@@ -134,6 +228,64 @@ function Navbar() {
 
     <div className="nav-school-actions">
       {isLoggedIn && user?.id ? <NotificationInbox userId={user.id} /> : null}
+
+      {adminRole ? (
+        <div
+          className="admin-notification-center"
+          ref={adminNotificationRef}
+        >
+          <button
+            className="admin-notification-trigger"
+            type="button"
+            aria-label="Admin notifications"
+            aria-expanded={adminNotificationsOpen}
+            onClick={() =>
+              setAdminNotificationsOpen((open) => !open)
+            }
+          >
+            <span aria-hidden="true">!</span>
+            {adminNotifications.total > 0 ? (
+              <strong>{adminNotifications.total}</strong>
+            ) : null}
+          </button>
+
+          {adminNotificationsOpen ? (
+            <div className="admin-notification-popover">
+              <div>
+                <p className="eyebrow">Admin Notifications</p>
+                <h2>Shared Queue</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminNotificationsOpen(false);
+                  navigate("/admin");
+                }}
+              >
+                Open Admin
+              </button>
+              <ul>
+                <li>
+                  <span>Moderation</span>
+                  <strong>{adminNotifications.moderationCount}</strong>
+                </li>
+                <li>
+                  <span>Book Requests</span>
+                  <strong>{adminNotifications.bookSubmissionCount}</strong>
+                </li>
+                <li>
+                  <span>Club Chat Reports</span>
+                  <strong>{adminNotifications.clubMessageCount}</strong>
+                </li>
+              </ul>
+              <small>
+                Resolving an item updates this queue for every admin.
+              </small>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <img
         className="school-logo"
         src={tsinglanLogo}

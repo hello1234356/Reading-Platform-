@@ -52,15 +52,58 @@ function normalizeShelfProgress(shelf, progress) {
   return Math.max(0, Math.min(Number(progress) || 0, 100));
 }
 
+function normalizePageCount(value, fallback = 0) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return fallback;
+
+  return Math.max(0, Math.round(number));
+}
+
+function normalizeTotalPages(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number) || number <= 0) return null;
+
+  return Math.round(number);
+}
+
+function calculateProgress({ shelf, progress, pagesRead, totalPages }) {
+  if (shelf === "read") return 100;
+  if (shelf === "to-be-read") return 0;
+
+  if (totalPages > 0) {
+    return Math.max(
+      0,
+      Math.min(Math.round((pagesRead / totalPages) * 100), 100),
+    );
+  }
+
+  return normalizeShelfProgress(shelf, progress);
+}
+
 function mapLibraryRow(row) {
   const bookSource = row.books.source || "";
   const shelf = row.shelf;
+  const totalPages = normalizeTotalPages(row.total_pages);
+  const pagesRead =
+    shelf === "read" && totalPages
+      ? totalPages
+      : Math.min(normalizePageCount(row.pages_read), totalPages || Infinity);
+  const progress = calculateProgress({
+    shelf,
+    progress: row.progress,
+    pagesRead,
+    totalPages,
+  });
 
   return {
     shelfEntryId: row.id,
     bookId: row.book_id,
     shelf,
-    progress: normalizeShelfProgress(shelf, row.progress),
+    progress,
+    pagesRead,
+    totalPages,
     rating: row.rating,
     createdAt: row.created_at,
 
@@ -190,6 +233,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
         book_id: savedBook.id,
         shelf: nextShelf,
         progress: normalizeShelfProgress(nextShelf, 0),
+        pages_read: 0,
         rating: null,
       },
       {
@@ -197,7 +241,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
         ignoreDuplicates: true,
       },
     )
-    .select("id, user_id, book_id, shelf, progress, rating")
+    .select("id, user_id, book_id, shelf, progress, pages_read, total_pages, rating")
     .single();
 
   if (shelfError) {
@@ -216,7 +260,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
 
   const { data: existingShelfRow, error: existingShelfError } = await supabase
     .from("shelves")
-    .select("id, user_id, book_id, shelf, progress, rating")
+    .select("id, user_id, book_id, shelf, progress, pages_read, total_pages, rating")
     .eq("user_id", userId)
     .eq("book_id", savedBook.id)
     .single();
@@ -230,9 +274,15 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
     .update({
       shelf: nextShelf,
       progress: normalizeShelfProgress(nextShelf, existingShelfRow.progress),
+      pages_read:
+        nextShelf === "read" && existingShelfRow.total_pages
+          ? existingShelfRow.total_pages
+          : nextShelf === "to-be-read"
+            ? 0
+            : existingShelfRow.pages_read || 0,
     })
     .eq("id", existingShelfRow.id)
-    .select("id, user_id, book_id, shelf, progress, rating")
+    .select("id, user_id, book_id, shelf, progress, pages_read, total_pages, rating")
     .single();
 
   if (updateShelfError) {
@@ -256,6 +306,8 @@ export async function getUserLibrary(userId) {
       book_id,
       shelf,
       progress,
+      pages_read,
+      total_pages,
       rating,
       created_at,
       books (
@@ -316,6 +368,8 @@ export async function moveLibraryBook(shelfEntryId, nextShelf) {
       book_id,
       shelf,
       progress,
+      pages_read,
+      total_pages,
       rating,
       created_at,
       books (
@@ -342,19 +396,45 @@ export async function moveLibraryBook(shelfEntryId, nextShelf) {
   return mapLibraryRow(data);
 }
 
-export async function updateLibraryBookProgress(shelfEntryId, progress) {
+export async function updateLibraryBookProgress(shelfEntryId, progressUpdate) {
   if (!shelfEntryId) {
     throw new Error("This library entry is missing its ID.");
   }
 
-  const nextProgress = Math.max(0, Math.min(Number(progress) || 0, 100));
+  const hasPageUpdate =
+    typeof progressUpdate === "object" && progressUpdate !== null;
+  const totalPages = hasPageUpdate
+    ? normalizeTotalPages(progressUpdate.totalPages)
+    : null;
+  const pagesRead = hasPageUpdate
+    ? Math.min(
+        normalizePageCount(progressUpdate.pagesRead),
+        totalPages || Infinity,
+      )
+    : 0;
+  const nextProgress = hasPageUpdate
+    ? calculateProgress({
+        shelf: "currently-reading",
+        progress: 0,
+        pagesRead,
+        totalPages,
+      })
+    : Math.max(0, Math.min(Number(progressUpdate) || 0, 100));
+  const shouldFinish = nextProgress >= 100;
+  const updatePayload = {
+    progress: nextProgress,
+    shelf: shouldFinish ? "read" : "currently-reading",
+  };
+
+  if (hasPageUpdate) {
+    updatePayload.pages_read = shouldFinish && totalPages ? totalPages : pagesRead;
+    updatePayload.total_pages = totalPages;
+  }
+
   const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("shelves")
-    .update({
-      progress: nextProgress,
-      shelf: nextProgress >= 100 ? "read" : "currently-reading",
-    })
+    .update(updatePayload)
     .eq("id", shelfEntryId)
     .select(`
       id,
@@ -362,6 +442,8 @@ export async function updateLibraryBookProgress(shelfEntryId, progress) {
       book_id,
       shelf,
       progress,
+      pages_read,
+      total_pages,
       rating,
       created_at,
       books (

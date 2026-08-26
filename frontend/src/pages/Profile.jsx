@@ -10,6 +10,7 @@ import {
   getUserLibrary,
   moveLibraryBook,
   removeLibraryBook,
+  updateLibraryBookProgress,
 } from "../lib/libraryApi";
 import { getUserReviews, saveReview } from "../lib/reviewApi";
 import { getBookClubs } from "../lib/bookClubApi";
@@ -83,6 +84,7 @@ function Profile() {
   const [libraryBooks, setLibraryBooks] = useState([]);
   const [movingBookId, setMovingBookId] = useState("");
   const [moveBookError, setMoveBookError] = useState("");
+  const [progressBookId, setProgressBookId] = useState("");
   const [selectedBook, setSelectedBook] = useState(null);
   const [bookDetailLoading, setBookDetailLoading] = useState(false);
   const [bookDetailError, setBookDetailError] = useState("");
@@ -90,7 +92,7 @@ function Profile() {
   const [reviewDraft, setReviewDraft] = useState({
     rating: 5,
     review: "",
-    visibility: "public",
+    visibility: "private",
   });
   const [reviewSaving, setReviewSaving] = useState(false);
   const [reviewSaveError, setReviewSaveError] = useState("");
@@ -622,6 +624,60 @@ function Profile() {
       setMovingBookId("");
     }
   }
+
+  async function changeBookProgress(book, field, value) {
+    if (!book?.shelfEntryId) {
+      setMoveBookError("This book is missing its library entry ID.");
+      return;
+    }
+
+    const nextTotalPages =
+      field === "totalPages"
+        ? Math.max(0, Math.round(Number(value) || 0))
+        : Math.max(0, Math.round(Number(book.totalPages) || 0));
+    const nextPagesRead = Math.min(
+      field === "pagesRead"
+        ? Math.max(0, Math.round(Number(value) || 0))
+        : Math.max(0, Math.round(Number(book.pagesRead) || 0)),
+      nextTotalPages || Infinity,
+    );
+    const nextProgress = nextTotalPages
+      ? Math.min(Math.round((nextPagesRead / nextTotalPages) * 100), 100)
+      : 0;
+
+    setProgressBookId(book.shelfEntryId);
+    setMoveBookError("");
+
+    try {
+      const updatedBook = await updateLibraryBookProgress(
+        book.shelfEntryId,
+        {
+          pagesRead: nextPagesRead,
+          totalPages: nextTotalPages || null,
+        },
+      );
+
+      setLibraryBooks((currentBooks) =>
+        currentBooks.map((currentBook) =>
+          currentBook.shelfEntryId === updatedBook.shelfEntryId
+            ? updatedBook
+            : currentBook,
+        ),
+      );
+
+      if (updatedBook.shelf === "read") {
+        openReviewModal(updatedBook);
+      }
+    } catch (error) {
+      console.error("Failed to update reading progress:", error);
+      setMoveBookError(
+        error.message || "Could not update this reading progress.",
+      );
+    } finally {
+      setProgressBookId("");
+    }
+  }
+
   async function deleteLibraryBook(book) {
     if (!book?.shelfEntryId) {
       setMoveBookError("This book is missing its library entry ID.");
@@ -696,7 +752,7 @@ function Profile() {
     setReviewDraft({
       rating: existingReview?.rating ?? 5,
       review: existingReview?.note ?? "",
-      visibility: "public",
+      visibility: "private",
     });
 
     setReviewSaveError("");
@@ -720,7 +776,7 @@ function Profile() {
     setReviewDraft({
       rating: review.rating ?? 5,
       review: review.note ?? review.text ?? "",
-      visibility: "public",
+      visibility: "private",
     });
 
     setReviewSaveError("");
@@ -761,7 +817,7 @@ function Profile() {
         ...currentReviews.filter((review) => review.bookId !== savedReview.bookId),
       ]);
       setReviewBook(null);
-      setReviewDraft({ rating: 5, review: "", visibility: "public" });
+      setReviewDraft({ rating: 5, review: "", visibility: "private" });
       setReviewPage(0);
     } catch (error) {
       console.error("Failed to save review:", error);
@@ -832,6 +888,7 @@ function Profile() {
   };
 
   const booksRead = databaseShelves.read.length;
+  const currentlyReadingBooks = databaseShelves["currently-reading"] || [];
   const progress =
     yearlyGoal > 0
       ? Math.min(Math.round((booksRead / yearlyGoal) * 100), 100)
@@ -1088,6 +1145,85 @@ function Profile() {
           <small>{progress}% Of This Year's Goal</small>
         </aside>
       </header>
+
+      <section className="profile-reading-tracker" aria-label="Reading progress tracker">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Reading Tracker</p>
+            <h2>Open Right Now</h2>
+          </div>
+        </div>
+
+        {currentlyReadingBooks.length > 0 ? (
+          <div className="profile-tracker-list">
+            {currentlyReadingBooks.map((book) => (
+              <article className="profile-tracker-book" key={book.shelfEntryId}>
+                <button
+                  className="profile-tracker-cover"
+                  type="button"
+                  onClick={() => openBookDetails(book)}
+                  aria-label={`Open details for ${book.title}`}
+                >
+                  {book.coverUrl || book.isbn ? (
+                    <img
+                      src={book.coverUrl || getCoverUrl(book.isbn)}
+                      alt={`Cover of ${book.title}`}
+                    />
+                  ) : (
+                    <span>No cover</span>
+                  )}
+                </button>
+
+                <div className="profile-tracker-copy">
+                  <small>{book.author || "Unknown author"}</small>
+                  <strong>{book.title}</strong>
+                  <div className="profile-tracker-progress">
+                    <div
+                      className="profile-progress"
+                      aria-label={`${book.progress}% complete`}
+                    >
+                      <i style={{ width: `${book.progress}%` }} />
+                    </div>
+                    <span>{book.progress}%</span>
+                  </div>
+                </div>
+
+                <label className="profile-tracker-input">
+                  <span>Read</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max={book.totalPages || undefined}
+                    value={book.pagesRead ?? 0}
+                    disabled={progressBookId === book.shelfEntryId}
+                    onChange={(event) =>
+                      changeBookProgress(book, "pagesRead", event.target.value)
+                    }
+                  />
+                  <small>pg</small>
+                </label>
+
+                <label className="profile-tracker-input">
+                  <span>Total</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={book.totalPages ?? ""}
+                    placeholder="Total"
+                    disabled={progressBookId === book.shelfEntryId}
+                    onChange={(event) =>
+                      changeBookProgress(book, "totalPages", event.target.value)
+                    }
+                  />
+                  <small>pg</small>
+                </label>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="profile-empty">No Books Open Right Now</p>
+        )}
+      </section>
 
       <section className="profile-shelf-overview" aria-label="Personal bookshelves">
         <div className="section-heading">

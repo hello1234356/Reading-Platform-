@@ -1388,12 +1388,6 @@
     overflow: hidden;
   }
 
-  .feed-card::before {
-    top: 68px;
-    bottom: 8px;
-    left: 22px;
-  }
-
   .feed-card-header {
     grid-template-columns: 48px minmax(0, 1fr);
     gap: 12px;
@@ -1916,16 +1910,104 @@
   }
 }
 
+/* Final phone pass for the homepage quote banner. */
+@media (max-width: 560px) {
+  .reading-room-hero {
+    min-height: auto;
+    padding: 22px 16px 24px;
+    border-radius: 24px;
+    align-items: start;
+    background:
+      linear-gradient(180deg, rgba(255, 250, 241, 0.94) 0%, rgba(255, 250, 241, 0.84) 58%, rgba(255, 250, 241, 0.64) 100%),
+      linear-gradient(0deg, rgba(89, 67, 49, 0.1), rgba(89, 67, 49, 0.02)),
+      url("https://i.pinimg.com/1200x/c6/b4/52/c6b452131cb00daade2adc5ff0bdbbfd.jpg") center center / cover no-repeat;
+  }
+
+  .daily-quote-panel {
+    width: 100%;
+  }
+
+  .daily-quote-meta {
+    justify-content: flex-start;
+    padding-right: 0;
+  }
+
+  .daily-quote-meta span {
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+
+  .daily-quote-panel blockquote {
+    margin-top: 18px;
+    padding-left: 0;
+  }
+
+  .daily-quote-panel blockquote > span:first-child,
+  .daily-quote-panel blockquote > span:last-child {
+    z-index: 0;
+    font-size: 58px;
+  }
+
+  .daily-quote-panel blockquote > span:first-child {
+    top: -18px;
+    left: -8px;
+  }
+
+  .daily-quote-panel blockquote > span:last-child {
+    right: 2px;
+    bottom: -28px;
+  }
+
+  .reading-room-hero h1 {
+    position: relative;
+    z-index: 1;
+    max-width: 100%;
+    font-size: clamp(32px, 9.5vw, 44px);
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+
+  .daily-quote-credit,
+  .daily-quote-actions {
+    position: relative;
+    z-index: 1;
+    padding-left: 0;
+  }
+
+  .daily-quote-credit {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    margin-top: 12px;
+  }
+
+  .daily-quote-credit p {
+    font-size: 22px;
+  }
+
+  .daily-quote-credit small {
+    font-size: 10px;
+  }
+
+  .daily-quote-credit small::before {
+    display: none;
+  }
+
+  .daily-quote-actions {
+    margin-top: 16px;
+  }
+
+  .daily-quote-actions .hero-action {
+    min-height: 42px;
+    padding-inline: 16px;
+    font-size: 13px;
+  }
+}
+
 /* Phone-only readability pass for the homepage feed and shelf/profile pages. */
 @media (max-width: 480px) {
   .feed-card {
     overflow: hidden;
-  }
-
-  .feed-card::before {
-    top: 66px;
-    bottom: 10px;
-    left: 21px;
   }
 
   .feed-card-header {
@@ -1992,6 +2074,31 @@
     font-size: clamp(38px, 13vw, 56px);
     line-height: 0.98;
   }
+
+  .profile-tracker-book {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .profile-tracker-cover,
+  .profile-tracker-cover img,
+  .profile-tracker-cover span {
+    width: 58px;
+  }
+
+  .profile-tracker-input {
+    grid-column: 2;
+    justify-self: stretch;
+    max-width: 190px;
+  }
+
+  .profile-tracker-input + .profile-tracker-input {
+    grid-column: 2;
+  }
+
+  .profile-tracker-copy strong {
+    font-size: clamp(23px, 8vw, 34px);
+  }
 }
 
 /* Keep the primary nav readable when a desktop browser is squeezed to phone width. */
@@ -2039,5 +2146,109 @@
     grid-row: 2;
     align-self: center;
     justify-self: end;
+  }
+}
+
+@media (max-width: 1280px) {
+  .site-nav {
+    grid-template-columns:
+      minmax(176px, 0.85fr)
+      minmax(0, 1.8fr)
+      minmax(42px, auto)
+      minmax(82px, 0.3fr);
+  }
+
+  .admin-notification-center {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .school-logo {
+    grid-column: 4;
+  }
+}
+
+@media (max-width: 1020px) {
+  .site-nav {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .admin-notification-center {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .school-logo {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-notification-trigger {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .admin-notification-popover {
+    position: fixed;
+    top: 74px;
+    right: 12px;
+  }
+
+  .comment-section,
+  .comment-list,
+  .comment-form {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .comment-item {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 9px;
+    padding: 9px 0;
+  }
+
+  .comment-item .user-avatar,
+  .comment-item .avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .comment-item::before {
+    top: 42px;
+    left: 15px;
+  }
+
+  .comment-content > p {
+    max-width: 100%;
+    font-size: 14px;
+  }
+
+  .comment-fold-button {
+    margin-left: 41px;
+  }
+
+  .comment-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .comment-input-shell {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .comment-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 460px) {
+  .admin-notification-center {
+    grid-column: 2;
   }
 }

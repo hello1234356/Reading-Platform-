@@ -22,6 +22,7 @@ import {
 } from "../lib/adminApi";
 import { useAuth } from "../hooks/useAuth";
 import HomepageBannerAdmin from "../components/HomepageBannerAdmin";
+import { requireSupabase } from "../lib/supabase";
 
 const moderationFilters = ["pending", "concerning", "dismissed", "resolved", "all"];
 const submissionFilters = ["pending", "approved", "rejected"];
@@ -144,6 +145,26 @@ function ProfileLine({ profile, fallback = "Unknown reader" }) {
   );
 }
 
+function subscribeToAdminTable(tableName, onChange) {
+  const supabase = requireSupabase();
+  const channel = supabase
+    .channel(`admin-${tableName}-changes`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: tableName,
+      },
+      onChange,
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
 function SubmissionCover({ submission }) {
   const [coverFailed, setCoverFailed] = useState(false);
 
@@ -228,6 +249,12 @@ function ModerationTab({ isOwner }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadReports(filter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  useEffect(() => {
+    return subscribeToAdminTable("moderation_reports", () => {
+      loadReports(filter);
+    });
   }, [filter]);
 
   async function updateReport(reportId, nextStatus) {
@@ -400,6 +427,12 @@ function BookVerificationTab({ isOwner }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSubmissions(filter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  useEffect(() => {
+    return subscribeToAdminTable("book_submissions", () => {
+      loadSubmissions(filter);
+    });
   }, [filter]);
 
   async function decideSubmission(submissionId, decision) {

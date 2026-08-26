@@ -38,6 +38,9 @@ export default function Login() {
         const { error } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/login`,
+          },
         });
 
         if (error) {
@@ -49,13 +52,19 @@ export default function Login() {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
       });
 
       if (error) {
         setMessage("Login failed. Check your email and password.");
+        return;
+      }
+
+      if (!data.user?.email_confirmed_at) {
+        await supabase.auth.signOut();
+        setMessage("Please confirm your school email before logging in.");
         return;
       }
 

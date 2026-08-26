@@ -18,7 +18,9 @@ import {
   deletePost,
   deletePostComment,
   getFeedPosts,
+  likeComment,
   likePost,
+  unlikeComment,
   unlikePost,
 } from "../lib/postApi";
 import { saveReview } from "../lib/reviewApi";
@@ -44,6 +46,8 @@ import HomepageSpotlightCarousel from "../components/HomepageSpotlightCarousel";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
+const PRIVATE_NOTES_KEY = "litshelf-private-reading-notes-v1";
+const FEED_PAGE_SIZE = 15;
 const defaultTrackedBook = {
   title: "Bluets",
   author: "Maggie Nelson",
@@ -51,6 +55,70 @@ const defaultTrackedBook = {
   progress: 34,
   finished: false,
 };
+
+function HeartIcon({ filled = false }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="social-action-icon"
+      fill={filled ? "currentColor" : "none"}
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M20.8 4.7c-2.1-2-5.4-1.9-7.4.2L12 6.3l-1.4-1.4C8.6 2.8 5.3 2.7 3.2 4.7 1 6.8 1 10.3 3.2 12.5l7.7 7.5c.6.6 1.6.6 2.2 0l7.7-7.5c2.2-2.2 2.2-5.7 0-7.8Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="social-action-icon"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M20.2 11.7c0 4.1-3.5 7.4-8.2 7.4-1 0-2-.2-2.9-.5L4 20l1.4-4.1a6.9 6.9 0 0 1-1.6-4.3c0-4.1 3.5-7.4 8.2-7.4s8.2 3.3 8.2 7.5Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.9"
+      />
+    </svg>
+  );
+}
+
+function ReplyIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="comment-reply-icon"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M9.2 8.2 5 12.3l4.2 4.1"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+      <path
+        d="M5.6 12.3h8.1c3 0 5.1 1.6 5.9 4.3"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
 
 const dailyLiteraryQuotes = [
   {
@@ -110,6 +178,35 @@ function saveProfileReview(review) {
     localStorage.setItem(PROFILE_REVIEWS_KEY, JSON.stringify([review]));
   }
 }
+
+function savePrivateReadingNote({ userId, book, note, hasSpoilers }) {
+  try {
+    const savedNotes = JSON.parse(localStorage.getItem(PRIVATE_NOTES_KEY));
+    const notes = Array.isArray(savedNotes) ? savedNotes : [];
+
+    localStorage.setItem(
+      PRIVATE_NOTES_KEY,
+      JSON.stringify([
+        {
+          id: crypto.randomUUID?.() || `${Date.now()}`,
+          userId,
+          bookId: book?.bookId || null,
+          title: book?.title || "",
+          author: book?.author || "",
+          isbn: book?.isbn || "",
+          coverUrl: book ? getBookCoverSource(book) : "",
+          note,
+          hasSpoilers,
+          visibility: "private",
+          createdAt: new Date().toISOString(),
+        },
+        ...notes,
+      ]),
+    );
+  } catch {
+    localStorage.setItem(PRIVATE_NOTES_KEY, JSON.stringify([]));
+  }
+}
 function mapLibraryBookToTrackedBook(book) {
   return {
     title: book.title,
@@ -117,6 +214,8 @@ function mapLibraryBookToTrackedBook(book) {
     isbn: book.isbn,
     coverUrl: book.coverUrl,
     progress: Number(book.progress) || 0,
+    pagesRead: Number(book.pagesRead) || 0,
+    totalPages: book.totalPages || "",
     finished: false,
     shelfEntryId: book.shelfEntryId,
     bookId: book.bookId,
@@ -158,6 +257,8 @@ function normalizeTrackedBook(book) {
     return {
       ...book,
       progress: Math.max(0, Math.min(Number(book.progress) || 0, 100)),
+      pagesRead: Number(book.pagesRead) || 0,
+      totalPages: book.totalPages || "",
     };
   }
 
@@ -165,7 +266,12 @@ function normalizeTrackedBook(book) {
     ? Math.round(((Number(book.pagesRead) || 0) / Number(book.totalPages)) * 100)
     : 0;
 
-  return { ...book, progress: Math.max(0, Math.min(legacyProgress, 100)) };
+  return {
+    ...book,
+    progress: Math.max(0, Math.min(legacyProgress, 100)),
+    pagesRead: Number(book.pagesRead) || 0,
+    totalPages: book.totalPages || "",
+  };
 }
 
 function getInitialHomeState() {
@@ -258,6 +364,10 @@ function Home() {
   const [addingBook, setAddingBook] = useState(false);
   const [bookAdded, setBookAdded] = useState(false);
   const [posts, setPosts] = useState([]);
+  const [feedPage, setFeedPage] = useState(1);
+  const [feedTotalCount, setFeedTotalCount] = useState(0);
+  const [feedSearchDraft, setFeedSearchDraft] = useState("");
+  const [feedSearchQuery, setFeedSearchQuery] = useState("");
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState("");
   const [deletingPostId, setDeletingPostId] = useState(null);
@@ -285,7 +395,7 @@ function Home() {
   const [finishReview, setFinishReview] = useState({
     rating: 5,
     review: "",
-    visibility: "public",
+    visibility: "private",
   });
   const [finishReviewSaving, setFinishReviewSaving] = useState(false);
   const [finishReviewError, setFinishReviewError] = useState("");
@@ -293,6 +403,7 @@ function Home() {
     bookId: "",
     note: "",
     hasSpoilers: false,
+    shareToFeed: false,
   });
   const composerTextareaRef = useRef(null);
   const [libraryBooks, setLibraryBooks] = useState([]);
@@ -324,6 +435,30 @@ function Home() {
   const targetPostId = socialTarget?.postId || "";
   const targetCommentId = socialTarget?.commentId || "";
   const targetReplyId = socialTarget?.replyId || "";
+
+  function addPostToFeedPage(createdPost) {
+    if (!createdPost) return;
+
+    const normalizedFeedSearch = feedSearchQuery
+      .trim()
+      .toLocaleLowerCase();
+
+    if (
+      normalizedFeedSearch &&
+      !String(createdPost.book || createdPost.title || "")
+        .toLocaleLowerCase()
+        .includes(normalizedFeedSearch)
+    ) {
+      return;
+    }
+
+    setFeedTotalCount((count) => count + 1);
+    setFeedPage(1);
+    setPosts((currentPosts) => [
+      createdPost,
+      ...currentPosts,
+    ].slice(0, FEED_PAGE_SIZE));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -380,6 +515,11 @@ function Home() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setFeedPage(1);
+  }, [user?.id]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -388,10 +528,15 @@ function Home() {
       setFeedError("");
 
       try {
-        const loadedPosts = await getFeedPosts(user?.id || null);
+        const loadedFeed = await getFeedPosts(user?.id || null, {
+          page: feedPage,
+          pageSize: FEED_PAGE_SIZE,
+          bookTitleQuery: feedSearchQuery,
+        });
 
         if (!cancelled) {
-          setPosts(loadedPosts);
+          setPosts(loadedFeed.posts);
+          setFeedTotalCount(loadedFeed.totalCount);
         }
       } catch (error) {
         console.error("Failed to load reading feed:", error);
@@ -413,7 +558,19 @@ function Home() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [feedPage, feedSearchQuery, user?.id]);
+
+  function searchFeedPosts(event) {
+    event.preventDefault();
+    setFeedSearchQuery(feedSearchDraft.trim());
+    setFeedPage(1);
+  }
+
+  function clearFeedPostSearch() {
+    setFeedSearchDraft("");
+    setFeedSearchQuery("");
+    setFeedPage(1);
+  }
 
   useEffect(() => {
     if (feedLoading || !targetPostId) return undefined;
@@ -565,6 +722,77 @@ function Home() {
     }
   }
 
+  async function toggleCommentLike(postId, commentId) {
+    if (!requireLogin()) return;
+    if (!user?.id) return;
+
+    const post = posts.find((currentPost) => currentPost.id === postId);
+    const comment = post?.comments.find(
+      (currentComment) => currentComment.id === commentId,
+    );
+
+    if (!comment) return;
+
+    const nextLiked = !comment.liked;
+    const nextLikes = Math.max(
+      comment.likes + (comment.liked ? -1 : 1),
+      0,
+    );
+
+    setPosts((currentPosts) =>
+      currentPosts.map((currentPost) =>
+        currentPost.id !== postId
+          ? currentPost
+          : {
+              ...currentPost,
+              comments: currentPost.comments.map((currentComment) =>
+                currentComment.id !== commentId
+                  ? currentComment
+                  : {
+                      ...currentComment,
+                      liked: nextLiked,
+                      likes: nextLikes,
+                    },
+              ),
+            },
+      ),
+    );
+
+    try {
+      if (comment.liked) {
+        await unlikeComment({
+          commentId,
+          userId: user.id,
+        });
+      } else {
+        await likeComment({
+          commentId,
+          userId: user.id,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update comment like:", error);
+      setPosts((currentPosts) =>
+        currentPosts.map((currentPost) =>
+          currentPost.id !== postId
+            ? currentPost
+            : {
+                ...currentPost,
+                comments: currentPost.comments.map((currentComment) =>
+                  currentComment.id !== commentId
+                    ? currentComment
+                    : {
+                        ...currentComment,
+                        liked: comment.liked,
+                        likes: comment.likes,
+                      },
+                ),
+              },
+        ),
+      );
+    }
+  }
+
   async function removePost(postId) {
     if (!requireLogin() || !user?.id) return;
 
@@ -581,6 +809,10 @@ function Home() {
       setPosts((currentPosts) =>
         currentPosts.filter((currentPost) => currentPost.id !== postId),
       );
+      setFeedTotalCount((count) => Math.max(count - 1, 0));
+      if (posts.length === 1 && feedPage > 1) {
+        setFeedPage((page) => Math.max(page - 1, 1));
+      }
     } catch (error) {
       console.error("Failed to delete reading note:", error);
       setDeletePostError(error.message || "Could not delete your reading note.");
@@ -971,6 +1203,8 @@ function Home() {
       author: selectedBook.author,
       isbn: selectedBook.isbn,
       progress: 0,
+      pagesRead: 0,
+      totalPages: "",
       finished: false,
       coverUrl: getCoverUrl(selectedBook.isbn),
     };
@@ -1000,6 +1234,8 @@ function Home() {
           savedLibraryBook.shelf.shelf === "read"
             ? 100
             : savedLibraryBook.shelf.progress ?? 0,
+        pagesRead: savedLibraryBook.shelf.pages_read ?? 0,
+        totalPages: savedLibraryBook.shelf.total_pages ?? "",
         rating: savedLibraryBook.shelf.rating,
         title: savedLibraryBook.book.title,
         author: savedLibraryBook.book.author,
@@ -1039,16 +1275,30 @@ function Home() {
     setIsLogBookOpen(false);
   }
 
-  async function updateTrackedProgress(bookToUpdate, value) {
+  async function updateTrackedProgress(bookToUpdate, field, value) {
     if (!requireLogin()) return;
     if (!bookToUpdate) return;
 
-    const nextProgress = Math.max(0, Math.min(Number(value) || 0, 100));
+    const nextTotalPages =
+      field === "totalPages"
+        ? Math.max(0, Math.round(Number(value) || 0))
+        : Math.max(0, Math.round(Number(bookToUpdate.totalPages) || 0));
+    const nextPagesRead = Math.min(
+      field === "pagesRead"
+        ? Math.max(0, Math.round(Number(value) || 0))
+        : Math.max(0, Math.round(Number(bookToUpdate.pagesRead) || 0)),
+      nextTotalPages || Infinity,
+    );
+    const nextProgress = nextTotalPages
+      ? Math.min(Math.round((nextPagesRead / nextTotalPages) * 100), 100)
+      : 0;
     const shouldFinish = nextProgress >= 100;
     const bookKey = getTrackedBookKey(bookToUpdate);
     const updatedBook = {
       ...bookToUpdate,
       progress: nextProgress,
+      pagesRead: nextPagesRead,
+      totalPages: nextTotalPages || "",
       finished: shouldFinish,
     };
 
@@ -1063,6 +1313,8 @@ function Home() {
           ? {
               ...book,
               progress: nextProgress,
+              pagesRead: nextPagesRead,
+              totalPages: nextTotalPages || "",
               shelf: shouldFinish ? "read" : "currently-reading",
             }
           : book,
@@ -1073,7 +1325,10 @@ function Home() {
       try {
         const savedBook = await updateLibraryBookProgress(
           bookToUpdate.shelfEntryId,
-          nextProgress,
+          {
+            pagesRead: nextPagesRead,
+            totalPages: nextTotalPages || null,
+          },
         );
 
         setLibraryBooks((currentBooks) =>
@@ -1102,6 +1357,7 @@ function Home() {
     const finishedBook = {
       ...bookToFinish,
       progress: 100,
+      pagesRead: bookToFinish.totalPages || bookToFinish.pagesRead || 0,
       finished: true,
     };
 
@@ -1123,7 +1379,11 @@ function Home() {
       try {
         const savedBook = await updateLibraryBookProgress(
           bookToFinish.shelfEntryId,
-          100,
+          {
+            pagesRead:
+              bookToFinish.totalPages || bookToFinish.pagesRead || 0,
+            totalPages: bookToFinish.totalPages || null,
+          },
         );
 
         setLibraryBooks((currentBooks) =>
@@ -1220,10 +1480,10 @@ function Home() {
     }
 
     if (createdFeedPost) {
-      setPosts((currentPosts) => [createdFeedPost, ...currentPosts]);
+      addPostToFeedPage(createdFeedPost);
     }
 
-    setFinishReview({ rating: 5, review: "", visibility: "public" });
+    setFinishReview({ rating: 5, review: "", visibility: "private" });
     setTrackedBooks((currentBooks) =>
       currentBooks.filter(
         (book) => getTrackedBookKey(book) !== getTrackedBookKey(finishingBook),
@@ -1328,6 +1588,28 @@ function Home() {
     setModerationWarning(null);
     setModerationBlocked(null);
 
+    if (!composeDraft.shareToFeed) {
+      savePrivateReadingNote({
+        userId: user.id,
+        book: selectedComposerBook,
+        note,
+        hasSpoilers: composeDraft.hasSpoilers,
+      });
+
+      setComposeDraft({
+        bookId: selectedComposerBook
+          ? String(selectedComposerBook.bookId)
+          : "",
+        note: "",
+        hasSpoilers: false,
+        shareToFeed: false,
+      });
+
+      setPublishingNote(false);
+      setIsComposerOpen(false);
+      return;
+    }
+
     try {
       const createdPost = await createPost({
         userId: user.id,
@@ -1341,10 +1623,7 @@ function Home() {
         allowModerationWarning: false,
       });
 
-      setPosts((currentPosts) => [
-        createdPost,
-        ...currentPosts,
-      ]);
+      addPostToFeedPage(createdPost);
 
       setComposeDraft({
         bookId: selectedComposerBook
@@ -1352,6 +1631,7 @@ function Home() {
           : "",
         note: "",
         hasSpoilers: false,
+        shareToFeed: false,
       });
 
       setIsComposerOpen(false);
@@ -1439,10 +1719,7 @@ function Home() {
         allowModerationWarning: true,
       });
 
-      setPosts((currentPosts) => [
-        createdPost,
-        ...currentPosts,
-      ]);
+      addPostToFeedPage(createdPost);
 
       setComposeDraft({
         bookId: selectedComposerBook
@@ -1450,6 +1727,7 @@ function Home() {
           : "",
         note: "",
         hasSpoilers: false,
+        shareToFeed: false,
       });
 
       setModerationWarning(null);
@@ -1512,6 +1790,18 @@ function Home() {
     (a, b) =>
       b.booksRead - a.booksRead ||
       a.tieOrder - b.tieOrder,
+  );
+  const feedPageCount = Math.max(
+    Math.ceil(feedTotalCount / FEED_PAGE_SIZE),
+    1,
+  );
+  const feedRangeStart =
+    feedTotalCount === 0
+      ? 0
+      : (feedPage - 1) * FEED_PAGE_SIZE + 1;
+  const feedRangeEnd = Math.min(
+    feedPage * FEED_PAGE_SIZE,
+    feedTotalCount,
   );
 
   return (
@@ -1586,13 +1876,35 @@ function Home() {
                     </div>
                     <div className="progress-editor compact">
                       <label>
-                        <span>Progress</span>
+                        <span>Pages Read</span>
                         <input
                           type="number"
                           min="0"
-                          max="100"
-                          value={book.progress}
-                          onChange={(event) => updateTrackedProgress(book, event.target.value)}
+                          max={book.totalPages || undefined}
+                          value={book.pagesRead ?? 0}
+                          onChange={(event) =>
+                            updateTrackedProgress(
+                              book,
+                              "pagesRead",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Total Pages</span>
+                        <input
+                          type="number"
+                          min="1"
+                          value={book.totalPages ?? ""}
+                          placeholder="Total"
+                          onChange={(event) =>
+                            updateTrackedProgress(
+                              book,
+                              "totalPages",
+                              event.target.value,
+                            )
+                          }
                         />
                       </label>
                       <div>
@@ -1659,6 +1971,40 @@ function Home() {
             </button>
           </div>
 
+          <form
+            className="feed-search-bar"
+            role="search"
+            onSubmit={searchFeedPosts}
+          >
+            <label>
+              <span className="sr-only">Search posts by book title</span>
+              <input
+                type="search"
+                value={feedSearchDraft}
+                onChange={(event) =>
+                  setFeedSearchDraft(event.target.value)
+                }
+                placeholder="Search posts by book title..."
+              />
+            </label>
+            <button type="submit">Search</button>
+            {feedSearchQuery ? (
+              <button
+                className="feed-search-clear"
+                type="button"
+                onClick={clearFeedPostSearch}
+              >
+                Clear
+              </button>
+            ) : null}
+          </form>
+
+          {feedSearchQuery ? (
+            <p className="feed-search-status">
+              Showing posts about "{feedSearchQuery}"
+            </p>
+          ) : null}
+
           <div className="feed-list">
           {deletePostError ? (
             <p className="profile-save-error" role="alert">
@@ -1673,7 +2019,9 @@ function Home() {
             </p>
           ) : posts.length === 0 ? (
             <p className="profile-empty">
-              No reading notes have been published yet.
+              {feedSearchQuery
+                ? "No posts about that book yet."
+                : "No reading notes have been published yet."}
             </p>
           ) : (
             posts.map((post) => (
@@ -1820,7 +2168,7 @@ function Home() {
                     }
                   >
                     <span aria-hidden="true">
-                      {post.liked ? "♥" : "♡"}
+                      <HeartIcon filled={post.liked} />
                     </span>
                     <small>{post.likes}</small>
                   </button>
@@ -1833,7 +2181,9 @@ function Home() {
                       focusCommentInput(post.id)
                     }
                   >
-                    <span aria-hidden="true">↩</span>
+                    <span aria-hidden="true">
+                      <CommentIcon />
+                    </span>
                     <small>{post.comments.length}</small>
                   </button>
 
@@ -1866,6 +2216,18 @@ function Home() {
                       tabIndex={-1}
                       key={comment.id}
                     >
+                      <ProfileLink
+                        userId={comment.userId}
+                        variant="avatar"
+                        ariaLabel={`View ${comment.commenterName}'s profile`}
+                      >
+                        <UserAvatar
+                          avatarUrl={comment.commenterAvatarUrl}
+                          name={comment.commenterName}
+                          size="small"
+                        />
+                      </ProfileLink>
+
                       <div className="comment-content">
                         <p>
                           <ProfileLink
@@ -1893,6 +2255,28 @@ function Home() {
                         <div className="comment-item-actions">
                           <button
                             type="button"
+                            className={
+                              comment.liked
+                                ? "comment-like-button active"
+                                : "comment-like-button"
+                            }
+                            onClick={() =>
+                              toggleCommentLike(post.id, comment.id)
+                            }
+                            aria-label={
+                              comment.liked
+                                ? "Unlike comment"
+                                : "Like comment"
+                            }
+                          >
+                            <span aria-hidden="true">
+                              <HeartIcon filled={comment.liked} />
+                            </span>
+                            {comment.likes}
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() =>
                               beginCommentReply({
                                 postId: post.id,
@@ -1905,6 +2289,7 @@ function Home() {
                               })
                             }
                           >
+                            <ReplyIcon />
                             Reply
                           </button>
 
@@ -2137,6 +2522,44 @@ function Home() {
             ))
           )}
         </div>
+        {feedTotalCount > FEED_PAGE_SIZE ? (
+          <nav
+            className="feed-pagination"
+            aria-label="Reading notes pages"
+          >
+            <p>
+              Showing {feedRangeStart}-{feedRangeEnd} of{" "}
+              {feedTotalCount} posts
+            </p>
+            <div>
+              <button
+                type="button"
+                onClick={() =>
+                  setFeedPage((page) => Math.max(page - 1, 1))
+                }
+                disabled={feedLoading || feedPage <= 1}
+              >
+                Previous
+              </button>
+              <span>
+                Page {feedPage} of {feedPageCount}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setFeedPage((page) =>
+                    Math.min(page + 1, feedPageCount),
+                  )
+                }
+                disabled={
+                  feedLoading || feedPage >= feedPageCount
+                }
+              >
+                Next
+              </button>
+            </div>
+          </nav>
+        ) : null}
         </section>
 
       </div>
@@ -2269,6 +2692,23 @@ function Home() {
                   Highlight the spoiler sentence, then mark it before publishing.
                 </p>
               ) : null}
+              <label className="spoiler-checkbox public-feed-checkbox">
+                <input
+                  type="checkbox"
+                  checked={composeDraft.shareToFeed}
+                  disabled={
+                    publishingNote ||
+                    moderationConfirming
+                  }
+                  onChange={(event) =>
+                    setComposeDraft((draft) => ({
+                      ...draft,
+                      shareToFeed: event.target.checked,
+                    }))
+                  }
+                />
+                <span>Want To Share To The Public Feed?</span>
+              </label>
               {publishingNote &&
                 moderationWarning?.type !== "feed-post" && (
                   <ModerationStatusBar
@@ -2338,7 +2778,9 @@ function Home() {
               >
                 {publishingNote
                   ? "Checking..."
-                  : "Publish note"}
+                  : composeDraft.shareToFeed
+                    ? "Share Note"
+                    : "Save Privately"}
               </button>
             </form>
           </section>
@@ -2419,8 +2861,8 @@ function Home() {
                     setFinishReview((draft) => ({ ...draft, visibility: event.target.value }))
                   }
                 >
-                  <option value="public">Public - post to feed</option>
-                  <option value="private">Private - save to my profile only</option>
+                  <option value="private">Private - Save To My Profile Only</option>
+                  <option value="public">Yes - Share To The Public Feed</option>
                 </select>
               </label>
               {finishReviewError ? (

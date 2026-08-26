@@ -148,6 +148,57 @@ export async function getAdminRole() {
   return data || null;
 }
 
+async function countRows(tableName, applyFilter) {
+  const supabase = requireSupabase();
+  let query = supabase
+    .from(tableName)
+    .select("id", { count: "exact", head: true });
+
+  if (applyFilter) {
+    query = applyFilter(query);
+  }
+
+  const { count, error } = await query;
+  if (error) throw error;
+
+  return count || 0;
+}
+
+export async function getAdminNotificationSummary() {
+  const [
+    moderationResult,
+    bookSubmissionResult,
+    clubMessageResult,
+  ] = await Promise.allSettled([
+    countRows("moderation_reports", (query) =>
+      query.in("status", ["pending", "concerning"]),
+    ),
+    countRows("book_submissions", (query) =>
+      query.eq("status", "pending"),
+    ),
+    countRows("club_message_moderation_reports", (query) =>
+      query.eq("status", "open"),
+    ),
+  ]);
+
+  const moderationCount =
+    moderationResult.status === "fulfilled" ? moderationResult.value : 0;
+  const bookSubmissionCount =
+    bookSubmissionResult.status === "fulfilled" ? bookSubmissionResult.value : 0;
+  const clubMessageCount =
+    clubMessageResult.status === "fulfilled" ? clubMessageResult.value : 0;
+
+  return {
+    moderationCount,
+    bookSubmissionCount,
+    clubMessageCount,
+    total:
+      moderationCount +
+      bookSubmissionCount +
+      clubMessageCount,
+  };
+}
+
 export async function listAdmins() {
   const supabase = requireSupabase();
   const { data, error } = await supabase

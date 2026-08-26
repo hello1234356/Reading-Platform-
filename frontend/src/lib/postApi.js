@@ -55,7 +55,11 @@ function formatRelativeTime(createdAt) {
   return new Date(createdAt).toLocaleDateString();
 }
 
-function mapComment(row) {
+function mapComment(row, currentUserId = null) {
+  const likes = Array.isArray(row.comment_likes)
+    ? row.comment_likes
+    : [];
+
   return {
     id: row.id,
     userId: row.user_id,
@@ -69,6 +73,9 @@ function mapComment(row) {
     commenterUsername:
       row.profiles?.username || "",
 
+    commenterAvatarUrl:
+      row.profiles?.avatar_url || "",
+
     mentionedUserId:
       row.mentioned_user_id || null,
 
@@ -81,6 +88,10 @@ function mapComment(row) {
       ),
 
     createdAt: row.created_at,
+    likes: likes.length,
+    liked: currentUserId
+      ? likes.some((like) => like.user_id === currentUserId)
+      : false,
   };
 }
 
@@ -98,7 +109,7 @@ function mapPost(row, currentUserId = null) {
           (first, second) =>
             new Date(first.created_at) - new Date(second.created_at),
         )
-        .map(mapComment)
+        .map((comment) => mapComment(comment, currentUserId))
     : [];
 
   return {
@@ -187,7 +198,8 @@ const FEED_SELECT = `
     profiles!comments_user_id_fkey (
       id,
       full_name,
-      username
+      username,
+      avatar_url
     ),
 
     mentioned_profile:profiles!comments_mentioned_user_id_fkey (
@@ -204,21 +216,142 @@ const FEED_SELECT = `
   )
 `;
 
-export async function getFeedPosts(currentUserId = null) {
-  const supabase = requireSupabase();
+function escapeLikePattern(value) {
+  return String(value || "").replace(/[\\%_]/g, "\\$&");
+}
 
+function isMissingCommentLikesTableError(error) {
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    error?.code === "42P01" ||
+    error?.code === "PGRST205" ||
+    error?.code === "PGRST204" ||
+    (
+      message.includes("comment_likes") &&
+      (
+        message.includes("schema cache") ||
+        message.includes("could not find the table") ||
+        message.includes("does not exist")
+      )
+    )
+  );
+}
+
+async function getBookIdsByTitle(searchTerm) {
+  const cleanedSearch = String(searchTerm || "").trim();
+
+  if (!cleanedSearch) return null;
+
+  const supabase = requireSupabase();
   const { data, error } = await supabase
+    .from("books")
+    .select("id")
+    .ilike("title", `%${escapeLikePattern(cleanedSearch)}%`)
+    .limit(200);
+
+  if (error) throw error;
+
+  return (data || []).map((book) => book.id);
+}
+
+async function attachCommentLikes(posts) {
+  const rows = Array.isArray(posts) ? posts : [];
+  const commentIds = rows.flatMap((post) =>
+    Array.isArray(post.comments)
+      ? post.comments.map((comment) => comment.id).filter(Boolean)
+      : [],
+  );
+
+  if (commentIds.length === 0) {
+    return rows;
+  }
+
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("comment_likes")
+    .select("comment_id, user_id, created_at")
+    .in("comment_id", commentIds);
+
+  if (error) {
+    if (isMissingCommentLikesTableError(error)) {
+      console.warn(
+        "comment_likes table is missing; loading feed without comment likes.",
+      );
+
+      return rows;
+    }
+
+    throw error;
+  }
+
+  const likesByCommentId = new Map();
+
+  for (const like of data || []) {
+    const existing = likesByCommentId.get(like.comment_id) || [];
+    existing.push(like);
+    likesByCommentId.set(like.comment_id, existing);
+  }
+
+  return rows.map((post) => ({
+    ...post,
+    comments: Array.isArray(post.comments)
+      ? post.comments.map((comment) => ({
+          ...comment,
+          comment_likes: likesByCommentId.get(comment.id) || [],
+        }))
+      : [],
+  }));
+}
+
+export async function getFeedPosts(
+  currentUserId = null,
+  { page = 1, pageSize = 15, bookTitleQuery = "" } = {},
+) {
+  const supabase = requireSupabase();
+  const normalizedPage = Math.max(Number(page) || 1, 1);
+  const normalizedPageSize = Math.max(
+    Math.min(Number(pageSize) || 15, 20),
+    1,
+  );
+  const from = (normalizedPage - 1) * normalizedPageSize;
+  const to = from + normalizedPageSize - 1;
+  const matchingBookIds = await getBookIdsByTitle(bookTitleQuery);
+
+  if (matchingBookIds && matchingBookIds.length === 0) {
+    return {
+      posts: [],
+      totalCount: 0,
+      page: normalizedPage,
+      pageSize: normalizedPageSize,
+    };
+  }
+
+  let query = supabase
     .from("posts")
-    .select(FEED_SELECT)
+    .select(FEED_SELECT, { count: "exact" })
     .order("created_at", { ascending: false });
+
+  if (matchingBookIds) {
+    query = query.in("book_id", matchingBookIds);
+  }
+
+  const { data, error, count } = await query.range(from, to);
 
   if (error) {
     throw error;
   }
 
-  return (data || []).map((row) =>
-    mapPost(row, currentUserId),
-  );
+  const postsWithCommentLikes = await attachCommentLikes(data || []);
+
+  return {
+    posts: postsWithCommentLikes.map((row) =>
+      mapPost(row, currentUserId),
+    ),
+    totalCount: count || 0,
+    page: normalizedPage,
+    pageSize: normalizedPageSize,
+  };
 }
 
 export async function createPost({
@@ -343,6 +476,61 @@ export async function unlikePost({postId, userId}) {
   }
 }
 
+export async function likeComment({ commentId, userId }) {
+  if (!commentId || !userId) {
+    throw new Error("The comment or user is missing.");
+  }
+
+  const supabase = requireSupabase();
+
+  const { error } = await supabase
+    .from("comment_likes")
+    .insert({
+      comment_id: commentId,
+      user_id: userId,
+    });
+
+  if (error) {
+    if (error.code === "23505") {
+      return;
+    }
+
+    if (isMissingCommentLikesTableError(error)) {
+      console.warn(
+        "comment_likes table is missing; comment like was not saved.",
+      );
+      return;
+    }
+
+    throw error;
+  }
+}
+
+export async function unlikeComment({ commentId, userId }) {
+  if (!commentId || !userId) {
+    throw new Error("The comment or user is missing.");
+  }
+
+  const supabase = requireSupabase();
+
+  const { error } = await supabase
+    .from("comment_likes")
+    .delete()
+    .eq("comment_id", commentId)
+    .eq("user_id", userId);
+
+  if (error) {
+    if (isMissingCommentLikesTableError(error)) {
+      console.warn(
+        "comment_likes table is missing; comment unlike was not saved.",
+      );
+      return;
+    }
+
+    throw error;
+  }
+}
+
 export async function addPostComment({
   postId,
   userId,
@@ -406,7 +594,7 @@ export async function addPostComment({
     throw error;
   }
 
-  return mapComment(data);
+  return mapComment(data, userId);
 }
 
 export async function deletePostComment(commentId, userId) {
