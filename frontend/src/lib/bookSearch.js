@@ -37,7 +37,7 @@ async function searchGoogleProvider(searchTerm, limit, options = {}) {
   });
 
   const response = await searchWithSharedCache({
-    provider: "google_books_v3",
+    provider: "google_books",
     searchTerm,
     limit,
     fetchResults: async () => {
@@ -62,7 +62,7 @@ async function searchGoogleProvider(searchTerm, limit, options = {}) {
 
 async function searchOpenLibraryProvider(searchTerm, limit, options = {}) {
   const response = await searchWithSharedCache({
-    provider: "open_library_v2",
+    provider: "open_library",
     searchTerm,
     limit,
     fetchResults: () => searchOpenLibraryBooks(searchTerm, limit),
