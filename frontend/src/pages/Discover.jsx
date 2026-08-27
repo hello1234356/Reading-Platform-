@@ -16,7 +16,11 @@ import {
 import { createLatestRequestGate } from "../lib/bookSearchRelevance";
 import { getBookSourceLabel } from "../lib/bookSource.js";
 import { submitBookSubmission } from "../lib/bookSubmissions";
-import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
+import {
+  enrichMissingBookCovers,
+  loadBookDetailsSafely,
+  loadProviderBookDetails,
+} from "../lib/bookDetails";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import BookCoverImage from "../components/BookCoverImage";
@@ -118,11 +122,12 @@ function Discover() {
   const [submissionDraft, setSubmissionDraft] = useState(initialSubmissionDraft);
   const [submissionSaving, setSubmissionSaving] = useState(false);
   const [submissionError, setSubmissionError] = useState("");
+  const [resolvedEditorPicks, setResolvedEditorPicks] = useState(editorPicks);
   const submissionSentinelRef = useRef(null);
   const [floatingSubmissionUnlocked, setFloatingSubmissionUnlocked] =
     useState(false);
-  const featuredPick = editorPicks[0];
-  const supportingPicks = editorPicks.slice(1);
+  const featuredPick = resolvedEditorPicks[0];
+  const supportingPicks = resolvedEditorPicks.slice(1);
   const authoredRecommendationPosts = recommendationLists.filter(
     (list) => list.body,
   );
@@ -140,6 +145,18 @@ function Discover() {
     floatingSubmissionUnlocked &&
     query.trim() &&
     searchStatus === "success";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void enrichMissingBookCovers(editorPicks).then((enrichedPicks) => {
+      if (!cancelled) setResolvedEditorPicks(enrichedPicks);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const targetBookId = searchParams.get("bookId") || "";
