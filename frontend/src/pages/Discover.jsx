@@ -6,7 +6,9 @@ import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
 import {
+  fetchGoogleBooksCoverUrl,
   getGoogleBooksCoverUrl,
+  getGoogleBooksVolumeCoverUrl,
   getPreferredGoogleBooksCoverUrl,
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
@@ -33,11 +35,15 @@ function getCoverUrl(isbn, size = "L") {
   return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
 }
 
-function getEditorPickCoverUrl(book) {
-  return (
-    String(book?.coverUrl || "").trim() ||
-    getOpenLibraryIsbnCoverUrl(book?.isbn) ||
-    getCoverUrl(book?.isbn)
+function getEditorPickCoverCandidates(book, googleCoverUrl = "") {
+  return [
+    googleCoverUrl,
+    String(book?.coverUrl || "").trim(),
+    getGoogleBooksVolumeCoverUrl(book?.googleBooksId),
+    getCoverUrl(book?.isbn),
+    getOpenLibraryIsbnCoverUrl(book?.isbn),
+  ].filter((coverUrl, index, coverUrls) =>
+    coverUrl && coverUrls.indexOf(coverUrl) === index
   );
 }
 
@@ -53,33 +59,45 @@ function hideBrokenCover(event, isbn) {
 }
 
 function EditorPickCover({ book, featured = false }) {
-  const [coverSrc, setCoverSrc] = useState(getEditorPickCoverUrl(book));
-  const [hasImage, setHasImage] = useState(Boolean(coverSrc));
+  const [coverCandidates, setCoverCandidates] = useState(() =>
+    getEditorPickCoverCandidates(book),
+  );
+  const [coverIndex, setCoverIndex] = useState(0);
+  const coverSrc = coverCandidates[coverIndex] || "";
+  const hasImage = Boolean(coverSrc);
 
   useEffect(() => {
-    const nextCoverSrc = getEditorPickCoverUrl(book);
+    const nextCoverCandidates = getEditorPickCoverCandidates(book);
     // Synchronize state when a different editor pick is rendered.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCoverSrc(nextCoverSrc);
-    setHasImage(Boolean(nextCoverSrc));
+    setCoverCandidates(nextCoverCandidates);
+    setCoverIndex(0);
+  }, [book]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadGoogleCover() {
+      const googleCoverUrl = await fetchGoogleBooksCoverUrl(book);
+      if (ignore || !googleCoverUrl) return;
+
+      const nextCoverCandidates = getEditorPickCoverCandidates(book, googleCoverUrl);
+      setCoverCandidates(nextCoverCandidates);
+      setCoverIndex(0);
+    }
+
+    void loadGoogleCover();
+
+    return () => {
+      ignore = true;
+    };
   }, [book]);
 
   function handleCoverError() {
-    const openLibraryCoverUrl = getOpenLibraryIsbnCoverUrl(book?.isbn);
-
-    if (openLibraryCoverUrl && coverSrc !== openLibraryCoverUrl) {
-      setCoverSrc(openLibraryCoverUrl);
-      return;
-    }
-
-    const googleCoverUrl = getCoverUrl(book?.isbn);
-
-    if (googleCoverUrl && coverSrc !== googleCoverUrl) {
-      setCoverSrc(googleCoverUrl);
-      return;
-    }
-
-    setHasImage(false);
+    setCoverIndex((currentIndex) => {
+      const nextIndex = currentIndex + 1;
+      return nextIndex < coverCandidates.length ? nextIndex : coverCandidates.length;
+    });
   }
 
   return (

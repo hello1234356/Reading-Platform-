@@ -12,11 +12,11 @@ function normalizeIsbn(isbn) {
 export const BLOCKED_BOOK_CATEGORY_MESSAGE =
   "This book category is currently unavailable. Stay tuned for future updates.";
 
-export function isBlockedGoogleBooksCategoryText(text) {
+export function isBlockedGoogleBooksCategoryText() {
   return false;
 }
 
-export function isBlockedGoogleBooksResult(result) {
+export function isBlockedGoogleBooksResult() {
   return false;
 }
 
@@ -190,6 +190,12 @@ export function getGoogleBooksCoverUrl(isbn, zoom = 2) {
   return `https://books.google.com/books/content?id=ISBN${encodeURIComponent(normalizedIsbn)}&printsec=frontcover&img=1&zoom=${zoom}&source=gbs_api`;
 }
 
+export function getGoogleBooksVolumeCoverUrl(googleBooksId, zoom = 2) {
+  const normalizedVolumeId = String(googleBooksId || "").trim();
+  if (!normalizedVolumeId) return "";
+  return `https://books.google.com/books/content?id=${encodeURIComponent(normalizedVolumeId)}&printsec=frontcover&img=1&zoom=${zoom}&source=gbs_api`;
+}
+
 export function getPreferredGoogleBooksCoverUrl(coverUrl, isbn, zoom = 2) {
   const storedCoverUrl = String(coverUrl || "").trim();
 
@@ -198,6 +204,44 @@ export function getPreferredGoogleBooksCoverUrl(coverUrl, isbn, zoom = 2) {
   }
 
   return getGoogleBooksCoverUrl(isbn, zoom);
+}
+
+export async function fetchGoogleBooksCoverUrl(book) {
+  const storedCoverUrl = String(book?.coverUrl || "").trim();
+  const isbn = normalizeIsbn(book?.isbn);
+
+  try {
+    let result = null;
+
+    if (book?.googleBooksId) {
+      const url = withApiKey(new URL(
+        `https://www.googleapis.com/books/v1/volumes/${encodeURIComponent(book.googleBooksId)}`,
+      ));
+      const response = await fetch(url);
+      if (!response.ok) await throwGoogleBooksError(response);
+      result = await response.json();
+    } else if (isbn) {
+      const url = buildGoogleBooksSearchUrl(`isbn:${isbn}`, 1, getApiKey());
+      const response = await fetch(url);
+      if (!response.ok) await throwGoogleBooksError(response);
+      const body = await response.json();
+      result = Array.isArray(body?.items) ? body.items[0] : null;
+    }
+
+    const coverUrl = secureImageUrl(
+      result?.volumeInfo?.imageLinks?.extraLarge ||
+      result?.volumeInfo?.imageLinks?.large ||
+      result?.volumeInfo?.imageLinks?.medium ||
+      result?.volumeInfo?.imageLinks?.small ||
+      result?.volumeInfo?.imageLinks?.thumbnail ||
+      result?.volumeInfo?.imageLinks?.smallThumbnail ||
+      "",
+    );
+
+    return coverUrl || secureImageUrl(storedCoverUrl) || getGoogleBooksCoverUrl(isbn);
+  } catch {
+    return secureImageUrl(storedCoverUrl) || getGoogleBooksCoverUrl(isbn);
+  }
 }
 
 export function mapGoogleBooksResult(result) {

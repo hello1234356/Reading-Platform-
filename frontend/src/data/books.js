@@ -66,6 +66,7 @@ export const editorPicks = [
     title: "Giovanni's Room",
     author: "James Baldwin",
     isbn: "9780345806567",
+    googleBooksId: "F_raOixkiQ0C",
     readers: 28,
     blurb:
       "A precise, aching novel about love, shame, and the impossible rooms people build inside themselves.",
