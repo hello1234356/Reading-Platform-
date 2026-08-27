@@ -13,6 +13,10 @@ const publicAnnouncementMigrationUrl = new URL(
   "../../supabase/migrations/202608260004_public_announcements.sql",
   import.meta.url,
 );
+const socialInteractionMigrationUrl = new URL(
+  "../../supabase/migrations/202608270001_social_interaction_notifications.sql",
+  import.meta.url,
+);
 const navbarUrl = new URL("../src/components/Navbar.jsx", import.meta.url);
 const inboxUrl = new URL("../src/components/NotificationInbox.jsx", import.meta.url);
 const navbarCssUrl = new URL("../src/components/Navbar.css", import.meta.url);
@@ -82,6 +86,19 @@ test("book outcomes notify only on actual status transitions", async () => {
   assert.match(sql, /after update of status on public\.book_submissions/i);
   assert.match(sql, /book_submission_approved/);
   assert.match(sql, /book_submission_rejected/);
+});
+
+test("post and comment likes create interaction notifications", async () => {
+  const sql = await readFile(socialInteractionMigrationUrl, "utf8");
+  assert.match(sql, /create table if not exists public\.post_likes/i);
+  assert.match(sql, /create or replace function public\.notify_comment_like\(\)/i);
+  assert.match(sql, /after insert on public\.comment_likes/i);
+  assert.match(sql, /after insert on public\.post_likes/i);
+  assert.match(sql, /comment_owner = new\.user_id then/i);
+  assert.match(sql, /actor_name \|\| case[\s\S]*liked your comment/i);
+  assert.match(sql, /liked your reply/i);
+  assert.match(sql, /'comment_like:' \|\| new\.comment_id::text/i);
+  assert.match(sql, /on conflict \(dedupe_key\) do nothing/gi);
 });
 
 test("Everyone creates one global announcement without enumerating profiles", async () => {

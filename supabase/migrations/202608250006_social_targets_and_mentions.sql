@@ -2,7 +2,28 @@
 -- Mention notifications intentionally run on INSERT only; edits do not re-notify.
 
 alter table public.comments
+add column if not exists comment text,
+add column if not exists mentioned_user_id uuid references public.profiles(id) on delete set null,
 add column if not exists parent_comment_id bigint references public.comments(id) on delete cascade;
+
+update public.comments
+set comment = to_jsonb(public.comments) ->> 'content'
+where comment is null
+  and to_jsonb(public.comments) ? 'content';
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'comments'
+      and column_name = 'content'
+  ) then
+    execute 'alter table public.comments alter column content drop not null';
+  end if;
+end;
+$$;
 
 alter table public.comments drop constraint if exists comments_parent_not_self;
 alter table public.comments add constraint comments_parent_not_self

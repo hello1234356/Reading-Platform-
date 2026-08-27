@@ -1,26 +1,8 @@
 -- One-time, idempotent historical notification backfill.
 -- Historical rows are read so existing activity does not inflate unread badges.
 
--- Post/review reactions. Comment/reply reactions are not backfilled because no such source table exists.
-insert into public.notifications (
-  recipient_id, actor_id, type, title, body, target_url,
-  target_type, post_id, entity_type, entity_id, dedupe_key, is_read, created_at
-)
-select
-  posts.user_id, post_likes.user_id, 'reaction',
-  case when posts.post_type = 'review'
-    then public.notification_actor_name(post_likes.user_id) || ' liked your review'
-    else public.notification_actor_name(post_likes.user_id) || ' liked your post' end,
-  case when books.title is not null then left(books.title, 180) else null end,
-  '/post/' || posts.id::text, 'post', posts.id,
-  'post_like', posts.id::text || ':' || post_likes.user_id::text,
-  'post_like:' || posts.id::text || ':' || post_likes.user_id::text || ':' || posts.user_id::text,
-  true, post_likes.created_at
-from public.post_likes
-join public.posts on posts.id = post_likes.post_id
-left join public.books on books.id = posts.book_id
-where posts.user_id <> post_likes.user_id
-on conflict (dedupe_key) do nothing;
+-- Post/review reactions are backfilled by the later interaction migration after
+-- the canonical post_likes table is guaranteed to exist.
 
 -- Resolve and persist valid historical @username mentions once per comment/user.
 insert into public.comment_mentions(comment_id, mentioned_user_id, created_at)
