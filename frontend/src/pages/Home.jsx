@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -23,7 +24,7 @@ import {
   unlikeComment,
   unlikePost,
 } from "../lib/postApi";
-import { saveReview } from "../lib/reviewApi";
+import { savePrivateBookNote, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
 import { getPreferredGoogleBooksCoverUrl } from "../lib/googleBooks";
 import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
@@ -343,6 +344,94 @@ function renderSpoilerText(text) {
   });
 }
 
+function getFeedCompressionKey(posts) {
+  if (!posts?.length) return "";
+  const firstPost = posts[0];
+  const lastPost = posts[posts.length - 1];
+
+  return [
+    firstPost.userId || "reader",
+    firstPost.id,
+    lastPost.id,
+    posts.length,
+  ].join(":");
+}
+
+function buildCompressedFeedEntries({
+  posts = [],
+  expandedBundleKeys = new Set(),
+  targetPostId = "",
+}) {
+  const entries = [];
+  let index = 0;
+  const targetId = String(targetPostId || "");
+
+  while (index < posts.length) {
+    const firstPost = posts[index];
+    const run = [firstPost];
+    let nextIndex = index + 1;
+
+    while (
+      nextIndex < posts.length &&
+      posts[nextIndex].userId === firstPost.userId
+    ) {
+      run.push(posts[nextIndex]);
+      nextIndex += 1;
+    }
+
+    const bundleKey = getFeedCompressionKey(run);
+    const containsTargetPost = targetId &&
+      run.some((post) => String(post.id) === targetId);
+
+    if (run.length > 5 && expandedBundleKeys.has(bundleKey)) {
+      run.forEach((post) =>
+        entries.push({
+          type: "post",
+          key: String(post.id),
+          post,
+        }),
+      );
+      entries.push({
+        type: "bundle-control",
+        key: bundleKey,
+        userId: firstPost.userId,
+        userName: firstPost.student,
+        hiddenCount: run.length - 1,
+        expanded: true,
+      });
+    } else if (
+      run.length > 5 &&
+      !containsTargetPost
+    ) {
+      entries.push({
+        type: "post",
+        key: String(firstPost.id),
+        post: firstPost,
+      });
+      entries.push({
+        type: "bundle-control",
+        key: bundleKey,
+        userId: firstPost.userId,
+        userName: firstPost.student,
+        hiddenCount: run.length - 1,
+        expanded: false,
+      });
+    } else {
+      run.forEach((post) =>
+        entries.push({
+          type: "post",
+          key: String(post.id),
+          post,
+        }),
+      );
+    }
+
+    index = nextIndex;
+  }
+
+  return entries;
+}
+
 function Home() {
   const location = useLocation();
   const { postId: routePostId } = useParams();
@@ -365,6 +454,8 @@ function Home() {
   const [feedSearchQuery, setFeedSearchQuery] = useState("");
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState("");
+  const [expandedFeedBundleKeys, setExpandedFeedBundleKeys] =
+    useState(() => new Set());
   const [deletingPostId, setDeletingPostId] = useState(null);
   const [deletingCommentId, setDeletingCommentId] = useState(null);
   const [
@@ -430,6 +521,30 @@ function Home() {
   const targetPostId = socialTarget?.postId || "";
   const targetCommentId = socialTarget?.commentId || "";
   const targetReplyId = socialTarget?.replyId || "";
+  const feedEntries = useMemo(
+    () => buildCompressedFeedEntries({
+      posts,
+      expandedBundleKeys: expandedFeedBundleKeys,
+      targetPostId,
+    }),
+    [expandedFeedBundleKeys, posts, targetPostId],
+  );
+
+  function expandFeedBundle(bundleKey) {
+    setExpandedFeedBundleKeys((currentKeys) => {
+      const nextKeys = new Set(currentKeys);
+      nextKeys.add(bundleKey);
+      return nextKeys;
+    });
+  }
+
+  function collapseFeedBundle(bundleKey) {
+    setExpandedFeedBundleKeys((currentKeys) => {
+      const nextKeys = new Set(currentKeys);
+      nextKeys.delete(bundleKey);
+      return nextKeys;
+    });
+  }
 
   function addPostToFeedPage(createdPost) {
     if (!createdPost) return;
@@ -1582,12 +1697,32 @@ function Home() {
     setModerationBlocked(null);
 
     if (!composeDraft.shareToFeed) {
-      savePrivateReadingNote({
-        userId: user.id,
-        book: selectedComposerBook,
-        note,
-        hasSpoilers: composeDraft.hasSpoilers,
-      });
+      try {
+        if (selectedComposerBook?.bookId) {
+          await savePrivateBookNote({
+            userId: user.id,
+            bookId: selectedComposerBook.bookId,
+            note,
+          });
+        }
+
+        savePrivateReadingNote({
+          userId: user.id,
+          book: selectedComposerBook,
+          note,
+          hasSpoilers: composeDraft.hasSpoilers,
+        });
+      } catch (error) {
+        console.error(
+          "Failed to save private reading note:",
+          error,
+        );
+        setPublishNoteError(
+          error.message || "Could not save this private note.",
+        );
+        setPublishingNote(false);
+        return;
+      }
 
       setComposeDraft({
         bookId: selectedComposerBook
@@ -2017,7 +2152,53 @@ function Home() {
                 : "No reading notes have been published yet."}
             </p>
           ) : (
-            posts.map((post) => (
+            feedEntries.map((entry) => {
+              if (entry.type === "bundle-control") {
+                return (
+                  <div
+                    className="feed-compressed-line"
+                    key={entry.key}
+                  >
+                    <span className="feed-compressed-rule" aria-hidden="true" />
+                    <button
+                      className={entry.expanded ? "expanded" : ""}
+                      type="button"
+                      onClick={() =>
+                        entry.expanded
+                          ? collapseFeedBundle(entry.key)
+                          : expandFeedBundle(entry.key)
+                      }
+                      aria-expanded={entry.expanded}
+                    >
+                      <span>
+                        {entry.expanded
+                          ? `Show fewer posts by ${entry.userName}`
+                          : `Show ${entry.hiddenCount} more posts by ${entry.userName}`}
+                      </span>
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 20 20"
+                        fill="none"
+                      >
+                        <path
+                          d={entry.expanded
+                            ? "m5.5 12.5 4.5-4.5 4.5 4.5"
+                            : "m5.5 7.5 4.5 4.5 4.5-4.5"}
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2.2"
+                        />
+                      </svg>
+                    </button>
+                    <span className="feed-compressed-rule" aria-hidden="true" />
+                  </div>
+                );
+              }
+
+              const post = entry.post;
+
+              return (
               <article className="feed-card sea" id={`feed-post-${post.id}`}
                 tabIndex="-1" key={post.id}>
                 <header className="feed-card-header">
@@ -2512,7 +2693,8 @@ function Home() {
                   </button>
                 </div>
               </article>
-            ))
+              );
+            })
           )}
         </div>
         {feedTotalCount > FEED_PAGE_SIZE ? (
@@ -2820,16 +3002,17 @@ function Home() {
       {isFinishReviewOpen && (
         <div className="composer-modal-backdrop" role="presentation">
           <section className="composer-modal" role="dialog" aria-modal="true">
-	            <button
-	              className="modal-close"
-	              type="button"
-	              onClick={closeFinishReview}
-	              aria-label="Close review popup"
-	            >
+            <button
+              className="modal-close"
+              type="button"
+              disabled={finishReviewSaving}
+              onClick={closeFinishReview}
+              aria-label="Close review popup"
+            >
               x
             </button>
             <p className="eyebrow">Finished Shelf</p>
-            <h2>Rate & review?</h2>
+            <h2>Finish this book</h2>
             <form onSubmit={submitFinishReview}>
               <label>
                 <span>Rating</span>
@@ -2843,26 +3026,57 @@ function Home() {
                   onChange={(event) =>
                     setFinishReview((draft) => ({ ...draft, review: event.target.value }))
                   }
-                  placeholder="Write a review if you want to save or share one."
+                  placeholder="What did you think? Save a private reflection or share it to the feed."
                 />
               </label>
-              <label>
-                <span>Visibility</span>
-                <select
-                  value={finishReview.visibility}
+
+              <label className="spoiler-checkbox public-feed-checkbox">
+                <input
+                  type="checkbox"
+                  checked={finishReview.visibility === "public"}
+                  disabled={finishReviewSaving}
                   onChange={(event) =>
-                    setFinishReview((draft) => ({ ...draft, visibility: event.target.value }))
+                    setFinishReview((draft) => ({
+                      ...draft,
+                      visibility: event.target.checked ? "public" : "private",
+                    }))
                   }
-                >
-                  <option value="private">Private - Save To My Profile Only</option>
-                  <option value="public">Yes - Share To The Public Feed</option>
-                </select>
+                />
+                <span>Want To Share To The Public Feed?</span>
               </label>
+
+              <div className="modal-preview">
+                <div className="tracked-cover" aria-hidden="true">
+                  {finishingBook ? (
+                    <BookCoverImage
+                      src={getBookCoverSource(finishingBook)}
+                      alt=""
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span>Finished book</span>
+                  )}
+                </div>
+
+                <div>
+                  <strong>{finishingBook?.title || "Finished book"}</strong>
+                  <small>
+                    {finishingBook
+                      ? `${finishingBook.author} / Moving to Finished`
+                      : "Save your final thoughts and rating."}
+                  </small>
+                </div>
+              </div>
+
               {finishReviewError ? (
                 <p className="profile-save-error" role="alert">{finishReviewError}</p>
               ) : null}
               <button className="primary-button full" type="submit" disabled={finishReviewSaving}>
-                {finishReviewSaving ? "Saving..." : "Save Review"}
+                {finishReviewSaving
+                  ? "Saving..."
+                  : finishReview.visibility === "public"
+                    ? "Share Finished Review"
+                    : "Save Privately"}
               </button>
             </form>
           </section>

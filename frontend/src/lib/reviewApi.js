@@ -6,7 +6,7 @@ function mapReview(row) {
     id: row.id,
     userId: row.user_id,
     bookId: row.book_id,
-    rating: Number(row.rating),
+    rating: row.rating == null ? null : Number(row.rating),
     note: row.review_text || "",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -220,6 +220,80 @@ export async function saveReview({
 
   if (shelfRatingError) {
     throw shelfRatingError;
+  }
+
+  return mapReview(data);
+}
+
+export async function savePrivateBookNote({
+  userId,
+  bookId,
+  note,
+}) {
+  if (!userId) {
+    throw new Error("You must be logged in to save a private note.");
+  }
+
+  if (!bookId) {
+    throw new Error("This note is missing its book ID.");
+  }
+
+  const reviewText = String(note || "").trim();
+
+  if (!reviewText) {
+    throw new Error("Please write a note before saving.");
+  }
+
+  const supabase = requireSupabase();
+
+  const { data: existingReview, error: existingReviewError } = await supabase
+    .from("reviews")
+    .select("rating")
+    .eq("user_id", userId)
+    .eq("book_id", bookId)
+    .maybeSingle();
+
+  if (existingReviewError) {
+    throw existingReviewError;
+  }
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .upsert(
+      {
+        user_id: userId,
+        book_id: bookId,
+        rating: existingReview?.rating ?? null,
+        review_text: reviewText,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "user_id,book_id",
+      },
+    )
+    .select(`
+      id,
+      user_id,
+      book_id,
+      rating,
+      review_text,
+      created_at,
+      updated_at,
+      books (
+        id,
+        title,
+        author,
+        isbn,
+        cover_url,
+        description,
+        source,
+        external_id
+      )
+    `)
+    .single();
+
+  if (error) {
+    throw error;
   }
 
   return mapReview(data);

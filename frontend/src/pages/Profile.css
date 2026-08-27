@@ -705,6 +705,19 @@
   font-weight: 900;
 }
 
+.profile-review-note-label {
+  padding: 6px 12px;
+  border: 1px solid rgba(126, 98, 79, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 250, 241, 0.86);
+  color: var(--walnut);
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: inset 0 -2px 0 rgba(244, 220, 123, 0.16);
+}
+
 .profile-review-stars .filled {
   color: var(--terracotta);
 }

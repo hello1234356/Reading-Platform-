@@ -1275,18 +1275,29 @@ function Profile() {
                     loading="lazy"
                   />
 
-                  <div
-                    className="profile-review-stars"
-                    aria-label={`${review.rating} out of 5 open books`}
-                  >
-                    <StarRating rating={review.rating} />
-                  </div>
+                  {review.rating == null ? (
+                    <div
+                      className="profile-review-stars profile-review-note-label"
+                      aria-label="Private note without rating"
+                    >
+                      Note
+                    </div>
+                  ) : (
+                    <div
+                      className="profile-review-stars"
+                      aria-label={`${review.rating} out of 5 open books`}
+                    >
+                      <StarRating rating={review.rating} />
+                    </div>
+                  )}
                 </div>
 
                 <section>
                   <p>{review.author}</p>
                   <h3>{review.book}</h3>
-                  <strong>{review.rating}/5</strong>
+                  <strong>
+                    {review.rating == null ? "Private note" : `${review.rating}/5`}
+                  </strong>
                   <small>{review.note}</small>
                 </section>
               </button>
