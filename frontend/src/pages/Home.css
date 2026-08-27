@@ -971,6 +971,98 @@
   box-shadow: none;
 }
 
+.feed-compressed-line {
+  display: grid;
+  grid-template-columns: minmax(28px, 1fr) auto minmax(28px, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 18px;
+  color: var(--mocha);
+}
+
+.feed-compressed-rule {
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(138, 106, 88, 0.28),
+    transparent
+  );
+}
+
+.feed-compressed-line button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 15px 0 18px;
+  border: 1.5px solid rgba(126, 98, 79, 0.24);
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 250, 241, 0.96),
+      rgba(242, 231, 215, 0.82)
+    );
+  color: var(--deep-mocha);
+  font-family: var(--sans);
+  font-size: 13.5px;
+  font-weight: 900;
+  letter-spacing: 0.005em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 241, 0.9),
+    inset 0 -3px 0 rgba(244, 220, 123, 0.15),
+    0 10px 22px rgba(89, 67, 49, 0.08);
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.feed-compressed-line button:hover,
+.feed-compressed-line button:focus-visible {
+  border-color: rgba(126, 98, 79, 0.34);
+  color: var(--deep-mocha);
+  transform: translateY(-1px);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 250, 241, 1),
+      rgba(244, 220, 123, 0.24)
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 241, 0.95),
+    inset 0 -3px 0 rgba(244, 220, 123, 0.2),
+    0 12px 22px rgba(89, 67, 49, 0.1);
+}
+
+.feed-compressed-line button.expanded {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(242, 231, 215, 0.9),
+      rgba(255, 250, 241, 0.96)
+    );
+  color: var(--mocha);
+}
+
+.feed-compressed-line button svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  color: var(--walnut);
+  transition: transform 180ms ease;
+}
+
+.feed-compressed-line button:hover svg,
+.feed-compressed-line button:focus-visible svg {
+  transform: translateY(1px);
+}
+
 .feed-card-header {
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
