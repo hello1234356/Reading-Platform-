@@ -27,9 +27,10 @@ export async function persistMissingBookMetadata(book, metadata) {
   const publicationYear = Number(
     metadata?.firstPublished || metadata?.publicationYear,
   );
+  const storedSource = book?.source === "legacy_catalog" ? "" : book?.source || "";
   const { data, error } = await supabase.rpc("fill_missing_book_metadata", {
     p_book_id: bookId,
-    p_source: book?.source || "",
+    p_source: storedSource,
     p_external_id: getExternalId(book),
     p_isbn: book?.isbn || metadata?.isbn || "",
     p_description: metadata?.description || null,
@@ -39,18 +40,40 @@ export async function persistMissingBookMetadata(book, metadata) {
       ? publicationYear
       : null,
     p_genre: metadata?.genre || null,
+    p_language: metadata?.language || null,
   });
 
   if (error) throw error;
   return data;
 }
 
+export async function persistMaterializedBookMetadata(bookRow, metadata) {
+  if (!bookRow?.id) return bookRow;
+
+  const persisted = await persistMissingBookMetadataSafely(
+    {
+      bookId: bookRow.id,
+      source: bookRow.source || "",
+      externalId: bookRow.external_id || "",
+      isbn: bookRow.isbn || metadata?.isbn || "",
+    },
+    metadata,
+  );
+
+  return persisted || bookRow;
+}
+
 export async function persistMissingBookMetadataSafely(book, metadata) {
   try {
     return await persistMissingBookMetadata(book, metadata);
-  } catch (error) {
+  } catch {
     // Metadata persistence is best-effort and must never block the detail UI.
-    console.error("Could not persist fetched book metadata:", error);
+    if (import.meta.env?.DEV) {
+      console.debug("[book-metadata] optional metadata writeback failed", {
+        bookId: getBookId(book),
+        source: book?.source || "legacy_catalog",
+      });
+    }
     return null;
   }
 }

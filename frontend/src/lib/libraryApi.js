@@ -1,6 +1,12 @@
 import { requireSupabase } from "./supabase";
 import { getPreferredGoogleBooksCoverUrl } from "./googleBooks";
 import { resolveIsbnBookFromExistingProviders } from "./isbnBookProviders";
+import { persistMaterializedBookMetadata } from "./bookMetadataApi.js";
+
+const BOOK_METADATA_COLUMNS = `
+  id, title, author, isbn, genre, description, cover_url, language,
+  publisher, publication_year, source, external_id
+`;
 
 function normalizeIsbn(isbn) {
   return String(isbn || "").replace(/[^0-9Xx]/g, "").toUpperCase();
@@ -148,7 +154,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
     const { data: existingBookById, error: findBookByIdError } =
       await supabase
         .from("books")
-        .select("id, title, author, isbn, cover_url")
+        .select(BOOK_METADATA_COLUMNS)
         .eq("id", internalBookId)
         .maybeSingle();
 
@@ -163,7 +169,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
     const { data: existingBookByProvider, error: findBookByProviderError } =
       await supabase
         .from("books")
-        .select("id, title, author, isbn, cover_url, source, external_id")
+        .select(BOOK_METADATA_COLUMNS)
         .eq("source", providerIdentity.source)
         .eq("external_id", providerIdentity.externalId)
         .maybeSingle();
@@ -181,7 +187,7 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
      */
     const { data: existingBook, error: findBookError } = await supabase
       .from("books")
-      .select("id, title, author, isbn, cover_url")
+      .select(BOOK_METADATA_COLUMNS)
       .eq("isbn", normalizedIsbn)
       .maybeSingle();
 
@@ -220,6 +226,8 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
     if (insertBookError) throw insertBookError;
     savedBook = insertedBook;
   }
+
+  savedBook = await persistMaterializedBookMetadata(savedBook, book);
 
   /*
    * Then connect that book to this user's personal library.
