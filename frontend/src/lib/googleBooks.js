@@ -184,64 +184,12 @@ function normalizeDescription(description = "") {
     .trim();
 }
 
-export function getGoogleBooksCoverUrl(isbn, zoom = 2) {
-  const normalizedIsbn = normalizeIsbn(isbn);
-  if (!normalizedIsbn) return "";
-  return `https://books.google.com/books/content?id=ISBN${encodeURIComponent(normalizedIsbn)}&printsec=frontcover&img=1&zoom=${zoom}&source=gbs_api`;
-}
-
-export function getGoogleBooksVolumeCoverUrl(googleBooksId, zoom = 2) {
-  const normalizedVolumeId = String(googleBooksId || "").trim();
-  if (!normalizedVolumeId) return "";
-  return `https://books.google.com/books/content?id=${encodeURIComponent(normalizedVolumeId)}&printsec=frontcover&img=1&zoom=${zoom}&source=gbs_api`;
-}
-
-export function getPreferredGoogleBooksCoverUrl(coverUrl, isbn, zoom = 2) {
+export function getPreferredGoogleBooksCoverUrl(coverUrl) {
   const storedCoverUrl = String(coverUrl || "").trim();
 
-  if (storedCoverUrl) {
-    return secureImageUrl(storedCoverUrl);
-  }
-
-  return getGoogleBooksCoverUrl(isbn, zoom);
-}
-
-export async function fetchGoogleBooksCoverUrl(book) {
-  const storedCoverUrl = String(book?.coverUrl || "").trim();
-  const isbn = normalizeIsbn(book?.isbn);
-
-  try {
-    let result = null;
-
-    if (book?.googleBooksId) {
-      const url = withApiKey(new URL(
-        `https://www.googleapis.com/books/v1/volumes/${encodeURIComponent(book.googleBooksId)}`,
-      ));
-      const response = await fetch(url);
-      if (!response.ok) await throwGoogleBooksError(response);
-      result = await response.json();
-    } else if (isbn) {
-      const url = buildGoogleBooksSearchUrl(`isbn:${isbn}`, 1, getApiKey());
-      const response = await fetch(url);
-      if (!response.ok) await throwGoogleBooksError(response);
-      const body = await response.json();
-      result = Array.isArray(body?.items) ? body.items[0] : null;
-    }
-
-    const coverUrl = secureImageUrl(
-      result?.volumeInfo?.imageLinks?.extraLarge ||
-      result?.volumeInfo?.imageLinks?.large ||
-      result?.volumeInfo?.imageLinks?.medium ||
-      result?.volumeInfo?.imageLinks?.small ||
-      result?.volumeInfo?.imageLinks?.thumbnail ||
-      result?.volumeInfo?.imageLinks?.smallThumbnail ||
-      "",
-    );
-
-    return coverUrl || secureImageUrl(storedCoverUrl) || getGoogleBooksCoverUrl(isbn);
-  } catch {
-    return secureImageUrl(storedCoverUrl) || getGoogleBooksCoverUrl(isbn);
-  }
+  return storedCoverUrl
+    ? secureImageUrl(storedCoverUrl)
+    : "";
 }
 
 export function mapGoogleBooksResult(result) {
@@ -261,7 +209,7 @@ export function mapGoogleBooksResult(result) {
     coverUrl: secureImageUrl(
       info.imageLinks?.thumbnail ||
       info.imageLinks?.smallThumbnail ||
-      getGoogleBooksCoverUrl(isbn),
+      "",
     ),
     description: normalizeDescription(info.description),
     publisher: info.publisher || "",
@@ -436,18 +384,20 @@ export async function searchGoogleBooks(searchTerm, maxResults = 20, options = {
         cacheGoogleBookResult(result);
       });
 
-      if (
-        index === 0 &&
-        hasStrongGoogleBooksMatch(
-          Array.from(resultsById.values()),
-          normalizedSearchTerm,
-        )
-      ) {
-        break;
+      const hasRunBroadAndExactTitle = index >= 1;
+
+    if (
+      hasRunBroadAndExactTitle &&
+      hasStrongGoogleBooksMatch(
+        Array.from(resultsById.values()),
+        normalizedSearchTerm,
+      )
+    ) {
+      break;
       }
     }
 
-    const results = Array.from(resultsById.values()).slice(0, maxResults);
+    const results = Array.from(resultsById.values());
     if (debug) console.debug("[book-search] GOOGLE ACTUAL RESPONSE", {
       itemCount: results.length,
       titles: results.slice(0, 10).map((result) => ({
@@ -514,10 +464,7 @@ export async function getGoogleBooksBookDetails(book) {
     title: book?.title || book?.book || "Untitled",
     author: book?.author || "Unknown author",
     isbn: book?.isbn || "",
-    coverUrl: getPreferredGoogleBooksCoverUrl(
-      book?.coverUrl,
-      book?.isbn,
-    ),
+    coverUrl: getPreferredGoogleBooksCoverUrl(book?.coverUrl),
     description: book?.description || "",
     googleBooksId: book?.googleBooksId || "",
   };

@@ -86,3 +86,4 @@ test("one catalog hit cannot suppress the external canonical-title search", () =
     title: "Harry Potter", author: "Unknown", externalId: "one-local-hit",
   }], "harry potter", 20), false);
 });
+

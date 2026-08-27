@@ -122,7 +122,7 @@ function mapLibraryRow(row) {
     skipGoogleBooksEnrichment: bookSource !== "google_books",
     coverUrl:
       bookSource === "google_books"
-        ? getPreferredGoogleBooksCoverUrl(row.books.cover_url, row.books.isbn)
+        ? getPreferredGoogleBooksCoverUrl(row.books.cover_url)
         : row.books.cover_url || "",
   };
 }

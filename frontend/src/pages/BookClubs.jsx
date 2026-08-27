@@ -7,10 +7,7 @@ import {
 import { requireSupabase } from "../lib/supabase";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useRequireLogin } from "../hooks/useRequireLogin";
-import {
-  getGoogleBooksCoverUrl,
-} from "../lib/googleBooks";
-import { getOpenLibraryIsbnCoverUrl } from "../lib/openLibraryBooks";
+import BookCoverImage from "../components/BookCoverImage";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
 import {
   applyBookModerationUpdate,
@@ -45,21 +42,6 @@ function getDefaultSchedule(duration = "4 weeks") {
     { week: "Week 3", milestone: "Deepen", pages: "Middle section", note: "Discuss characters, conflict, and pace." },
     { week: "Week 4", milestone: "Close", pages: "Final pages", note: `Finish, reflect, and close the ${duration} circle.` },
   ];
-}
-
-function getCoverUrl(isbn, size = "L") {
-  return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
-}
-
-function hideBrokenCover(event, isbn) {
-  const fallbackUrl = getOpenLibraryIsbnCoverUrl(isbn);
-
-  if (fallbackUrl && event.currentTarget.src !== fallbackUrl) {
-    event.currentTarget.src = fallbackUrl;
-    return;
-  }
-
-  event.currentTarget.hidden = true;
 }
 
 function getClubActivityLabel(lastActivityAt) {
@@ -1450,15 +1432,11 @@ const filteredClubs = clubs.filter((club) => {
           </Link>
           <div className="club-locked-card">
             <div className="club-detail-cover" aria-hidden="true">
-              {lockedClub.isbn && (
-                <img
-                  src={lockedClub.coverUrl || getCoverUrl(lockedClub.isbn)}
-                  alt=""
-                  loading="lazy"
-                  onError={(event) => hideBrokenCover(event, lockedClub.isbn)}
-                />
-              )}
-              <span>{lockedClub.bookTitle}</span>
+              <BookCoverImage
+                src={lockedClub.coverUrl}
+                alt=""
+                loading="lazy"
+              />
             </div>
             <div>
               <p className="eyebrow">Join Required</p>
@@ -1482,14 +1460,11 @@ const filteredClubs = clubs.filter((club) => {
           </Link>
           <div className="club-room-heading">
             <div className="club-room-cover" aria-hidden="true">
-              {activeClub.isbn && (
-                <img
-                  src={activeClub.coverUrl || getCoverUrl(activeClub.isbn)}
-                  alt=""
-                  loading="lazy"
-                  onError={(event) => hideBrokenCover(event, activeClub.isbn)}
-                />
-              )}
+              <BookCoverImage
+                src={activeClub.coverUrl}
+                alt=""
+                loading="lazy"
+              />
             </div>
             <div>
               <p className="eyebrow">You Joined</p>
@@ -1761,14 +1736,11 @@ const filteredClubs = clubs.filter((club) => {
 {filteredClubs.map((club) => (
               <article className={`club-card ${club.tone}`} key={club.id}>
                 <div className="club-cover" aria-hidden="true">
-                  {club.isbn && (
-                    <img
-                      src={club.coverUrl || getCoverUrl(club.isbn)}
-                      alt=""
-                      loading="lazy"
-                      onError={(event) => hideBrokenCover(event, club.isbn)}
-                    />
-                  )}
+                  <BookCoverImage
+                    src={club.coverUrl}
+                    alt=""
+                    loading="lazy"
+                  />
                 </div>
                 <div className="club-card-copy">
                   <div className="club-card-heading">
@@ -1876,15 +1848,11 @@ const filteredClubs = clubs.filter((club) => {
             </button>
               <p className="eyebrow">Before You Join</p>
             <div className="club-detail-cover" aria-hidden="true">
-              {detailClub.isbn && (
-                <img
-                  src={detailClub.coverUrl || getCoverUrl(detailClub.isbn)}
-                  alt=""
-                  loading="lazy"
-                  onError={(event) => hideBrokenCover(event, detailClub.isbn)}
-                />
-              )}
-              <span>{detailClub.bookTitle}</span>
+              <BookCoverImage
+                src={detailClub.coverUrl}
+                alt=""
+                loading="lazy"
+              />
             </div>
             <h2 id="club-detail-title">{detailClub.title}</h2>
             <p>
@@ -2177,9 +2145,11 @@ const filteredClubs = clubs.filter((club) => {
                             }
                           }
                         >
-                          {book.coverUrl ? (
-                            <img src={book.coverUrl} alt="" loading="lazy" onError={(event) => hideBrokenCover(event, book.isbn)} />
-                          ) : null}
+                          <BookCoverImage
+                            src={book.coverUrl}
+                            alt=""
+                            loading="lazy"
+                          />
                           <strong>{book.title}</strong>
                           <small>
                             {book.author}
@@ -2307,15 +2277,11 @@ const filteredClubs = clubs.filter((club) => {
               </form>
               <aside className="create-club-preview" aria-label="Selected book preview">
                 <div className="club-detail-cover">
-                  {previewBook.isbn && (
-                    <img
-                      src={previewBook.coverUrl || getCoverUrl(previewBook.isbn)}
-                      alt=""
-                      loading="lazy"
-                      onError={(event) => hideBrokenCover(event, previewBook.isbn)}
-                    />
-                  )}
-                  <span>{previewBook.title}</span>
+                  <BookCoverImage
+                    src={previewBook.coverUrl}
+                    alt=""
+                    loading="lazy"
+                  />
                 </div>
                 <strong>{previewBook.title}</strong>
                 <small>{previewBook.author}</small>

@@ -6,9 +6,6 @@ import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import { addBookToLibrary } from "../lib/libraryApi";
 import {
-  fetchGoogleBooksCoverUrl,
-  getGoogleBooksCoverUrl,
-  getGoogleBooksVolumeCoverUrl,
   getPreferredGoogleBooksCoverUrl,
 } from "../lib/googleBooks";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
@@ -19,98 +16,32 @@ import {
 import { createLatestRequestGate } from "../lib/bookSearchRelevance";
 import { getBookSourceLabel } from "../lib/bookSource.js";
 import { submitBookSubmission } from "../lib/bookSubmissions";
-import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
 import {
-  getOpenLibraryIsbnCoverUrl,
-} from "../lib/openLibraryBooks";
+  enrichMissingBookCovers,
+  loadBookDetailsSafely,
+  loadProviderBookDetails,
+} from "../lib/bookDetails";
 import { getRecentFinishedBooks, saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
+import BookCoverImage from "../components/BookCoverImage";
 import BookModerationStatus from "../components/BookModerationStatus";
 import ReviewModal from "../components/ReviewModal";
 import StarRating from "../components/StarRating";
 import { createPost } from "../lib/postApi";
 import { getCatalogBookById } from "../lib/communityBooks";
 
-function getCoverUrl(isbn, size = "L") {
-  return getGoogleBooksCoverUrl(isbn, size === "M" ? 1 : 2);
-}
-
-function getEditorPickCoverCandidates(book, googleCoverUrl = "") {
-  return [
-    googleCoverUrl,
-    String(book?.coverUrl || "").trim(),
-    getGoogleBooksVolumeCoverUrl(book?.googleBooksId),
-    getCoverUrl(book?.isbn),
-    getOpenLibraryIsbnCoverUrl(book?.isbn),
-  ].filter((coverUrl, index, coverUrls) =>
-    coverUrl && coverUrls.indexOf(coverUrl) === index
-  );
-}
-
-function hideBrokenCover(event, isbn) {
-  const fallbackUrl = getOpenLibraryIsbnCoverUrl(isbn);
-
-  if (fallbackUrl && event.currentTarget.src !== fallbackUrl) {
-    event.currentTarget.src = fallbackUrl;
-    return;
-  }
-
-  event.currentTarget.hidden = true;
+function getEditorPickCoverUrl(book) {
+  return String(book?.coverUrl || "").trim();
 }
 
 function EditorPickCover({ book, featured = false }) {
-  const [coverCandidates, setCoverCandidates] = useState(() =>
-    getEditorPickCoverCandidates(book),
-  );
-  const [coverIndex, setCoverIndex] = useState(0);
-  const coverSrc = coverCandidates[coverIndex] || "";
-  const hasImage = Boolean(coverSrc);
-
-  useEffect(() => {
-    const nextCoverCandidates = getEditorPickCoverCandidates(book);
-    // Synchronize state when a different editor pick is rendered.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCoverCandidates(nextCoverCandidates);
-    setCoverIndex(0);
-  }, [book]);
-
-  useEffect(() => {
-    let ignore = false;
-
-    async function loadGoogleCover() {
-      const googleCoverUrl = await fetchGoogleBooksCoverUrl(book);
-      if (ignore || !googleCoverUrl) return;
-
-      const nextCoverCandidates = getEditorPickCoverCandidates(book, googleCoverUrl);
-      setCoverCandidates(nextCoverCandidates);
-      setCoverIndex(0);
-    }
-
-    void loadGoogleCover();
-
-    return () => {
-      ignore = true;
-    };
-  }, [book]);
-
-  function handleCoverError() {
-    setCoverIndex((currentIndex) => {
-      const nextIndex = currentIndex + 1;
-      return nextIndex < coverCandidates.length ? nextIndex : coverCandidates.length;
-    });
-  }
-
   return (
     <div className={featured ? "discovery-book-cover featured" : "discovery-book-cover"} aria-hidden="true">
-      {hasImage ? (
-        <img
-          src={coverSrc}
-          alt=""
-          loading="lazy"
-          onError={handleCoverError}
-        />
-      ) : null}
-      {!hasImage ? <span>{book.title}</span> : null}
+      <BookCoverImage
+        src={getEditorPickCoverUrl(book)}
+        alt=""
+        loading="lazy"
+      />
     </div>
   );
 }
@@ -191,11 +122,12 @@ function Discover() {
   const [submissionDraft, setSubmissionDraft] = useState(initialSubmissionDraft);
   const [submissionSaving, setSubmissionSaving] = useState(false);
   const [submissionError, setSubmissionError] = useState("");
+  const [resolvedEditorPicks, setResolvedEditorPicks] = useState(editorPicks);
   const submissionSentinelRef = useRef(null);
   const [floatingSubmissionUnlocked, setFloatingSubmissionUnlocked] =
     useState(false);
-  const featuredPick = editorPicks[0];
-  const supportingPicks = editorPicks.slice(1);
+  const featuredPick = resolvedEditorPicks[0];
+  const supportingPicks = resolvedEditorPicks.slice(1);
   const authoredRecommendationPosts = recommendationLists.filter(
     (list) => list.body,
   );
@@ -213,6 +145,18 @@ function Discover() {
     floatingSubmissionUnlocked &&
     query.trim() &&
     searchStatus === "success";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void enrichMissingBookCovers(editorPicks).then((enrichedPicks) => {
+      if (!cancelled) setResolvedEditorPicks(enrichedPicks);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const targetBookId = searchParams.get("bookId") || "";
@@ -439,7 +383,6 @@ function Discover() {
           bookId: savedLibraryBook.book.id,
           coverUrl: getPreferredGoogleBooksCoverUrl(
             book.coverUrl || savedLibraryBook.book.cover_url,
-            book.isbn || savedLibraryBook.book.isbn,
           ),
         });
         setReviewDraft({ rating: 5, review: "", visibility: "private" });
@@ -701,16 +644,11 @@ async function submitMissingBook(event) {
                   }
                 >
                   <div className="recent-finish-cover" aria-hidden="true">
-                    {(book.coverUrl || book.isbn) ? (
-                      <img
-                        src={book.coverUrl || getCoverUrl(book.isbn, "M")}
-                        alt=""
-                        loading="lazy"
-                        onError={(event) => hideBrokenCover(event, book.isbn)}
-                      />
-                    ) : (
-                      <span>{book.title}</span>
-                    )}
+                    <BookCoverImage
+                      src={book.coverUrl}
+                      alt=""
+                      loading="lazy"
+                    />
                   </div>
                   <div>
                     <strong>{book.title}</strong>
@@ -756,11 +694,11 @@ async function submitMissingBook(event) {
                           aria-label={`View details for ${book.title}`}
                         >
                           <div className="isbn-result-cover">
-                            {book.coverUrl ? (
-                              <img src={book.coverUrl} alt={`Cover of ${book.title}`} />
-                            ) : (
-                              <span>No cover available</span>
-                            )}
+                            <BookCoverImage
+                              src={book.coverUrl}
+                              alt={`Cover of ${book.title}`}
+                              decorative
+                            />
                           </div>
                           <div>
                             <p className="eyebrow">

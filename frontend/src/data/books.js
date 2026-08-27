@@ -67,6 +67,8 @@ export const editorPicks = [
     author: "James Baldwin",
     isbn: "9780345806567",
     googleBooksId: "F_raOixkiQ0C",
+    coverUrl:
+      "https://books.google.com/books/content?id=F_raOixkiQ0C&printsec=frontcover&img=1&zoom=2&source=gbs_api",
     readers: 28,
     blurb:
       "A precise, aching novel about love, shame, and the impossible rooms people build inside themselves.",

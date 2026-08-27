@@ -10,7 +10,7 @@ const unreadResetMigrationUrl = new URL(
   import.meta.url,
 );
 const publicAnnouncementMigrationUrl = new URL(
-  "../../supabase/migrations/202608260001_public_announcements.sql",
+  "../../supabase/migrations/202608260004_public_announcements.sql",
   import.meta.url,
 );
 const navbarUrl = new URL("../src/components/Navbar.jsx", import.meta.url);
@@ -178,7 +178,7 @@ test("navbar mailbox placement, bounded inbox, and accessibility are explicit", 
     readFile(navbarUrl, "utf8"), readFile(inboxUrl, "utf8"),
     readFile(navbarCssUrl, "utf8"), readFile(responsiveCssUrl, "utf8"),
   ]);
-  assert.match(navbar, /className="nav-school-actions"[\s\S]*<NotificationInbox[\s\S]*className="school-logo"/);
+  assert.match(navbar, /className="[^"]*nav-school-actions[^"]*"[\s\S]*<NotificationInbox[\s\S]*className="school-logo"/);
   assert.ok(navbar.indexOf('className="nav-search"') < navbar.indexOf('className="nav-login"'));
   assert.match(inbox, /aria-expanded=\{open\}/);
   assert.match(inbox, /event\.key === "Escape"/);

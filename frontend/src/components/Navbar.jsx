@@ -179,21 +179,21 @@ function Navbar() {
       />
     </NavLink>
 
-    <div className="nav-center">
-      <div className="nav-links">
-        {visibleNavItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
-            }
-          >
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </div>
+    <div className="nav-links">
+      {visibleNavItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className={({ isActive }) =>
+            isActive ? "nav-link active" : "nav-link"
+          }
+        >
+          <span>{item.label}</span>
+        </NavLink>
+      ))}
+    </div>
 
+    <div className="nav-school-actions nav-actions">
       <form
         className="nav-search"
         role="search"
@@ -224,9 +224,6 @@ function Navbar() {
           Sign in
         </NavLink>
       )}
-    </div>
-
-    <div className="nav-school-actions">
       {isLoggedIn && user?.id ? <NotificationInbox userId={user.id} /> : null}
 
       {adminRole ? (

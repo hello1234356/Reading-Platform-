@@ -25,10 +25,7 @@ import {
 } from "../lib/postApi";
 import { saveReview } from "../lib/reviewApi";
 import BookDetailModal from "../components/BookDetailModal";
-import {
-  getGoogleBooksCoverUrl,
-  getPreferredGoogleBooksCoverUrl,
-} from "../lib/googleBooks";
+import { getPreferredGoogleBooksCoverUrl } from "../lib/googleBooks";
 import { loadBookDetailsSafely, loadProviderBookDetails } from "../lib/bookDetails";
 import StarRating, { RatingPicker } from "../components/StarRating";
 import UserAvatar from "../components/UserAvatar";
@@ -43,6 +40,8 @@ import ModerationBlockedCard from "../components/ModerationBlockedCard";
 import { resolveSocialTarget } from "../lib/socialTargets";
 import RecoveringBookCoverImage from "../components/RecoveringBookCoverImage";
 import HomepageSpotlightCarousel from "../components/HomepageSpotlightCarousel";
+import BookCoverImage from "../components/BookCoverImage";
+import BookCoverPlaceholder from "../components/BookCoverPlaceholder";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -165,10 +164,6 @@ const dailyLiteraryQuotes = [
   },
 ];
 
-function getCoverUrl(isbn) {
-  return getGoogleBooksCoverUrl(isbn);
-}
-
 function saveProfileReview(review) {
   try {
     const savedReviews = JSON.parse(localStorage.getItem(PROFILE_REVIEWS_KEY));
@@ -242,7 +237,7 @@ function getShelfLabel(shelf) {
 function getBookCoverSource(book) {
   if (!book) return "";
 
-  return getPreferredGoogleBooksCoverUrl(book.coverUrl, book.isbn);
+  return getPreferredGoogleBooksCoverUrl(book.coverUrl);
 }
 
 function getDailyLiteraryQuote(date = new Date()) {
@@ -1206,7 +1201,7 @@ function Home() {
       pagesRead: 0,
       totalPages: "",
       finished: false,
-      coverUrl: getCoverUrl(selectedBook.isbn),
+      coverUrl: "",
     };
 
     try {
@@ -1216,7 +1211,7 @@ function Home() {
           title: selectedBook.title,
           author: selectedBook.author,
           isbn: selectedBook.isbn,
-          coverUrl: getCoverUrl(selectedBook.isbn),
+          coverUrl: "",
         },
         "currently-reading",
       );
@@ -1244,7 +1239,6 @@ function Home() {
         description: savedLibraryBook.book.description,
         coverUrl: getPreferredGoogleBooksCoverUrl(
           savedLibraryBook.book.cover_url,
-          savedLibraryBook.book.isbn || selectedBook.isbn,
         ),
       };
 
@@ -1448,7 +1442,7 @@ function Home() {
           title: finishingBook.title,
           author: finishingBook.author,
           isbn: finishingBook.isbn,
-          coverUrl: finishingBook.coverUrl || getCoverUrl(finishingBook.isbn),
+          coverUrl: finishingBook.coverUrl || "",
         },
         "read",
       );
@@ -1533,7 +1527,6 @@ function Home() {
         description: savedLibraryBook.book.description,
         coverUrl: getPreferredGoogleBooksCoverUrl(
           savedLibraryBook.book.cover_url,
-          savedLibraryBook.book.isbn || selectedBook.isbn,
         ),
       };
 
@@ -1867,7 +1860,7 @@ function Home() {
                 {trackedBooks.map((book) => (
                   <article className="tracked-book-entry" key={getTrackedBookKey(book)}>
                     <div className="tracked-book-card home-tracked-book">
-                      <img src={book.coverUrl || getCoverUrl(book.isbn)} alt="" loading="lazy" />
+                      <BookCoverImage src={book.coverUrl} alt="" loading="lazy" />
                       <div>
                         <p>{book.author}</p>
                         <strong>{book.title}</strong>
@@ -2091,7 +2084,7 @@ function Home() {
                       src={post.coverUrl}
                       alt=""
                       loading="lazy"
-                      fallback={<span>{post.book}</span>}
+                      fallback={<BookCoverPlaceholder decorative />}
                       onRepaired={(repairedCoverUrl) => {
                         setPosts((currentPosts) => currentPosts.map((currentPost) => (
                           currentPost.bookId === post.bookId
@@ -2742,7 +2735,7 @@ function Home() {
                 <div className="modal-preview">
                   <div className="tracked-cover" aria-hidden="true">
                     {selectedComposerBook ? (
-                      <img
+                      <BookCoverImage
                         src={getBookCoverSource(selectedComposerBook)}
                         alt=""
                         loading="lazy"

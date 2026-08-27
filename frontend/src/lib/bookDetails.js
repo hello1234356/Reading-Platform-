@@ -37,3 +37,24 @@ export async function loadBookDetailsSafely(book, loadDetails) {
     };
   }
 }
+
+export async function enrichMissingBookCovers(
+  books = [],
+  loadDetails = loadProviderBookDetails,
+) {
+  return Promise.all(
+    books.map(async (book) => {
+      if (String(book?.coverUrl || "").trim()) return book;
+
+      const result = await loadBookDetailsSafely(book, loadDetails);
+      const coverUrl = String(result.details?.coverUrl || "").trim();
+      if (!coverUrl) return book;
+
+      return {
+        ...result.details,
+        ...book,
+        coverUrl,
+      };
+    }),
+  );
+}

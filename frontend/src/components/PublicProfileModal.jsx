@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getPublicProfile } from "../lib/publicProfileApi";
 import { getPublicDisplayName } from "../lib/identity";
+import BookCoverImage from "./BookCoverImage";
 
 export default function PublicProfileModal({
   userId,
@@ -160,15 +161,12 @@ export default function PublicProfileModal({
                         key={`${book.isbn}-${index}`}
                       >
                         <div className="public-profile-cover">
-                          {book.coverUrl ? (
-                            <img
-                              src={book.coverUrl}
-                              alt={`Cover of ${book.title}`}
-                              loading="lazy"
-                            />
-                          ) : (
-                            <span>No cover</span>
-                          )}
+                          <BookCoverImage
+                            src={book.coverUrl}
+                            alt={`Cover of ${book.title}`}
+                            decorative
+                            loading="lazy"
+                          />
                         </div>
 
                         <strong>{book.title}</strong>

@@ -136,7 +136,6 @@ function mapPost(row, currentUserId = null) {
     storedCoverUrl: book?.cover_url || "",
     coverUrl: getPreferredGoogleBooksCoverUrl(
       book?.cover_url,
-      book?.isbn,
     ),
     genre: book?.genre || "Reading",
 

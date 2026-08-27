@@ -1,41 +1,26 @@
-import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { recommendationLists } from "../data/recommendationLists";
-import { getGoogleBooksCoverUrl } from "../lib/googleBooks";
-
-function getCoverUrl(isbn) {
-  return getGoogleBooksCoverUrl(isbn);
-}
+import BookCoverImage from "../components/BookCoverImage";
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function getSectionCoverUrl(section) {
-  return section.coverUrl || getCoverUrl(section.isbn);
+  return String(section.coverUrl || "").trim();
 }
 
 function SectionCover({ section }) {
-  const [coverFailed, setCoverFailed] = useState(false);
   const coverUrl = getSectionCoverUrl(section);
   const title = section.title || section.heading;
 
-  if (coverUrl && !coverFailed) {
-    return (
-      <img
-        src={coverUrl}
-        alt={`${title} cover`}
-        loading="lazy"
-        onError={() => setCoverFailed(true)}
-      />
-    );
-  }
-
   return (
-    <div className="era-cover-title-card">
-      <strong>{title}</strong>
-      {section.author ? <small>{section.author}</small> : null}
-    </div>
+    <BookCoverImage
+      src={coverUrl}
+      alt={`${title} cover`}
+      decorative
+      loading="lazy"
+    />
   );
 }
 

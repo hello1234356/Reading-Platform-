@@ -20,10 +20,7 @@ function mapReview(row) {
     externalId: row.books?.external_id || "",
     googleBooksId:
       row.books?.source === "google_books" ? row.books.external_id || "" : "",
-    coverUrl: getPreferredGoogleBooksCoverUrl(
-      row.books?.cover_url,
-      row.books?.isbn,
-    ),
+    coverUrl: getPreferredGoogleBooksCoverUrl(row.books?.cover_url),
   };
 }
 
@@ -40,7 +37,7 @@ function mapFinishedBook(row) {
     externalId: row.external_id || "",
     coverUrl:
       source === "google_books"
-        ? getPreferredGoogleBooksCoverUrl(row.cover_url, row.isbn)
+        ? getPreferredGoogleBooksCoverUrl(row.cover_url)
         : row.cover_url || row.books?.cover_url || "",
     rating: row.rating == null ? null : Number(row.rating),
     progress: Number(row.progress ?? 100),
