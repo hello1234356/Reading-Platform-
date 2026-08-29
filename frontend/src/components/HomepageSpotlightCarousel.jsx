@@ -106,7 +106,14 @@ function SpotlightLink({ url, children, tabIndex }) {
 
   if (!isInternal) {
     return (
-      <a className="primary-button homepage-spotlight-cta" href={url} tabIndex={tabIndex} onClick={(event) => event.stopPropagation()}>
+      <a
+        className="primary-button homepage-spotlight-cta"
+        href={url}
+        tabIndex={tabIndex}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(event) => event.stopPropagation()}
+      >
         <span className="homepage-spotlight-cta-label">{children}</span>
       </a>
     );
