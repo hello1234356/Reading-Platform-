@@ -33,6 +33,8 @@ const emptyBanner = {
   overlayStrength: "medium",
   ctaLabel: "",
   ctaUrl: "",
+  actionType: "none",
+  actionTarget: "",
   sortOrder: 0,
   status: "draft",
   startsAt: "",
@@ -81,6 +83,15 @@ function validateBanner(banner, imageFile) {
   }
   if (banner.ctaUrl && !banner.ctaUrl.startsWith("/") && !/^https?:\/\//i.test(banner.ctaUrl)) {
     return "CTA destinations must be an internal path beginning with / or a full HTTP(S) URL.";
+  }
+  if (banner.actionType !== "none" && !banner.actionTarget.trim()) {
+    return "Add a target for the banner click action.";
+  }
+  if (banner.actionType === "url" && !/^https?:\/\//i.test(banner.actionTarget)) {
+    return "External banner actions need a full HTTP(S) URL.";
+  }
+  if (banner.actionType === "internal" && !banner.actionTarget.startsWith("/")) {
+    return "Internal banner actions need a path beginning with /.";
   }
   if (banner.startsAt && banner.endsAt && new Date(banner.endsAt) <= new Date(banner.startsAt)) {
     return "Show until must be later than show from.";
@@ -309,6 +320,8 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
             <h3>CTA and publishing</h3>
             <Field label="Button label"><input value={banner.ctaLabel} maxLength="60" onChange={(event) => update("ctaLabel", event.target.value)} /></Field>
             <Field label="Destination" hint="Use /discover, /profile, /clubs, /admin, or a full https:// URL."><input value={banner.ctaUrl} placeholder="/discover" onChange={(event) => update("ctaUrl", event.target.value)} /></Field>
+            <Field label="Whole-banner action"><select value={banner.actionType} onChange={(event) => update("actionType", event.target.value)}><option value="none">None</option><option value="internal">Internal page</option><option value="url">External URL</option><option value="modal">LitShelf modal</option></select></Field>
+            {banner.actionType !== "none" ? <Field label="Action target" hint={banner.actionType === "modal" ? "Festival campaign: festival-book-submission" : "Enter the internal path or full URL."}><input value={banner.actionTarget} placeholder={banner.actionType === "modal" ? "festival-book-submission" : "/discover"} onChange={(event) => update("actionTarget", event.target.value)} /></Field> : null}
             <Field label="Status"><select value={banner.status} onChange={(event) => update("status", event.target.value)}><option value="draft">Draft</option><option value="published">Published</option></select></Field>
             <Field label="Show from"><input type="datetime-local" value={banner.startsAt} onChange={(event) => update("startsAt", event.target.value)} /></Field>
             <Field label="Show until"><input type="datetime-local" value={banner.endsAt} onChange={(event) => update("endsAt", event.target.value)} /></Field>

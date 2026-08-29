@@ -43,6 +43,7 @@ import RecoveringBookCoverImage from "../components/RecoveringBookCoverImage";
 import HomepageSpotlightCarousel from "../components/HomepageSpotlightCarousel";
 import BookCoverImage from "../components/BookCoverImage";
 import BookCoverPlaceholder from "../components/BookCoverPlaceholder";
+import FestivalBookSubmissionModal from "../components/FestivalBookSubmissionModal";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -447,6 +448,7 @@ function Home() {
   const [modalShelf, setModalShelf] = useState("to-be-read");
   const [addingBook, setAddingBook] = useState(false);
   const [bookAdded, setBookAdded] = useState(false);
+  const [isFestivalSubmissionOpen, setIsFestivalSubmissionOpen] = useState(false);
   const [posts, setPosts] = useState([]);
   const [feedPage, setFeedPage] = useState(1);
   const [feedTotalCount, setFeedTotalCount] = useState(0);
@@ -1937,6 +1939,10 @@ function Home() {
       <HomepageSpotlightCarousel
         dailyQuote={dailyQuote}
         onFallbackAction={() => openComposer()}
+        onBannerModalAction={(target) => {
+          if (target !== "festival-book-submission" || !requireLogin()) return;
+          setIsFestivalSubmissionOpen(true);
+        }}
       />
 
       <section
@@ -3122,6 +3128,12 @@ function Home() {
           </>
         }
       />
+      {isFestivalSubmissionOpen && user?.id ? (
+        <FestivalBookSubmissionModal
+          userId={user.id}
+          onClose={() => setIsFestivalSubmissionOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

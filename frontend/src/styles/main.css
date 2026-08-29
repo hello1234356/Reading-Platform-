@@ -4,6 +4,7 @@
 @import "../components/Navbar.css";
 @import "../components/HomepageSpotlightCarousel.css";
 @import "../components/HomepageBannerAdmin.css";
+@import "../components/FestivalBookSubmissionModal.css";
 @import "../pages/Discover.css";
 @import "../pages/Home.css";
 @import "../pages/BookClubs.css";
