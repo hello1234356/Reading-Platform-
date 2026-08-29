@@ -40,8 +40,6 @@ const storedBanner = {
   overlay_strength: "strong",
   cta_label: "Explore Books",
   cta_url: "/discover",
-  action_type: "modal",
-  action_target: "festival-book-submission",
   sort_order: 2,
   status: "published",
 };
@@ -58,8 +56,6 @@ test("homepage banner normalization preserves custom color, zoom, crop, and typo
   assert.equal(banner.fontFamily, "classic_serif");
   assert.equal(banner.textSize, "huge");
   assert.equal(banner.textAlignment, "right");
-  assert.equal(banner.actionType, "modal");
-  assert.equal(banner.actionTarget, "festival-book-submission");
 });
 
 test("existing banner rows default image zoom to one", () => {
@@ -75,15 +71,6 @@ test("homepage banner serialization persists custom color and image zoom", () =>
   assert.equal(row.mobile_image_path, "admin/banner-mobile.webp");
   assert.equal(row.mobile_image_position_x, 28);
   assert.equal(row.mobile_image_position_y, 72);
-  assert.equal(row.action_type, "modal");
-  assert.equal(row.action_target, "festival-book-submission");
-});
-
-test("legacy banners remain inert while configured banners preserve generic actions", () => {
-  const legacy = mapHomepageBanner({ ...storedBanner, action_type: null, action_target: null });
-  assert.equal(legacy.actionType, "none");
-  assert.equal(legacy.actionTarget, "");
-  assert.equal(toHomepageBannerRow(legacy).action_target, null);
 });
 
 test("mobile banner imagery and focal points remain optional", () => {

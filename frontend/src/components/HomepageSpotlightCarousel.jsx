@@ -25,7 +25,7 @@ const textColors = {
   black: "#211d1a",
 };
 
-export function HomepageSpotlightSlide({ banner, active = true, loadImage = true, previewMode = "", onAction }) {
+export function HomepageSpotlightSlide({ banner, active = true, loadImage = true, previewMode = "" }) {
   const [failedImageUrl, setFailedImageUrl] = useState("");
   const color = banner.textColor === "custom"
     ? banner.customTextColor
@@ -37,24 +37,11 @@ export function HomepageSpotlightSlide({ banner, active = true, loadImage = true
     ? banner.mobileImageUrl || banner.imageUrl
     : banner.imageUrl;
   const renderedImageUrl = previewMode ? previewImageUrl : banner.imageUrl;
-  const isActionable = Boolean(onAction && banner.actionType !== "none" && banner.actionTarget);
-
-  function activateBanner(event) {
-    if (!isActionable || !active) return;
-    if (event.type === "keydown" && event.key !== "Enter" && event.key !== " ") return;
-    if (event.type === "keydown") event.preventDefault();
-    onAction(banner);
-  }
 
   return (
     <article
-      className={`homepage-spotlight-slide align-${banner.textAlignment} vertical-${banner.textVerticalPosition} overlay-${banner.overlayStrength} font-${banner.fontFamily} size-${banner.textSize} text-${banner.textColor}${isActionable ? " actionable" : ""}`}
+      className={`homepage-spotlight-slide align-${banner.textAlignment} vertical-${banner.textVerticalPosition} overlay-${banner.overlayStrength} font-${banner.fontFamily} size-${banner.textSize} text-${banner.textColor}`}
       aria-hidden={!active}
-      aria-label={isActionable ? banner.headline || banner.eyebrow || "Open banner" : undefined}
-      role={isActionable ? "button" : undefined}
-      tabIndex={isActionable && active ? 0 : undefined}
-      onClick={activateBanner}
-      onKeyDown={activateBanner}
       style={{ "--spotlight-text-color": color }}
     >
       {loadImage && failedImageUrl !== renderedImageUrl && renderedImageUrl ? (
@@ -163,8 +150,7 @@ function QuoteSpotlightSlide({ dailyQuote, onAction, active = true }) {
   );
 }
 
-function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction, onBannerModalAction }) {
-  const navigate = useNavigate();
+function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
   const [banners, setBanners] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [trackIndex, setTrackIndex] = useState(1);
@@ -175,16 +161,6 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction, onBannerModal
   const [reducedMotion, setReducedMotion] = useState(false);
   const touchStart = useRef(null);
   const slides = createHomepageSlides(banners);
-
-  function handleBannerAction(banner) {
-    if (banner.actionType === "internal" && banner.actionTarget.startsWith("/")) {
-      navigate(banner.actionTarget);
-    } else if (banner.actionType === "url" && /^https?:\/\//i.test(banner.actionTarget)) {
-      window.location.assign(banner.actionTarget);
-    } else if (banner.actionType === "modal") {
-      onBannerModalAction?.(banner.actionTarget);
-    }
-  }
 
   const goToSlide = useCallback((index, manual = true) => {
     const nextIndex = wrapCarouselIndex(index, slides.length);
@@ -273,7 +249,6 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction, onBannerModal
       <HomepageSpotlightSlide
         banner={slide}
         active={active}
-        onAction={handleBannerAction}
         loadImage={cloneKey !== ""
           || index === activeIndex
           || index === getNextCarouselIndex(activeIndex, slides.length)

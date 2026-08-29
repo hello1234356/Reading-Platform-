@@ -24,7 +24,6 @@ import { useAuth } from "../hooks/useAuth";
 import HomepageBannerAdmin from "../components/HomepageBannerAdmin";
 import { requireSupabase } from "../lib/supabase";
 import BookCoverImage from "../components/BookCoverImage";
-import FestivalRecommendationAdmin from "../components/FestivalRecommendationAdmin";
 
 const moderationFilters = ["pending", "concerning", "dismissed", "resolved", "all"];
 const submissionFilters = ["pending", "approved", "rejected"];
@@ -71,7 +70,7 @@ function getModerationErrorMessage(error) {
 }
 
 function AdminTabs({ activeTab, onChange, isOwner }) {
-  const tabs = ["moderation", "books", "book-ai", "clubs", "festival", "banners", "announcements"];
+  const tabs = ["moderation", "books", "book-ai", "clubs", "banners", "announcements"];
   if (isOwner) tabs.push("admins");
 
   return (
@@ -91,8 +90,6 @@ function AdminTabs({ activeTab, onChange, isOwner }) {
               ? "Club Activity"
               : tab === "banners"
                 ? "Homepage Banners"
-              : tab === "festival"
-                ? "Festival"
               : titleCase(tab)}
         </button>
       ))}
@@ -1296,7 +1293,6 @@ function Admin() {
       {activeTab === "books" ? <BookVerificationTab isOwner={isOwner} /> : null}
       {activeTab === "book-ai" ? <BookAiModerationTab /> : null}
       {activeTab === "clubs" ? <ClubActivityTab /> : null}
-      {activeTab === "festival" ? <FestivalRecommendationAdmin /> : null}
       {activeTab === "banners" ? <HomepageBannerAdmin /> : null}
       {activeTab === "announcements" ? <AnnouncementsTab /> : null}
       {activeTab === "admins" && isOwner ? <AdminManagementTab /> : null}

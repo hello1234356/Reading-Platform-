@@ -37,12 +37,6 @@
   background: #f4ede3;
 }
 
-.homepage-spotlight-slide.actionable { cursor: pointer; }
-.homepage-spotlight-slide.actionable:focus-visible {
-  outline: 3px solid var(--butter);
-  outline-offset: -5px;
-}
-
 .homepage-spotlight-slide.homepage-quote-slide {
   padding: clamp(26px, 4.6vw, 54px) clamp(28px, 6vw, 76px);
   background: transparent;

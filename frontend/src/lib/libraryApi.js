@@ -133,15 +133,20 @@ function mapLibraryRow(row) {
   };
 }
 
-export async function materializeBookRecord(userId, book) {
+export async function addBookToLibrary(userId, book, targetShelf = null) {
   if (!userId) {
-    throw new Error("You must be logged in to use this book.");
+    throw new Error("You must be logged in to save a book.");
   }
 
   const supabase = requireSupabase();
   const normalizedIsbn = normalizeIsbn(book.isbn);
+  const nextShelf = targetShelf || null;
   const internalBookId = getInternalBookId(book);
   let providerIdentity = getProviderIdentity(book, normalizedIsbn);
+
+  if (!allowedShelves.includes(nextShelf)) {
+    throw new Error("That shelf is not valid.");
+  }
 
   let savedBook = null;
 
@@ -222,22 +227,7 @@ export async function materializeBookRecord(userId, book) {
     savedBook = insertedBook;
   }
 
-  return persistMaterializedBookMetadata(savedBook, book);
-}
-
-export async function addBookToLibrary(userId, book, targetShelf = null) {
-  if (!userId) {
-    throw new Error("You must be logged in to save a book.");
-  }
-
-  const nextShelf = targetShelf || null;
-
-  if (!allowedShelves.includes(nextShelf)) {
-    throw new Error("That shelf is not valid.");
-  }
-
-  const supabase = requireSupabase();
-  const savedBook = await materializeBookRecord(userId, book);
+  savedBook = await persistMaterializedBookMetadata(savedBook, book);
 
   /*
    * Then connect that book to this user's personal library.
