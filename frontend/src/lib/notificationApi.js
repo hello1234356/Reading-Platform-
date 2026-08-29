@@ -5,8 +5,13 @@ const NOTIFICATION_LIMIT = 30;
 
 export function safeNotificationTarget(value) {
   const target = String(value || "").trim();
-  return target.startsWith("/") && !target.startsWith("//") && target.length <= 500
-    ? target : "";
+  const isInternal = target.startsWith("/") && !target.startsWith("//");
+  const isExternal = /^https?:\/\//i.test(target);
+  return target.length <= 500 && (isInternal || isExternal) ? target : "";
+}
+
+export function isExternalNotificationTarget(value) {
+  return /^https?:\/\//i.test(String(value || "").trim());
 }
 
 export function formatNotificationTime(value, now = Date.now()) {

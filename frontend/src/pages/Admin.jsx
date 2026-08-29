@@ -24,6 +24,7 @@ import { useAuth } from "../hooks/useAuth";
 import HomepageBannerAdmin from "../components/HomepageBannerAdmin";
 import { requireSupabase } from "../lib/supabase";
 import BookCoverImage from "../components/BookCoverImage";
+import { safeNotificationTarget } from "../lib/notificationApi";
 
 const moderationFilters = ["pending", "concerning", "dismissed", "resolved", "all"];
 const submissionFilters = ["pending", "approved", "rejected"];
@@ -1029,8 +1030,8 @@ function AnnouncementsTab() {
   async function sendAnnouncement(event) {
     event.preventDefault();
     const target = draft.targetUrl.trim();
-    if (target && (!target.startsWith("/") || target.startsWith("//"))) {
-      setMessage("Destination must be an internal path such as /discover.");
+    if (target && safeNotificationTarget(target) !== target) {
+      setMessage("Link must be an internal path or an HTTP(S) URL.");
       return;
     }
 
@@ -1148,8 +1149,8 @@ function AnnouncementsTab() {
               onChange={(event) => updateDraft("body", event.target.value)} />
           </label>
           <label>
-            <span>Optional destination</span>
-            <input value={draft.targetUrl} maxLength="500" placeholder="/discover"
+            <span>Optional link or destination</span>
+            <input value={draft.targetUrl} maxLength="500" placeholder="/discover or https://example.com"
               onChange={(event) => updateDraft("targetUrl", event.target.value)} />
           </label>
           {mode === "everyone" ? (

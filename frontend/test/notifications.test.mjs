@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { formatNotificationTime, safeNotificationTarget } from "../src/lib/notificationApi.js";
+import {
+  formatNotificationTime,
+  isExternalNotificationTarget,
+  safeNotificationTarget,
+} from "../src/lib/notificationApi.js";
 import { getNotificationPanelHeight } from "../src/lib/notificationLayout.js";
 
 const migrationUrl = new URL("../../supabase/migrations/202608250005_notifications.sql", import.meta.url);
@@ -17,6 +21,10 @@ const socialInteractionMigrationUrl = new URL(
   "../../supabase/migrations/202608270001_social_interaction_notifications.sql",
   import.meta.url,
 );
+const externalDestinationsMigrationUrl = new URL(
+  "../../supabase/migrations/202608290002_external_notification_destinations.sql",
+  import.meta.url,
+);
 const navbarUrl = new URL("../src/components/Navbar.jsx", import.meta.url);
 const inboxUrl = new URL("../src/components/NotificationInbox.jsx", import.meta.url);
 const navbarCssUrl = new URL("../src/components/Navbar.css", import.meta.url);
@@ -27,11 +35,25 @@ const notificationApiUrl = new URL("../src/lib/notificationApi.js", import.meta.
 const adminApiUrl = new URL("../src/lib/adminApi.js", import.meta.url);
 const adminUrl = new URL("../src/pages/Admin.jsx", import.meta.url);
 
-test("notification destinations accept only bounded internal paths", () => {
+test("notification destinations accept bounded internal paths and HTTP(S) URLs", () => {
   assert.equal(safeNotificationTarget("/discover?search=history"), "/discover?search=history");
+  assert.equal(safeNotificationTarget("https://example.com/books"), "https://example.com/books");
+  assert.equal(safeNotificationTarget("http://example.com"), "http://example.com");
+  assert.equal(isExternalNotificationTarget("https://example.com"), true);
+  assert.equal(isExternalNotificationTarget("/discover"), false);
   assert.equal(safeNotificationTarget("javascript:alert(1)"), "");
   assert.equal(safeNotificationTarget("//evil.example"), "");
   assert.equal(safeNotificationTarget(`/${"a".repeat(501)}`), "");
+});
+
+test("database destination validation accepts only internal paths and HTTP(S) links", async () => {
+  const sql = await readFile(externalDestinationsMigrationUrl, "utf8");
+  assert.match(sql, /p_target like '\/%' and p_target not like '\/\/%'/);
+  assert.match(sql, /p_target ~\* '\^https\?:\/\/'/);
+  assert.match(sql, /char_length\(p_target\) <= 500/);
+  assert.match(sql, /public\.save_public_announcement/);
+  assert.match(sql, /public\.send_targeted_admin_notification/);
+  assert.doesNotMatch(sql, /create table|drop table|alter column/i);
 });
 
 test("notification relative timestamps remain deterministic", () => {
@@ -240,7 +262,15 @@ test("notification clicks persist read state before navigating", async () => {
   const inbox = await readFile(inboxUrl, "utf8");
   const handler = inbox.match(/async function openNotification\(item\) \{([\s\S]*?)\n  \}/)?.[1] || "";
   assert.ok(handler.indexOf("await markNotificationRead(item)") < handler.indexOf("navigate(item.targetUrl)"));
+  assert.match(handler, /window\.open\(item\.targetUrl, "_blank", "noopener,noreferrer"\)/);
+  assert.match(handler, /isExternalNotificationTarget\(item\.targetUrl\)/);
   assert.match(handler, /setUnreadCount\(\(count\) => Math\.max\(0, count - 1\)\)/);
+});
+
+test("Admin labels notification destinations as links or destinations", async () => {
+  const admin = await readFile(adminUrl, "utf8");
+  assert.match(admin, /Optional link or destination/);
+  assert.match(admin, /placeholder="\/discover or https:\/\/example\.com"/);
 });
 
 test("feed deep links wait for data, reveal comments, scroll, and fail safely", async () => {

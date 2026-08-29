@@ -5,6 +5,7 @@ import {
   formatNotificationTime,
   getNotifications,
   getUnreadNotificationCount,
+  isExternalNotificationTarget,
   markAllNotificationsRead,
   markNotificationRead,
   subscribeToNotifications,
@@ -121,7 +122,13 @@ function NotificationInbox({ userId }) {
       catch (error) { console.error("Failed to mark notification read:", error); void refresh(); }
     }
     setOpen(false);
-    if (item.targetUrl) navigate(item.targetUrl);
+    if (item.targetUrl) {
+      if (isExternalNotificationTarget(item.targetUrl)) {
+        window.open(item.targetUrl, "_blank", "noopener,noreferrer");
+      } else {
+        navigate(item.targetUrl);
+      }
+    }
   }
 
   async function markAll() {
