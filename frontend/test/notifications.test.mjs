@@ -35,21 +35,25 @@ const notificationApiUrl = new URL("../src/lib/notificationApi.js", import.meta.
 const adminApiUrl = new URL("../src/lib/adminApi.js", import.meta.url);
 const adminUrl = new URL("../src/pages/Admin.jsx", import.meta.url);
 
-test("notification destinations accept bounded internal paths and HTTP(S) URLs", () => {
+test("notification destinations accept bounded internal paths and HTTPS URLs", () => {
   assert.equal(safeNotificationTarget("/discover?search=history"), "/discover?search=history");
   assert.equal(safeNotificationTarget("https://example.com/books"), "https://example.com/books");
-  assert.equal(safeNotificationTarget("http://example.com"), "http://example.com");
+  assert.equal(safeNotificationTarget("https://jsj.top/f/jeLNf1"), "https://jsj.top/f/jeLNf1");
+  assert.equal(safeNotificationTarget("http://example.com"), "");
+  assert.equal(safeNotificationTarget("https://"), "");
   assert.equal(isExternalNotificationTarget("https://example.com"), true);
   assert.equal(isExternalNotificationTarget("/discover"), false);
   assert.equal(safeNotificationTarget("javascript:alert(1)"), "");
+  assert.equal(safeNotificationTarget("data:text/html,unsafe"), "");
+  assert.equal(safeNotificationTarget("file:///tmp/private"), "");
   assert.equal(safeNotificationTarget("//evil.example"), "");
   assert.equal(safeNotificationTarget(`/${"a".repeat(501)}`), "");
 });
 
-test("database destination validation accepts only internal paths and HTTP(S) links", async () => {
+test("database destination validation accepts only internal paths and HTTPS links", async () => {
   const sql = await readFile(externalDestinationsMigrationUrl, "utf8");
   assert.match(sql, /p_target like '\/%' and p_target not like '\/\/%'/);
-  assert.match(sql, /p_target ~\* '\^https\?:\/\/'/);
+  assert.ok(sql.includes("p_target ~* '^https://[^/[:space:]?#]+([/?#].*)?$'"));
   assert.match(sql, /char_length\(p_target\) <= 500/);
   assert.match(sql, /public\.save_public_announcement/);
   assert.match(sql, /public\.send_targeted_admin_notification/);

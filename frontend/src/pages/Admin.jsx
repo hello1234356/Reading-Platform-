@@ -1031,7 +1031,7 @@ function AnnouncementsTab() {
     event.preventDefault();
     const target = draft.targetUrl.trim();
     if (target && safeNotificationTarget(target) !== target) {
-      setMessage("Link must be an internal path or an HTTP(S) URL.");
+      setMessage("Destination must be a LitShelf path or a valid HTTPS link.");
       return;
     }
 

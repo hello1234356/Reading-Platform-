@@ -12,7 +12,7 @@ as $$
     and char_length(p_target) <= 500
     and (
       (p_target like '/%' and p_target not like '//%')
-      or p_target ~* '^https?://'
+      or p_target ~* '^https://[^/[:space:]?#]+([/?#].*)?$'
     );
 $$;
 
@@ -60,7 +60,7 @@ begin
   end if;
   if normalized_target is not null
     and not public.is_safe_notification_destination(normalized_target) then
-    raise exception 'Link must be an internal path or an HTTP(S) URL.';
+    raise exception 'Destination must be a LitShelf path or a valid HTTPS link.';
   end if;
   if p_ends_at is not null and p_ends_at <= visible_from then
     raise exception 'Visible until must be later than visible from.';
@@ -133,7 +133,7 @@ begin
   end if;
   if normalized_target is not null
     and not public.is_safe_notification_destination(normalized_target) then
-    raise exception 'Link must be an internal path or an HTTP(S) URL.';
+    raise exception 'Destination must be a LitShelf path or a valid HTTPS link.';
   end if;
 
   insert into public.notifications (

@@ -6,12 +6,18 @@ const NOTIFICATION_LIMIT = 30;
 export function safeNotificationTarget(value) {
   const target = String(value || "").trim();
   const isInternal = target.startsWith("/") && !target.startsWith("//");
-  const isExternal = /^https?:\/\//i.test(target);
+  const isExternal = isExternalNotificationTarget(target);
   return target.length <= 500 && (isInternal || isExternal) ? target : "";
 }
 
 export function isExternalNotificationTarget(value) {
-  return /^https?:\/\//i.test(String(value || "").trim());
+  const target = String(value || "").trim();
+  if (!/^https:\/\//i.test(target)) return false;
+  try {
+    return new URL(target).protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export function formatNotificationTime(value, now = Date.now()) {
