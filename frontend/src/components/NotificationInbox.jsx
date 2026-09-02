@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import UserAvatar from "./UserAvatar";
 import {
   formatNotificationTime,
+  getLocalizedNotificationTitle,
   getNotifications,
   getUnreadNotificationCount,
   isExternalNotificationTarget,
@@ -24,6 +26,7 @@ function MailboxIcon() {
 
 function NotificationInbox({ userId }) {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const wrapperRef = useRef(null);
   const panelRef = useRef(null);
   const firstActionRef = useRef(null);
@@ -46,7 +49,7 @@ function NotificationInbox({ userId }) {
     } catch (error) {
       console.error("Failed to load notifications:", error);
       setStatus("error");
-      setMessage("Notifications are unavailable right now.");
+      setMessage(t("notifications.unavailable"));
     }
   }
 
@@ -141,7 +144,7 @@ function NotificationInbox({ userId }) {
   return (
     <div className="notification-mailbox" ref={wrapperRef}>
       <button className="notification-mailbox-button" type="button"
-        aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        aria-label={unreadCount ? t("notifications.unread", { count: unreadCount }) : t("notifications.title")}
         aria-haspopup="dialog" aria-expanded={open} aria-controls="notification-inbox-panel"
         onClick={() => setOpen((value) => !value)}>
         <MailboxIcon />
@@ -154,17 +157,17 @@ function NotificationInbox({ userId }) {
 
       {open ? (
         <section className="notification-inbox-panel" id="notification-inbox-panel" ref={panelRef}
-          role="dialog" aria-label="Notifications">
+          role="dialog" aria-label={t("notifications.title")}>
           <header className="notification-inbox-header">
-            <h2>Notifications</h2>
+            <h2>{t("notifications.title")}</h2>
             {unreadCount > 0 ? (
-              <button ref={firstActionRef} type="button" onClick={markAll}>Mark all as read</button>
+              <button ref={firstActionRef} type="button" onClick={markAll}>{t("notifications.markAll")}</button>
             ) : null}
           </header>
           {message ? <p className="notification-inbox-state" role="alert">{message}</p> : null}
-          {status === "loading" ? <p className="notification-inbox-state">Loading...</p> : null}
+          {status === "loading" ? <p className="notification-inbox-state">{t("notifications.loading")}</p> : null}
           {status === "ready" && items.length === 0 ? (
-            <p className="notification-inbox-state">You&apos;re all caught up.</p>
+            <p className="notification-inbox-state">{t("notifications.empty")}</p>
           ) : null}
           <div className="notification-inbox-list">
             {items.map((item) => (
@@ -178,11 +181,14 @@ function NotificationInbox({ userId }) {
                   <span className="notification-system-mark" aria-hidden="true"><MailboxIcon /></span>
                 )}
                 <span className="notification-inbox-copy">
-                  <strong>{item.title}</strong>
+                  <strong>{getLocalizedNotificationTitle(item, t)}</strong>
                   {item.body ? <span>{item.body}</span> : null}
-                  <time dateTime={item.createdAt}>{formatNotificationTime(item.createdAt)}</time>
+                  <time dateTime={item.createdAt}>{formatNotificationTime(item.createdAt, {
+                    t,
+                    locale: i18n.resolvedLanguage,
+                  })}</time>
                 </span>
-                {!item.isRead ? <span className="notification-unread-dot" aria-label="Unread" /> : null}
+                {!item.isRead ? <span className="notification-unread-dot" aria-label={t("notifications.unreadLabel")} /> : null}
               </button>
             ))}
           </div>

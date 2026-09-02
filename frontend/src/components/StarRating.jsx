@@ -54,19 +54,20 @@ function getRatingFill(rating, index) {
 }
 
 export function RatingPicker({ value, onChange }) {
+  const { t } = useTranslation();
   return (
-    <div className="star-rating-picker" role="group" aria-label="Choose rating">
+    <div className="star-rating-picker" role="group" aria-label={t("rating.choose")}>
       {[1, 2, 3, 4, 5].map((book) => (
         <span className="rating-picker-control" key={book}>
           <RatingBookIcon fill={getRatingFill(value, book)} size={28} />
           <button
             type="button"
-            aria-label={`${book - 0.5} open books`}
+            aria-label={t("rating.half", { rating: book - 0.5 })}
             onClick={() => onChange(book - 0.5)}
           />
           <button
             type="button"
-            aria-label={`${book} open books`}
+            aria-label={t("rating.full", { rating: book })}
             onClick={() => onChange(book)}
           />
         </span>
@@ -77,10 +78,11 @@ export function RatingPicker({ value, onChange }) {
 }
 
 function StarRating({ rating, size = 20 }) {
+  const { t } = useTranslation();
   const numericRating = Number(rating) || 0;
 
   return (
-    <div className="star-rating" aria-label={`${numericRating} out of 5 open books`}>
+    <div className="star-rating" aria-label={t("rating.outOf", { rating: numericRating })}>
       {[1, 2, 3, 4, 5].map((book) => (
         <RatingBookIcon fill={getRatingFill(numericRating, book)} key={book} size={size} />
       ))}
@@ -89,3 +91,4 @@ function StarRating({ rating, size = 20 }) {
 }
 
 export default StarRating;
+import { useTranslation } from "react-i18next";

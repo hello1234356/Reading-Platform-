@@ -1,5 +1,6 @@
 import { requireSupabase } from "./supabase.js";
 import { buildSocialTarget } from "./socialTargets.js";
+import { formatLocalizedRelativeTime } from "./relativeTime.js";
 
 const NOTIFICATION_LIMIT = 30;
 
@@ -20,18 +21,44 @@ export function isExternalNotificationTarget(value) {
   }
 }
 
-export function formatNotificationTime(value, now = Date.now()) {
-  const timestamp = new Date(value).getTime();
-  if (!Number.isFinite(timestamp)) return "";
-  const minutes = Math.max(0, Math.floor((now - timestamp) / 60000));
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days}d ago`;
-  return new Date(value).toLocaleDateString();
+export function formatNotificationTime(value, options = {}) {
+  return formatLocalizedRelativeTime(value, {
+    ...options,
+    variant: "notification",
+  });
+}
+
+export function getLocalizedNotificationTitle(notification, t) {
+  if (!notification || typeof t !== "function") return notification?.title || "";
+  const actor = notification.actor?.name || t("notifications.reader");
+
+  switch (notification.type) {
+    case "reply":
+      return t("notifications.replied", { actor });
+    case "comment":
+      return t("notifications.commented", { actor });
+    case "mention":
+      return t(notification.replyId
+        ? "notifications.mentionedReply"
+        : "notifications.mentionedComment", { actor });
+    case "reaction":
+      if (notification.targetType === "comment_like") {
+        return t(notification.replyId
+          ? "notifications.likedReply"
+          : "notifications.likedComment", { actor });
+      }
+      return t(notification.body
+        ? "notifications.likedReview"
+        : "notifications.likedPost", { actor });
+    case "book_submission_approved":
+      return t("notifications.bookApproved");
+    case "book_submission_rejected":
+      return t("notifications.bookRejected");
+    default:
+      // Admin-authored announcements and unknown future notification types are
+      // content, not LitShelf sentence templates, so preserve their title.
+      return notification.title || "";
+  }
 }
 
 function mapNotification(row) {

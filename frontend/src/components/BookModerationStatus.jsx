@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { reportBlockedBookModeration } from "../lib/bookModerationReports.js";
 import { getBookModerationPresentation } from "../lib/bookModerationStatus.js";
+import { useTranslation } from "react-i18next";
 
 function BookModerationStatus({ book, onRetry }) {
+  const { t } = useTranslation();
   const [reportState, setReportState] = useState("idle");
   const [retryState, setRetryState] = useState("idle");
   const presentation = getBookModerationPresentation(book);
@@ -53,7 +55,7 @@ function BookModerationStatus({ book, onRetry }) {
       {presentation.retryActionLabel && onRetry ? (
         <button className="book-moderation-retry-action" type="button"
           disabled={retryState === "retrying"} onClick={retryCheck}>
-          {retryState === "retrying" ? "Retrying…" : presentation.retryActionLabel}
+          {retryState === "retrying" ? t("moderation.retrying") : presentation.retryActionLabel}
         </button>
       ) : null}
       {presentation.reportActionLabel && reportState !== "sent" ? (
@@ -65,19 +67,19 @@ function BookModerationStatus({ book, onRetry }) {
             disabled={reportState === "sending"}
             onClick={reportDecision}
           >
-            {reportState === "sending" ? "Messaging the admin team…" : presentation.reportActionLabel}
+            {reportState === "sending" ? t("moderation.messagingAdmins") : presentation.reportActionLabel}
           </button>
           <span aria-hidden="true">.</span>
         </>
       ) : null}
       {reportState === "sent" ? (
-        <span className="book-moderation-report-confirmation"> Message sent to the admin team.</span>
+        <span className="book-moderation-report-confirmation"> {t("moderation.sentAdmins")}</span>
       ) : null}
       {reportState === "error" ? (
-        <span className="book-moderation-report-error"> Couldn&apos;t send that message. Try again.</span>
+        <span className="book-moderation-report-error"> {t("moderation.sendFailed")}</span>
       ) : null}
       {retryState === "error" ? (
-        <span className="book-moderation-report-error"> Retry couldn&apos;t start. Try again shortly.</span>
+        <span className="book-moderation-report-error"> {t("moderation.retryFailed")}</span>
       ) : null}
     </div>
   );

@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { requireSupabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import BookDetailModal from "../components/BookDetailModal";
@@ -53,9 +54,15 @@ function TrophyIcon() {
 }
 
 function Profile() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { shelfSlug } = useParams();
   const { user, isLoggedIn, loading } = useAuth();
+  const localizedProfileShelves = profileShelves.map((shelf) => ({
+    ...shelf,
+    label: shelf.slug === "read" ? t("search.read") : shelf.slug === "currently-reading" ? t("books.currentlyReading") : t("search.toBeRead"),
+    note: shelf.slug === "read" ? t("profile.readNote") : shelf.slug === "currently-reading" ? t("profile.currentNote") : t("profile.tbrNote"),
+  }));
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState("");
@@ -824,24 +831,24 @@ function Profile() {
   }
 
   if (loading || profileLoading) {
-    return <p>Loading profile...</p>;
+    return <p>{t("profile.loadingProfile")}</p>;
   }
 
   if (!isLoggedIn) {
     return (
-      <section className="home-page profile-page" aria-label="Personal profile">
+      <section className="home-page profile-page" aria-label={t("profile.personal")}>
         <header className="profile-hero">
           <div className="profile-photo" aria-hidden="true">?</div>
           <div>
-            <p className="eyebrow">Personal Profile</p>
-            <h1>Your Reading Journal</h1>
-            <p>Log in to see your shelves, notes, clubs, and reading progress.</p>
+            <p className="eyebrow">{t("profile.personal")}</p>
+            <h1>{t("profile.journal")}</h1>
+            <p>{t("profile.loginHelp")}</p>
             <button
               className="primary-button"
               type="button"
               onClick={() => navigate("/login")}
             >
-              Log in / Sign up
+              {t("profile.loginSignup")}
             </button>
           </div>
         </header>
@@ -852,8 +859,8 @@ function Profile() {
     return (
       <section className="home-page profile-page">
         <div className="error-panel">
-          <p className="eyebrow">Profile error</p>
-          <h1>We could not load your profile.</h1>
+          <p className="eyebrow">{t("profile.profileError")}</p>
+          <h1>{t("profile.loadOwnError")}</h1>
           <p>{profileError}</p>
         </div>
       </section>
@@ -890,7 +897,7 @@ function Profile() {
       ? Math.min(Math.round((booksRead / yearlyGoal) * 100), 100)
       : 0;
 
-  const activeShelf = profileShelves.find(
+  const activeShelf = localizedProfileShelves.find(
     (shelf) => shelf.slug === shelfSlug,
   );
 
@@ -912,13 +919,13 @@ function Profile() {
     return (
       <section className="home-page profile-page" aria-label={`${activeShelf.label} shelf`}>
         <Link className="blog-back-link" to="/profile">
-          Back to Profile
+          {t("profile.backProfile")}
         </Link>
 
         <header className="profile-shelf-page-header">
-          <p className="eyebrow">Private Library</p>
+          <p className="eyebrow">{t("profile.privateLibrary")}</p>
           <h1>{activeShelf.label}</h1>
-          <span>{books.length} books on this shelf</span>
+          <span>{t("profile.shelfCount", { count: books.length })}</span>
         </header>
 
         <div className="profile-book-grid">
@@ -938,11 +945,11 @@ function Profile() {
                 <div className="profile-book-popover">
                   <strong>{book.title}</strong>
                   <small>{book.author}</small>
-                  <p>{book.description || "No description available yet."}</p>
+                  <p>{book.description || t("profile.noDescription")}</p>
                 </div>
               </button>
               <label className="profile-shelf-select">
-                <span>Move to</span>
+                <span>{t("profile.moveTo")}</span>
                 <select
                   value={book.shelf || ""}
                   disabled={movingBookId === book.shelfEntryId}
@@ -957,13 +964,13 @@ function Profile() {
                   }}
                 >
 
-                  {profileShelves.map((shelf) => (
+                  {localizedProfileShelves.map((shelf) => (
                     <option value={shelf.slug} key={shelf.slug}>
                       {shelf.label}
                     </option>
                     
                   ))}
-                  <option value="remove">Remove from Library</option>
+                  <option value="remove">{t("profile.removeLibrary")}</option>
                 </select>
               </label>
               <div className="profile-book-actions">
@@ -974,7 +981,7 @@ function Profile() {
                     onClick={() => openReviewModal(book)}
                     disabled={movingBookId === book.shelfEntryId}
                   >
-                    {book.review ? "View / Edit Review" : "Add Review"}
+                    {book.review ? t("profile.editReview") : t("profile.addReview")}
                   </button>
                 ) : null}
                 <button
@@ -984,8 +991,8 @@ function Profile() {
                   disabled={movingBookId === book.shelfEntryId}
                 >
                   {movingBookId === book.shelfEntryId
-                    ? "Removing..."
-                    : "Remove from Library"}
+                    ? t("profile.removing")
+                    : t("profile.removeLibrary")}
                 </button>
               </div>
             </article>
@@ -1022,7 +1029,7 @@ function Profile() {
   }
 
   return (
-    <section className="home-page profile-page" aria-label="Personal profile">
+    <section className="home-page profile-page" aria-label={t("profile.personal")}>
       <header className="profile-hero">
         <div className="profile-banner">
           <div className="profile-identity">
@@ -1030,7 +1037,7 @@ function Profile() {
               {profile?.avatar_url ? (
                 <img
                   src={profile.avatar_url}
-                  alt={`${displayName}'s profile`}
+                  alt={t("profile.profileAlt", { name: displayName })}
                   loading="eager"
                 />
               ) : (
@@ -1040,7 +1047,7 @@ function Profile() {
               )}
             </div>
             <div className="profile-identity-copy">
-              <p className="eyebrow">Personal Profile</p>
+              <p className="eyebrow">{t("profile.personal")}</p>
               <FittedProfileName>{displayName}</FittedProfileName>
               <div className="profile-meta-row">
                 <span>
@@ -1058,13 +1065,13 @@ function Profile() {
                 type="button"
                 onClick={openEditProfile}
               >
-                Edit Profile
+                {t("profile.editProfile")}
               </button>
             </div>
           </div>
 
-          <div className="profile-favorites" aria-label="Four favorite books">
-            <p>Four Favorites</p>
+          <div className="profile-favorites" aria-label={t("profile.fourFavorites")}>
+            <p>{t("profile.fourFavorites")}</p>
             {selectedFavorites.length > 0 ? (
               <div>
                 {selectedFavorites.map((book) => (
@@ -1091,7 +1098,7 @@ function Profile() {
                     >
                       <BookCoverImage
                         src={book.coverUrl}
-                        alt={`Cover of ${book.title}`}
+                        alt={t("books.coverAlt", { title: book.title })}
                         decorative
                         loading="eager"
                       />
@@ -1102,7 +1109,7 @@ function Profile() {
                   <button
                     className="profile-favorite-add compact"
                     type="button"
-                    aria-label="Add another favorite book"
+                    aria-label={t("profile.addFavorite")}
                     onClick={() => setIsFavoritePickerOpen(true)}
                   >
                     +
@@ -1116,8 +1123,8 @@ function Profile() {
                 onClick={() => setIsFavoritePickerOpen(true)}
               >
                 <span className="profile-favorite-add" aria-hidden="true">+</span>
-                <strong>Add your four favorite books</strong>
-                <small>Search the ISBN database and pin the books that feel most like you.</small>
+                <strong>{t("profile.addFavorites")}</strong>
+                <small>{t("profile.favoritesHelp")}</small>
               </button>
             )}
           </div>
@@ -1127,21 +1134,21 @@ function Profile() {
           <span className="profile-challenge-icon">
             <TrophyIcon />
           </span>
-          <p className="eyebrow">2026 Reading Challenge</p>
+          <p className="eyebrow">{t("profile.readingChallenge", { year: new Date().getFullYear() })}</p>
           <h2>{booksRead} / {yearlyGoal}</h2>
-          <span>Books Completed</span>
+          <span>{t("profile.booksCompleted")}</span>
           <div className="profile-progress" aria-label={`${progress}% complete`}>
             <i style={{ width: `${progress}%` }} />
           </div>
-          <small>{progress}% Of This Year's Goal</small>
+          <small>{t("profile.goalProgress", { progress })}</small>
         </aside>
       </header>
 
-      <section className="profile-reading-tracker" aria-label="Reading progress tracker">
+      <section className="profile-reading-tracker" aria-label={t("profile.tracker")}>
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Reading Tracker</p>
-            <h2>Open Right Now</h2>
+            <p className="eyebrow">{t("profile.tracker")}</p>
+            <h2>{t("profile.openNow")}</h2>
           </div>
         </div>
 
@@ -1162,7 +1169,7 @@ function Profile() {
                 </button>
 
                 <div className="profile-tracker-copy">
-                  <small>{book.author || "Unknown author"}</small>
+                  <small>{book.author || t("common.unknownAuthor")}</small>
                   <strong>{book.title}</strong>
                   <div className="profile-tracker-progress">
                     <div
@@ -1176,7 +1183,7 @@ function Profile() {
                 </div>
 
                 <label className="profile-tracker-input">
-                  <span>Read</span>
+                  <span>{t("search.read")}</span>
                   <input
                     type="number"
                     min="0"
@@ -1187,48 +1194,48 @@ function Profile() {
                       changeBookProgress(book, "pagesRead", event.target.value)
                     }
                   />
-                  <small>pg</small>
+                  <small>{t("profile.pageAbbr")}</small>
                 </label>
 
                 <label className="profile-tracker-input">
-                  <span>Total</span>
+                  <span>{t("home.total")}</span>
                   <input
                     type="number"
                     min="1"
                     value={book.totalPages ?? ""}
-                    placeholder="Total"
+                    placeholder={t("home.total")}
                     disabled={progressBookId === book.shelfEntryId}
                     onChange={(event) =>
                       changeBookProgress(book, "totalPages", event.target.value)
                     }
                   />
-                  <small>pg</small>
+                  <small>{t("profile.pageAbbr")}</small>
                 </label>
               </article>
             ))}
           </div>
         ) : (
-          <p className="profile-empty">No Books Open Right Now</p>
+          <p className="profile-empty">{t("home.noOpenBooks")}</p>
         )}
       </section>
 
-      <section className="profile-shelf-overview" aria-label="Personal bookshelves">
+      <section className="profile-shelf-overview" aria-label={t("profile.personalShelves")}>
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Private Library</p>
-            <h2>Your Shelves</h2>
+            <p className="eyebrow">{t("profile.privateLibrary")}</p>
+            <h2>{t("profile.yourShelves")}</h2>
           </div>
         </div>
 
         <div className="profile-shelf-grid">
-          {profileShelves.map((shelf) => (
+          {localizedProfileShelves.map((shelf) => (
             <Link
               className={`profile-shelf-card ${shelf.tone}`}
               to={`/profile/shelves/${shelf.slug}`}
               key={shelf.label}
             >
               <span>{shelf.label}</span>
-              <strong>{databaseShelves[shelf.slug]?.length || 0} books</strong>
+              <strong>{t("profile.shelfBooks", { count: databaseShelves[shelf.slug]?.length || 0 })}</strong>
               <small>{shelf.note}</small>
               <div
                 className="profile-shelf-mini-books"
@@ -1246,17 +1253,17 @@ function Profile() {
         </div>
       </section>
 
-      <section className="profile-reviews" aria-label="Ratings and reviews">
+      <section className="profile-reviews" aria-label={t("profile.ratingsReviews")}>
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Reading Notes</p>
-            <h2>Ratings & Reviews</h2>
+            <p className="eyebrow">{t("home.readingNotes")}</p>
+            <h2>{t("profile.ratingsReviews")}</h2>
           </div>
         </div>
 
         <div className="profile-review-list">
           {reviewsLoading ? (
-            <p className="profile-empty">Loading reviews...</p>
+            <p className="profile-empty">{t("profile.loadingReviews")}</p>
           ) : reviewsError ? (
             <p className="profile-save-error">{reviewsError}</p>
           ) : visibleReviews.length > 0 ? (
@@ -1278,7 +1285,7 @@ function Profile() {
                   {review.rating == null ? (
                     <div
                       className="profile-review-stars profile-review-note-label"
-                      aria-label="Private note without rating"
+                      aria-label={t("profile.privateNote")}
                     >
                       Note
                     </div>
@@ -1296,7 +1303,7 @@ function Profile() {
                   <p>{review.author}</p>
                   <h3>{review.book}</h3>
                   <strong>
-                    {review.rating == null ? "Private note" : `${review.rating}/5`}
+                    {review.rating == null ? t("profile.privateNote") : `${review.rating}/5`}
                   </strong>
                   <small>{review.note}</small>
                 </section>
@@ -1304,7 +1311,7 @@ function Profile() {
             ))
           ) : (
             <p className="profile-empty">
-              You haven't reviewed any books yet.
+              {t("profile.noReviews")}
             </p>
           )}
         </div>
@@ -1315,10 +1322,10 @@ function Profile() {
               disabled={reviewPage === 0}
               onClick={() => setReviewPage((page) => Math.max(page - 1, 0))}
             >
-              Previous
+              {t("common.previous")}
             </button>
             <span>
-              Page {reviewPage + 1} of {reviewPageCount}
+              {t("home.pageOf", { page: reviewPage + 1, count: reviewPageCount })}
             </span>
             <button
               type="button"
@@ -1327,26 +1334,26 @@ function Profile() {
                 setReviewPage((page) => Math.min(page + 1, reviewPageCount - 1))
               }
             >
-              Next
+              {t("common.next")}
             </button>
           </div>
         ) : null}
       </section>
 
-      <section className="profile-clubs" aria-label="Your book clubs">
+      <section className="profile-clubs" aria-label={t("profile.yourClubs")}>
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Reading Circles</p>
-            <h2>Your Book Clubs</h2>
+            <p className="eyebrow">{t("profile.readingCircles")}</p>
+            <h2>{t("profile.yourClubs")}</h2>
           </div>
           <Link className="ghost-button" to="/clubs">
-            Browse Clubs
+            {t("profile.browseClubs")}
           </Link>
         </div>
 
         {clubsLoading ? (
   <p className="profile-empty">
-    Loading your book clubs...
+    {t("profile.loadingClubs")}
   </p>
 ) : clubsError ? (
   <p className="profile-save-error">
@@ -1388,7 +1395,7 @@ function Profile() {
   </div>
 ) : (
   <p className="profile-empty">
-    Your shelf is waiting for its first reading circle.
+    {t("profile.noClubs")}
   </p>
 )}
       </section>
@@ -1415,7 +1422,7 @@ function Profile() {
             <button
               className="modal-close"
               type="button"
-              aria-label="Close profile editor"
+              aria-label={t("profile.closeEditor")}
               disabled={profileSaving || avatarUploading}
               onClick={() => {
                 if (!avatarUploading) {
@@ -1426,13 +1433,13 @@ function Profile() {
               ×
             </button>
 
-            <p className="eyebrow">Personal Profile</p>
-            <h2 id="profile-edit-title">Edit your profile</h2>
+            <p className="eyebrow">{t("profile.personal")}</p>
+            <h2 id="profile-edit-title">{t("profile.editTitle")}</h2>
 
             <form onSubmit={saveProfile}>
               <div className="profile-avatar-editor">
                 <span className="profile-avatar-editor-label">
-                  Profile photo
+                  {t("profile.avatar")}
                 </span>
 
                 <div className="profile-avatar-editor-row">
@@ -1440,7 +1447,7 @@ function Profile() {
                     {avatarPreview || profile?.avatar_url ? (
                       <img
                         src={avatarPreview || profile.avatar_url}
-                        alt="Profile preview"
+                        alt={t("profile.preview")}
                       />
                     ) : (
                       <span className="profile-photo-initial" aria-hidden="true">
@@ -1454,7 +1461,7 @@ function Profile() {
                   <div className="profile-avatar-controls">
                     <label className="profile-avatar-file-button">
                       <span>
-                        {avatarUploading ? "Uploading..." : "Choose photo"}
+                        {avatarUploading ? t("profile.uploading") : t("profile.choosePhoto")}
                       </span>
 
                       <input
@@ -1467,8 +1474,8 @@ function Profile() {
 
                     <small>
                       {avatarUploading
-                        ? "Uploading and saving your new photo..."
-                        : "JPG, PNG, or WebP. Maximum 5 MB."}
+                        ? t("profile.uploadingHelp")
+                        : t("profile.uploadHelp")}
                     </small>
                   </div>
                 </div>
@@ -1480,7 +1487,7 @@ function Profile() {
                 ) : null}
               </div>
               <label>
-                <span>Username</span>
+                <span>{t("profile.username")}</span>
                 <input
                   type="text"
                   value={profileDraft.username}
@@ -1490,7 +1497,7 @@ function Profile() {
                       username: event.target.value,
                     }))
                   }
-                  placeholder="Your public display name"
+                  placeholder={t("profile.usernamePlaceholder")}
                   disabled={profileSaving}
                 />
                 <small
@@ -1510,7 +1517,7 @@ function Profile() {
 
              <div className="profile-readonly-row">
               <label>
-                <span>Full name</span>
+                <span>{t("profile.fullName")}</span>
 
                 <input
                   className="profile-readonly-input"
@@ -1519,11 +1526,11 @@ function Profile() {
                   readOnly
                 />
 
-                <small>Generated from your school account and cannot be edited.</small>
+                <small>{t("profile.readonlyName")}</small>
               </label>
 
               <label>
-                <span>Grade</span>
+                <span>{t("profile.grade")}</span>
 
                 <input
                   className="profile-readonly-input"
@@ -1531,16 +1538,16 @@ function Profile() {
                   value={
                     profile?.grade
                       ? `Grade ${profile.grade}`
-                      : "Not available"
+                      : t("profile.unavailableValue")
                   }
                   readOnly
                 />
 
-                <small>Determined automatically.</small>
+                <small>{t("profile.automatic")}</small>
               </label>
             </div>
               <label>
-                <span>Bio</span>
+                <span>{t("profile.bio")}</span>
                 <textarea
                   value={profileDraft.bio}
                   onChange={(event) =>
@@ -1549,7 +1556,7 @@ function Profile() {
                       bio: event.target.value,
                     }))
                   }
-                  placeholder="Tell other readers a little about yourself..."
+                  placeholder={t("profile.bioPlaceholder")}
                   rows="4"
                   maxLength="300"
                   disabled={profileSaving}
@@ -1558,7 +1565,7 @@ function Profile() {
               </label>
 
               <label>
-                <span>2026 reading goal</span>
+                <span>{t("profile.yearlyGoal", { year: new Date().getFullYear() })}</span>
                 <input
                   type="number"
                   min="1"
@@ -1587,10 +1594,10 @@ function Profile() {
                 disabled={profileSaving || avatarUploading}
               >
                 {avatarUploading
-                  ? "Uploading photo..."
+                  ? t("profile.uploadingPhoto")
                   : profileSaving
-                    ? "Saving..."
-                    : "Save profile"}
+                    ? t("profile.saving")
+                    : t("profile.saveProfile")}
               </button>
             </form>
           </article>
@@ -1607,20 +1614,20 @@ function Profile() {
             <button
               className="modal-close"
               type="button"
-              aria-label="Close favorite picker"
+              aria-label={t("profile.closeFavorites")}
               onClick={() => setIsFavoritePickerOpen(false)}
             >
               x
             </button>
-            <p className="eyebrow">Four Favorites</p>
-            <h2 id="favorite-picker-title">Add a favorite book</h2>
+            <p className="eyebrow">{t("profile.fourFavorites")}</p>
+            <h2 id="favorite-picker-title">{t("profile.addFavoriteTitle")}</h2>
             <label>
-              <span>Search books</span>
+              <span>{t("profile.searchBooks")}</span>
               <input
                 type="search"
                 value={favoriteSearch}
                 onChange={(event) => setFavoriteSearch(event.target.value)}
-                placeholder="Search by title, author, or ISBN..."
+                placeholder={t("search.placeholder")}
               />
             </label>
             <div className="favorite-picker-results">
@@ -1632,7 +1639,7 @@ function Profile() {
                 >
                   <BookCoverImage
                     src={book.coverUrl}
-                    alt={`Cover of ${book.title}`}
+                    alt={t("books.coverAlt", { title: book.title })}
                     decorative
                     loading="lazy"
                   />
@@ -1646,8 +1653,8 @@ function Profile() {
               {filteredFavoriteOptions.length === 0 ? (
                 <p className="profile-empty">
                   {libraryBooks.length === 0
-                    ? "Add books from Discover before choosing your favorites."
-                    : "No matching books found in your library."}
+                    ? t("profile.addBooksFirst")
+                    : t("profile.noLibraryMatch")}
                 </p>
               ) : null}
             </div>

@@ -11,11 +11,11 @@ test("navbar has exactly three direct layout zones in brand-links-actions order"
   assert.ok(markup.indexOf('className="nav-brand"') < markup.indexOf('className="nav-links"'));
   assert.ok(markup.indexOf('className="nav-links"') < markup.indexOf('className="nav-school-actions nav-actions"'));
   assert.equal((markup.match(/className="nav-search"/g) || []).length, 1);
-  assert.equal((markup.match(/label: "Admin"/g) || []).length, 1);
+  assert.equal((markup.match(/labelKey: "nav\.admin"/g) || []).length, 1);
 });
 
 test("Admin is conditionally added to the same primary nav collection", () => {
-  assert.match(navbarSource, /const visibleNavItems = adminRole\s*\? \[\.\.\.navItems, \{ to: "\/admin", label: "Admin" \}\]\s*: navItems/);
+  assert.match(navbarSource, /const visibleNavItems = adminRole\s*\? \[\.\.\.navItems, \{ to: "\/admin", labelKey: "nav\.admin" \}\]\s*: navItems/);
   assert.match(navbarSource, /visibleNavItems\.map/);
   assert.doesNotMatch(navbarSource, /className=["'][^"']*admin-nav/);
 });

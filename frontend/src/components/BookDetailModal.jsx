@@ -1,6 +1,7 @@
 import RecoveringBookCoverImage from "./RecoveringBookCoverImage";
 import BookCoverPlaceholder from "./BookCoverPlaceholder";
 import { getBookSourceLabel } from "../lib/bookSource.js";
+import { useTranslation } from "react-i18next";
 
 function BookDetailModal({
   book,
@@ -9,6 +10,7 @@ function BookDetailModal({
   onClose,
   footer,
 }) {
+  const { t } = useTranslation();
     if (!book) return null;
 
   return (
@@ -30,7 +32,7 @@ function BookDetailModal({
         <button
           className="modal-close"
           type="button"
-          aria-label="Close book details"
+          aria-label={t("books.closeDetails")}
           onClick={onClose}
         >
           ×
@@ -40,7 +42,7 @@ function BookDetailModal({
           <RecoveringBookCoverImage
             book={book}
             src={book.coverUrl}
-            alt={`Cover of ${book.title}`}
+            alt={t("books.coverAlt", { title: book.title })}
             loading="lazy"
             fallback={<BookCoverPlaceholder decorative />}
           />
@@ -55,7 +57,7 @@ function BookDetailModal({
           {book.isbn ? <small>ISBN {book.isbn}</small> : null}
 
           {loading ? (
-            <p className="book-detail-loading">Loading official description...</p>
+            <p className="book-detail-loading">{t("books.loadingDescription")}</p>
           ) : (
             <p className="book-detail-description">{book.description}</p>
           )}

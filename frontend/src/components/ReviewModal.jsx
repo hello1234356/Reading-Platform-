@@ -1,5 +1,6 @@
 import { RatingPicker } from "./StarRating";
 import BookCoverImage from "./BookCoverImage";
+import { useTranslation } from "react-i18next";
 
 function ReviewModal({
   book,
@@ -11,6 +12,7 @@ function ReviewModal({
   onClose,
   onSubmit,
 }) {
+  const { t } = useTranslation();
   if (!book) return null;
 
   return (
@@ -29,18 +31,18 @@ function ReviewModal({
           type="button"
           disabled={saving}
           onClick={onClose}
-          aria-label="Close review popup"
+          aria-label={t("books.closeReview")}
         >
           ×
         </button>
-        <p className="eyebrow">Finished Shelf</p>
-        <h2>Rate & review?</h2>
+        <p className="eyebrow">{t("books.finishedShelf")}</p>
+        <h2>{t("books.rateReview")}</h2>
         <form onSubmit={onSubmit}>
           <div className="modal-preview">
             <BookCoverImage
               className="review-modal-cover"
               src={book.coverUrl}
-              alt={`Cover of ${book.title}`}
+              alt={t("books.coverAlt", { title: book.title })}
               decorative
             />
             <p>
@@ -49,40 +51,40 @@ function ReviewModal({
             </p>
           </div>
           <label>
-            <span>Rating</span>
+            <span>{t("home.rating")}</span>
             <RatingPicker
               value={draft.rating}
               onChange={(rating) => onChange({ ...draft, rating })}
             />
           </label>
           <label>
-            <span>Review</span>
+            <span>{t("home.review")}</span>
             <textarea
               rows="5"
               value={draft.review}
               onChange={(event) =>
                 onChange({ ...draft, review: event.target.value })
               }
-              placeholder="Write a review if you want to save one."
+              placeholder={t("books.reviewPlaceholder")}
             />
           </label>
           {showVisibility ? (
             <label>
-              <span>Visibility</span>
+              <span>{t("books.visibility")}</span>
               <select
                 value={draft.visibility}
                 onChange={(event) =>
                   onChange({ ...draft, visibility: event.target.value })
                 }
               >
-                <option value="private">Private - Save To My Profile Only</option>
-                <option value="public">Yes - Share To The Public Feed</option>
+                <option value="private">{t("books.privateReview")}</option>
+                <option value="public">{t("books.publicReview")}</option>
               </select>
             </label>
           ) : null}
           {error ? <p className="profile-save-error" role="alert">{error}</p> : null}
           <button className="primary-button full" type="submit" disabled={saving}>
-            {saving ? "Saving..." : "Save Review"}
+            {saving ? t("profile.saving") : t("books.saveReview")}
           </button>
         </form>
       </section>

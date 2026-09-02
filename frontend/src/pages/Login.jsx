@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { requireSupabase } from "../lib/supabase";
 import {
   clearPendingSignupEmail,
@@ -18,6 +19,7 @@ const RESEND_COOLDOWN_MS = 30_000;
 
 export default function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const restoredEmail = readPendingSignupEmail(window.sessionStorage);
   const [mode, setMode] = useState(restoredEmail ? "verify" : "login");
   const [email, setEmail] = useState(restoredEmail);
@@ -46,7 +48,7 @@ export default function Login() {
     event.preventDefault();
     setMessage("");
     if (password.length < 6) {
-      setMessage("Password must be at least 6 characters.");
+      setMessage(t("auth.passwordLength"));
       return;
     }
 
@@ -65,7 +67,7 @@ export default function Login() {
       const data = await passwordLogin(auth, { email, password });
       if (!data.user?.email_confirmed_at) {
         await auth.signOut();
-        setMessage("Please verify your school email before logging in.");
+        setMessage(t("auth.verifyBeforeLogin"));
         return;
       }
       navigate("/");
@@ -80,7 +82,7 @@ export default function Login() {
     event.preventDefault();
     const token = code.trim();
     if (!token) {
-      setMessage("Enter the verification code from your email.");
+      setMessage(t("auth.enterCode"));
       return;
     }
 
@@ -107,7 +109,7 @@ export default function Login() {
     try {
       await resendSignupOtp(requireSupabase().auth, email);
       setResendCoolingDown(true);
-      setMessage("A new verification code was sent.");
+      setMessage(t("auth.newCodeSent"));
     } catch (error) {
       setMessage(friendlyAuthError(error, "resend"));
     } finally {
@@ -124,11 +126,11 @@ export default function Login() {
     }}>
       <section className="login-illustration-panel">
         <div className="login-left-copy">
-          <h1>{isVerify ? "Almost there" : "Welcome back"}</h1>
+          <h1>{isVerify ? t("auth.almostThere") : t("auth.welcomeBack")}</h1>
           <span className="login-squiggle" />
           <p>{isVerify
-            ? "Enter the code from your inbox to open your LitShelf account."
-            : "Log in with your school email to access your reading journal, shelves, clubs, and notes."}</p>
+            ? t("auth.verifyIntro")
+            : t("auth.loginIntro")}</p>
         </div>
       </section>
 
@@ -136,51 +138,51 @@ export default function Login() {
         <div className="login-card-header">
           <div className="book-stack-icon" aria-hidden="true"><span /><span /><span /></div>
           <div className="leaf-icon" aria-hidden="true">⌁</div>
-          <h2>{isVerify ? "Check your email" : mode === "login" ? "Log in to LitShelf" : "Create your LitShelf account"}</h2>
-          <p>{isVerify ? `We sent a verification code to ${email}.` : "Your reading journal, your community."}</p>
+          <h2>{isVerify ? t("auth.checkEmail") : mode === "login" ? t("auth.loginTitle") : t("auth.signupTitle")}</h2>
+          <p>{isVerify ? t("auth.sentTo", { email }) : t("auth.tagline")}</p>
         </div>
 
         {isVerify ? (
           <form className="beautiful-login-form" onSubmit={handleVerify}>
             <label>
-              <span>Verification code</span>
+              <span>{t("auth.code")}</span>
               <div className="pretty-input-wrap">
                 <input
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   aria-describedby="verification-help"
-                  placeholder="Enter your code"
+                  placeholder={t("auth.codePlaceholder")}
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
                   autoFocus
                 />
                 <em aria-hidden="true">#</em>
               </div>
-              <small id="verification-help">Paste or type the code exactly as it appears in the email.</small>
+              <small id="verification-help">{t("auth.codeHelp")}</small>
             </label>
             <button className="beautiful-login-button" disabled={loading || !code.trim()}>
-              {loading ? "Verifying..." : "Verify"}
+              {loading ? t("auth.verifying") : t("auth.verify")}
             </button>
           </form>
         ) : (
           <form className="beautiful-login-form" onSubmit={handleCredentialsSubmit}>
             <label>
-              <span>School email</span>
+              <span>{t("auth.email")}</span>
               <div className="pretty-input-wrap">
                 <input type="email" autoComplete="email" placeholder="name@tsinglan.org" value={email} onChange={(event) => setEmail(event.target.value)} required />
                 <em aria-hidden="true">✉</em>
               </div>
             </label>
             <label>
-              <span>Password</span>
+              <span>{t("auth.password")}</span>
               <div className="pretty-input-wrap">
-                <input type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder="Enter your password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+                <input type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder={t("auth.passwordPlaceholder")} value={password} onChange={(event) => setPassword(event.target.value)} required />
                 <em aria-hidden="true">⌕</em>
               </div>
             </label>
             <button className="beautiful-login-button" disabled={loading}>
-              {loading ? "Please wait..." : mode === "login" ? "Log in" : "Sign up"}
+              {loading ? t("auth.pleaseWait") : mode === "login" ? t("auth.login") : t("auth.signup")}
             </button>
           </form>
         )}
@@ -190,15 +192,15 @@ export default function Login() {
         {isVerify ? (
           <div className="login-verification-actions">
             <button type="button" onClick={handleResend} disabled={resending || resendCoolingDown}>
-              {resending ? "Sending..." : resendCoolingDown ? "Code sent" : "Resend code"}
+              {resending ? t("auth.sending") : resendCoolingDown ? t("auth.codeSent") : t("auth.resend")}
             </button>
-            <button type="button" onClick={() => goTo("signup")}>Change email</button>
+            <button type="button" onClick={() => goTo("signup")}>{t("auth.changeEmail")}</button>
           </div>
         ) : (
           <p className="login-switch-line">
-            {mode === "login" ? "Need an account?" : "Already have an account?"}{" "}
+            {mode === "login" ? t("auth.needAccount") : t("auth.haveAccount")}{" "}
             <button type="button" onClick={() => goTo(mode === "login" ? "signup" : "login")}>
-              {mode === "login" ? "Sign up" : "Log in"}
+              {mode === "login" ? t("auth.signup") : t("auth.login")}
             </button>
           </p>
         )}

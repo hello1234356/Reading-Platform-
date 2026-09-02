@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   getActiveHomepageBanners,
   getHomepageBannersForAdminPreview,
@@ -122,6 +123,7 @@ function SpotlightLink({ url, children, tabIndex }) {
 }
 
 function QuoteSpotlightSlide({ dailyQuote, onAction, active = true }) {
+  const { t } = useTranslation();
   return (
     <article className="homepage-spotlight-slide homepage-quote-slide" aria-hidden={!active}>
       <div className="daily-quote-panel">
@@ -142,7 +144,7 @@ function QuoteSpotlightSlide({ dailyQuote, onAction, active = true }) {
         </div>
         <div className="daily-quote-actions">
           <button className="primary-button hero-action" type="button" tabIndex={active ? 0 : -1} onClick={onAction}>
-            Share Your Reading
+            {t("home.shareReading")}
           </button>
         </div>
       </div>
@@ -151,6 +153,7 @@ function QuoteSpotlightSlide({ dailyQuote, onAction, active = true }) {
 }
 
 function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
+  const { t } = useTranslation();
   const [banners, setBanners] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [trackIndex, setTrackIndex] = useState(1);
@@ -266,7 +269,7 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
     <section
       className={`reading-room-hero homepage-spotlight-carousel${reducedMotion ? " reduced-motion" : ""}`}
       aria-roledescription="carousel"
-      aria-label="Homepage spotlights"
+      aria-label={t("banners.spotlights")}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocusCapture={() => setFocusWithin(true)}
@@ -323,15 +326,15 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
 
       {hasCarouselNavigation(slides.length) ? (
         <>
-          <button className="homepage-spotlight-arrow previous" type="button" aria-label="Previous banner" onClick={goToPreviousSlide}>‹</button>
-          <button className="homepage-spotlight-arrow next" type="button" aria-label="Next banner" onClick={goToNextSlide}>›</button>
-          <div className="homepage-spotlight-pagination" aria-label="Choose a homepage banner">
+          <button className="homepage-spotlight-arrow previous" type="button" aria-label={t("banners.previous")} onClick={goToPreviousSlide}>‹</button>
+          <button className="homepage-spotlight-arrow next" type="button" aria-label={t("banners.next")} onClick={goToNextSlide}>›</button>
+          <div className="homepage-spotlight-pagination" aria-label={t("banners.choose")}>
             {slides.map((slide, index) => (
               <button
                 type="button"
                 key={slide.id}
                 className={index === activeIndex ? "active" : ""}
-                aria-label={slide.type === "quote" ? "Go to quote" : `Go to banner ${index}`}
+                aria-label={slide.type === "quote" ? t("banners.quote") : t("banners.goTo", { index: index + 1 })}
                 aria-current={index === activeIndex ? "true" : undefined}
                 onClick={() => goToSlide(index)}
               />

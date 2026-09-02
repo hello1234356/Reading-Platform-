@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 function ModerationWarningCard({
   message,
   onEdit,
@@ -5,6 +7,7 @@ function ModerationWarningCard({
   confirming = false,
   contentLabel = "message",
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className="moderation-warning-card"
@@ -20,11 +23,11 @@ function ModerationWarningCard({
         </span>
 
         <div>
-          <strong>Pause before posting</strong>
+          <strong>{t("moderation.pause")}</strong>
 
           <p>
             {message ||
-              `This ${contentLabel} may come across as disrespectful. Consider revising it before posting.`}
+              t("moderation.warning", { content: contentLabel })}
           </p>
         </div>
       </div>
@@ -36,7 +39,7 @@ function ModerationWarningCard({
           onClick={onEdit}
           disabled={confirming}
         >
-          Keep editing
+          {t("moderation.keepEditing")}
         </button>
 
         <button
@@ -45,7 +48,7 @@ function ModerationWarningCard({
           onClick={onConfirm}
           disabled={confirming}
         >
-          {confirming ? "Posting..." : "Post anyway"}
+          {confirming ? t("moderation.posting") : t("moderation.postAnyway")}
         </button>
       </div>
     </div>

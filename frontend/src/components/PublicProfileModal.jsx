@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { getPublicProfile } from "../lib/publicProfileApi";
 import { getPublicDisplayName } from "../lib/identity";
 import BookCoverImage from "./BookCoverImage";
+import { useTranslation } from "react-i18next";
 
 export default function PublicProfileModal({
   userId,
   onClose,
 }) {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState("");
@@ -34,7 +36,7 @@ export default function PublicProfileModal({
 
         if (!cancelled) {
           setProfileError(
-            error.message || "Could not load this profile.",
+            error.message || t("profile.loadError"),
           );
         }
       } finally {
@@ -49,7 +51,7 @@ export default function PublicProfileModal({
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, t]);
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -68,7 +70,7 @@ export default function PublicProfileModal({
   }, [userId, onClose]);
 
   const displayName = getPublicDisplayName(profile);
-  const officialName = profile?.full_name?.trim() || "Reader";
+  const officialName = profile?.full_name?.trim() || t("profile.reader");
 
   if (!userId) {
     return null;
@@ -93,7 +95,7 @@ export default function PublicProfileModal({
         <button
           className="modal-close"
           type="button"
-          aria-label="Close profile"
+          aria-label={t("profile.closeProfile")}
           onClick={onClose}
         >
           ×
@@ -101,11 +103,11 @@ export default function PublicProfileModal({
 
         {profileLoading ? (
           <p className="public-profile-status">
-            Loading profile...
+            {t("profile.loadingProfile")}
           </p>
         ) : profileError ? (
           <div className="public-profile-status">
-            <p className="eyebrow">Profile unavailable</p>
+            <p className="eyebrow">{t("profile.unavailable")}</p>
             <p>{profileError}</p>
           </div>
         ) : profile ? (
@@ -115,7 +117,7 @@ export default function PublicProfileModal({
                 {profile.avatar_url ? (
                   <img
                     src={profile.avatar_url}
-                    alt={`${displayName}'s profile`}
+                    alt={t("profile.profileAlt", { name: displayName })}
                   />
                 ) : (
                   <span aria-hidden="true">
@@ -125,7 +127,7 @@ export default function PublicProfileModal({
               </div>
 
               <div className="public-profile-identity">
-                <p className="eyebrow">Reader Profile</p>
+                <p className="eyebrow">{t("profile.readerProfile")}</p>
 
                 <h2 id="public-profile-title">
                   {displayName}
@@ -141,16 +143,16 @@ export default function PublicProfileModal({
             </header>
 
             <section className="public-profile-section">
-              <h3>Bio</h3>
+              <h3>{t("profile.bio")}</h3>
 
               <p>
                 {profile.bio?.trim() ||
-                  "This reader has not added a bio yet."}
+                  t("profile.noBio")}
               </p>
             </section>
 
             <section className="public-profile-section">
-              <h3>Four Favorites</h3>
+              <h3>{t("profile.fourFavorites")}</h3>
 
               {profile.favoriteBooks?.length > 0 ? (
                 <div className="public-profile-favorites">
@@ -163,7 +165,7 @@ export default function PublicProfileModal({
                         <div className="public-profile-cover">
                           <BookCoverImage
                             src={book.coverUrl}
-                            alt={`Cover of ${book.title}`}
+                            alt={t("books.coverAlt", { title: book.title })}
                             decorative
                             loading="lazy"
                           />
@@ -177,7 +179,7 @@ export default function PublicProfileModal({
                 </div>
               ) : (
                 <p className="public-profile-empty">
-                  No favorite books selected yet.
+                  {t("profile.noFavorites")}
                 </p>
               )}
             </section>

@@ -11,6 +11,8 @@ import Admin from "./pages/Admin";
 import RecommendationPost from "./pages/RecommendationPost";
 import { useAuth } from "./hooks/useAuth";
 import { PublicProfileProvider } from "./context/PublicProfileContext";
+import { useTranslation } from "react-i18next";
+import i18n from "./i18n";
 
 function DiscoverRoute() {
   const location = useLocation();
@@ -21,12 +23,13 @@ function DiscoverRoute() {
 function ProtectedRoute({ children }) {
   const location = useLocation();
   const { isLoggedIn, loading } = useAuth();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
       <main className="error-panel">
-        <p className="eyebrow">Checking account</p>
-        <h1>Opening your reading room...</h1>
+        <p className="eyebrow">{t("app.checkingAccount")}</p>
+        <h1>{t("app.openingRoom")}</h1>
       </main>
     );
   }
@@ -52,12 +55,9 @@ class AppErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <main className="error-panel">
-          <p className="eyebrow">Preview interrupted</p>
-          <h1>The Reading Room could not load.</h1>
-          <p>
-            Refresh the preview. If it stays here, check the browser console for
-            the first React error.
-          </p>
+          <p className="eyebrow">{i18n.t("app.previewInterrupted")}</p>
+          <h1>{i18n.t("app.loadFailed")}</h1>
+          <p>{i18n.t("app.refreshHelp")}</p>
         </main>
       );
     }

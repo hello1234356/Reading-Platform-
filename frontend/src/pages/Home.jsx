@@ -5,6 +5,7 @@ import {
   useState,
 } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Trans, useTranslation } from "react-i18next";
 import { bookDatabasePreview } from "../data/books";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
@@ -43,6 +44,7 @@ import RecoveringBookCoverImage from "../components/RecoveringBookCoverImage";
 import HomepageSpotlightCarousel from "../components/HomepageSpotlightCarousel";
 import BookCoverImage from "../components/BookCoverImage";
 import BookCoverPlaceholder from "../components/BookCoverPlaceholder";
+import { formatFeedRelativeTime } from "../lib/feedPresentation.js";
 
 const STORAGE_KEY = "litshelf-home-state-v1";
 const PROFILE_REVIEWS_KEY = "litshelf-profile-reviews-v1";
@@ -222,16 +224,16 @@ function getTrackedBookKey(book) {
   return book?.shelfEntryId || book?.isbn || book?.title;
 }
 
-function getShelfLabel(shelf) {
+function getShelfLabel(shelf, t) {
   switch (shelf) {
     case "currently-reading":
-      return "Currently Reading";
+      return t("books.currentlyReading");
     case "read":
-      return "Read";
+      return t("search.read");
     case "to-be-read":
-      return "To Be Read";
+      return t("search.toBeRead");
     default:
-      return "My Shelf";
+      return t("books.myShelf");
   }
 }
 
@@ -297,6 +299,7 @@ function getInitialHomeState() {
 }
 
 function SpoilerSegment({ text }) {
+  const { t } = useTranslation();
   const [isRevealed, setIsRevealed] =
     useState(false);
 
@@ -312,7 +315,7 @@ function SpoilerSegment({ text }) {
     <button
       className="spoiler-redaction"
       type="button"
-      aria-label="Reveal spoiler"
+      aria-label={t("home.revealSpoiler")}
       onClick={() => setIsRevealed(true)}
     >
       <span className="spoiler-hidden-text">
@@ -433,6 +436,7 @@ function buildCompressedFeedEntries({
 }
 
 function Home() {
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const { postId: routePostId } = useParams();
   const notificationTargetHandledRef = useRef("");
@@ -1905,12 +1909,12 @@ function Home() {
   }
   const combinedLeaderboard = [
     ...gradeLeaderboard.map((ranking) => ({
-      label: `Grade ${ranking.grade}`,
+      label: t("home.grade", { grade: ranking.grade }),
       booksRead: ranking.booksRead,
       tieOrder: ranking.grade,
     })),
     {
-      label: "Teachers",
+      label: t("home.teachers"),
       booksRead: teacherBooksRead,
       tieOrder: 13,
     },
@@ -1941,15 +1945,15 @@ function Home() {
 
       <section
         className="grade-leaderboard-strip"
-        aria-label="School Reading leaderboard"
+        aria-label={t("home.leaderboardAria")}
       >
         <div className="leaderboard-strip-heading">
-          <p className="eyebrow">School Leaderboard</p>
-          <strong>Total Books Read</strong>
+          <p className="eyebrow">{t("home.leaderboard")}</p>
+          <strong>{t("home.totalBooks")}</strong>
         </div>
 
         {leaderboardLoading ? (
-          <p className="leaderboard-status">Loading Grade Totals...</p>
+          <p className="leaderboard-status">{t("home.loadingLeaderboard")}</p>
         ) : leaderboardError ? (
           <p className="profile-save-error" role="alert">
             {leaderboardError}
@@ -1957,7 +1961,7 @@ function Home() {
         ) : (
           <ol
             className="leaderboard-podium"
-            aria-label="School groups ranked by books read"
+            aria-label={t("home.rankedGroups")}
           >
             {combinedLeaderboard.map((ranking, index) => {
               const rank = index + 1;
@@ -1967,11 +1971,10 @@ function Home() {
                   className={`podium-step rank-${rank}`}
                   key={ranking.label}
                 >
-                  <span aria-label={`Rank ${rank}`}>{rank}</span>
+                  <span aria-label={t("home.rank", { rank })}>{rank}</span>
                   <strong>{ranking.label}</strong>
                   <small>
-                    {ranking.booksRead}{" "}
-                    {ranking.booksRead === 1 ? "Book" : "Books"} Read
+                    {t("home.booksRead", { count: ranking.booksRead })}
                   </small>
                 </li>
               );
@@ -1980,14 +1983,14 @@ function Home() {
         )}
       </section>
 	      <div className="home-grid">
-	        <aside className="shelf-rail" aria-label="Your reading shelves">
+	        <aside className="shelf-rail" aria-label={t("home.readingShelves")}>
 	          {isLoggedIn ? (
 	            <>
-	              <section className="current-book-card" aria-label="Currently reading tracker">
+	              <section className="current-book-card" aria-label={t("home.trackerAria")}>
                 <div className="section-heading compact">
               <div>
-          <p className="eyebrow">Currently Reading</p>
-                <h2>Reading Tracker</h2>
+          <p className="eyebrow">{t("books.currentlyReading")}</p>
+                <h2>{t("home.tracker")}</h2>
               </div>
             </div>
             {trackedBooks.length > 0 ? (
@@ -1999,12 +2002,12 @@ function Home() {
                       <div>
                         <p>{book.author}</p>
                         <strong>{book.title}</strong>
-                        <small>{book.progress}% complete</small>
+                        <small>{t("home.complete", { progress: book.progress })}</small>
                       </div>
                     </div>
                     <div className="progress-editor compact">
                       <label>
-                        <span>Pages Read</span>
+                        <span>{t("home.pagesRead")}</span>
                         <input
                           type="number"
                           min="0"
@@ -2020,12 +2023,12 @@ function Home() {
                         />
                       </label>
                       <label>
-                        <span>Total Pages</span>
+                        <span>{t("home.totalPages")}</span>
                         <input
                           type="number"
                           min="1"
                           value={book.totalPages ?? ""}
-                          placeholder="Total"
+                          placeholder={t("home.total")}
                           onChange={(event) =>
                             updateTrackedProgress(
                               book,
@@ -2037,7 +2040,7 @@ function Home() {
                       </label>
                       <div>
                         <span>{book.progress}%</span>
-                        <strong>{book.finished ? "Finished" : "In Progress"}</strong>
+                        <strong>{book.finished ? t("home.finished") : t("home.inProgress")}</strong>
                       </div>
                     </div>
                     <button
@@ -2045,14 +2048,14 @@ function Home() {
                       type="button"
                       onClick={() => finishTrackedBook(book)}
                     >
-                      Finish
+                      {t("home.finish")}
                     </button>
                   </article>
                 ))}
               </div>
             ) : (
               <p className="profile-empty">
-                No Books Open Right Now
+                {t("home.noOpenBooks")}
               </p>
             )}
             <div className="tracker-actions">
@@ -2063,7 +2066,7 @@ function Home() {
                   setIsLogBookOpen(true);
 	                }}
 	              >
-	                Log Book
+	                {t("home.logBookShort")}
 	              </button>
 	            </div>
               </section>
@@ -2071,31 +2074,28 @@ function Home() {
 	            </>
           ) : (
             <section className="signin-rail-card">
-              <p className="eyebrow">Your private shelf</p>
-              <h2>Sign in to track your reading.</h2>
-              <p>
-                Your books, page progress, shelves, ratings, and private reviews
-                live inside your account.
-              </p>
+              <p className="eyebrow">{t("home.privateShelf")}</p>
+              <h2>{t("home.signInTrack")}</h2>
+              <p>{t("home.accountHelp")}</p>
               <button type="button" onClick={requireLogin}>
-                Sign in to log books
+                {t("home.signInLog")}
               </button>
             </section>
           )}
         </aside>
 
-        <section className="feed-column" aria-label="Social feed">
+        <section className="feed-column" aria-label={t("home.socialFeed")}>
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Current Readers</p>
-              <h2>Reading Notes</h2>
+              <p className="eyebrow">{t("home.currentReaders")}</p>
+              <h2>{t("home.readingNotes")}</h2>
             </div>
             <button
               className="ghost-button"
               type="button"
               onClick={() => openComposer()}
             >
-              Write Note
+              {t("home.writeNoteShort")}
             </button>
           </div>
 
@@ -2105,31 +2105,31 @@ function Home() {
             onSubmit={searchFeedPosts}
           >
             <label>
-              <span className="sr-only">Search posts by book title</span>
+              <span className="sr-only">{t("home.searchPosts")}</span>
               <input
                 type="search"
                 value={feedSearchDraft}
                 onChange={(event) =>
                   setFeedSearchDraft(event.target.value)
                 }
-                placeholder="Search posts by book title..."
+                placeholder={t("home.searchPostsPlaceholder")}
               />
             </label>
-            <button type="submit">Search</button>
+            <button type="submit">{t("common.search")}</button>
             {feedSearchQuery ? (
               <button
                 className="feed-search-clear"
                 type="button"
                 onClick={clearFeedPostSearch}
               >
-                Clear
+                {t("home.clear")}
               </button>
             ) : null}
           </form>
 
           {feedSearchQuery ? (
             <p className="feed-search-status">
-              Showing posts about "{feedSearchQuery}"
+              {t("home.showingAbout", { query: feedSearchQuery })}
             </p>
           ) : null}
 
@@ -2140,7 +2140,7 @@ function Home() {
             </p>
           ) : null}
           {feedLoading ? (
-            <p className="profile-empty">Loading reading notes...</p>
+            <p className="profile-empty">{t("home.loadingNotes")}</p>
           ) : feedError ? (
             <p className="profile-save-error" role="alert">
               {feedError}
@@ -2148,8 +2148,8 @@ function Home() {
           ) : posts.length === 0 ? (
             <p className="profile-empty">
               {feedSearchQuery
-                ? "No posts about that book yet."
-                : "No reading notes have been published yet."}
+                ? t("home.noBookPosts")
+                : t("home.noPublishedNotes")}
             </p>
           ) : (
             feedEntries.map((entry) => {
@@ -2172,8 +2172,8 @@ function Home() {
                     >
                       <span>
                         {entry.expanded
-                          ? `Show fewer posts by ${entry.userName}`
-                          : `Show ${entry.hiddenCount} more posts by ${entry.userName}`}
+                          ? t("home.showFewer", { name: entry.userName })
+                          : t("home.showMore", { count: entry.hiddenCount, name: entry.userName })}
                       </span>
                       <svg
                         aria-hidden="true"
@@ -2206,7 +2206,7 @@ function Home() {
                     <ProfileLink
                       userId={post.userId}
                       variant="avatar"
-                      ariaLabel={`View ${post.student}'s profile`}
+                      ariaLabel={t("home.viewProfile", { name: post.student })}
                     >
                       <UserAvatar
                         avatarUrl={post.avatarUrl}
@@ -2219,21 +2219,26 @@ function Home() {
 
                   <div>
                     <p className="feed-title">
-                      <ProfileLink userId={post.userId}>
-                        <strong>{post.student}</strong>
-                      </ProfileLink>
-                      {" "}
-                      {post.action}
-                      {post.hasBook ? (
-                        <>
-                          {" "}
-                          <span>{post.book}</span>
-                        </>
-                      ) : null}
+                      <Trans
+                        i18nKey={post.activityKey}
+                        values={{
+                          username: post.student,
+                          bookTitle: post.book,
+                        }}
+                        components={{
+                          user: <ProfileLink userId={post.userId} />,
+                          bold: <strong />,
+                          book: <span />,
+                        }}
+                      />
                     </p>
 
                     <p className="feed-meta">
-                      {post.time}
+                      {formatFeedRelativeTime(
+                        post.createdAt,
+                        t,
+                        i18n.resolvedLanguage,
+                      )}
                     </p>
                   </div>
                 </header>
@@ -2288,7 +2293,7 @@ function Home() {
                       </div>
                       <small>{post.author}</small>
                       <small>
-                        {post.progress}% through the book
+                        {t("home.progressThrough", { progress: post.progress })}
                       </small>
 
                       <div
@@ -2315,14 +2320,14 @@ function Home() {
                         aria-label={
                           post.rating > 0
                             ? `${post.rating} out of 5 open books`
-                            : "No rating"
+                            : t("home.noRating")
                         }
                       >
                         {post.rating > 0
                           ? `${post.rating} / 5`
                           : post.postType === "review"
-                            ? "Finished"
-                            : "In Progress"}
+                            ? t("home.finished")
+                            : t("home.inProgress")}
                       </div>
                     </div>
                   </div>
@@ -2338,7 +2343,7 @@ function Home() {
                     type="button"
                     onClick={() => toggleLike(post.id)}
                     aria-label={
-                      post.liked ? "Unlike post" : "Like post"
+                      post.liked ? t("home.unlikePost") : t("home.likePost")
                     }
                   >
                     <span aria-hidden="true">
@@ -2350,7 +2355,7 @@ function Home() {
                   <button
                     className="feed-action"
                     type="button"
-                    aria-label="Comment on post"
+                    aria-label={t("home.commentPost")}
                     onClick={() =>
                       focusCommentInput(post.id)
                     }
@@ -2370,7 +2375,7 @@ function Home() {
                     >
                       <span aria-hidden="true">×</span>
                       <small>
-                        {deletingPostId === post.id ? "Deleting..." : "Delete"}
+                        {deletingPostId === post.id ? t("home.deleting") : t("common.delete")}
                       </small>
                     </button>
                   )}
@@ -2393,7 +2398,7 @@ function Home() {
                       <ProfileLink
                         userId={comment.userId}
                         variant="avatar"
-                        ariaLabel={`View ${comment.commenterName}'s profile`}
+                        ariaLabel={t("home.viewProfile", { name: comment.commenterName })}
                       >
                         <UserAvatar
                           avatarUrl={comment.commenterAvatarUrl}
@@ -2439,8 +2444,8 @@ function Home() {
                             }
                             aria-label={
                               comment.liked
-                                ? "Unlike comment"
-                                : "Like comment"
+                                ? t("home.unlikeComment")
+                                : t("home.likeComment")
                             }
                           >
                             <span aria-hidden="true">
@@ -2464,7 +2469,7 @@ function Home() {
                             }
                           >
                             <ReplyIcon />
-                            Reply
+                            {t("home.reply")}
                           </button>
 
                           {comment.userId === user?.id && (
@@ -2481,12 +2486,12 @@ function Home() {
                                 deletingCommentId ===
                                 comment.id
                               }
-                              aria-label="Delete your comment"
+                              aria-label={t("home.deleteComment")}
                             >
                               {deletingCommentId ===
                               comment.id
-                                ? "Deleting..."
-                                : "Delete"}
+                                ? t("home.deleting")
+                                : t("common.delete")}
                             </button>
                           )}
                         </div>
@@ -2511,14 +2516,14 @@ function Home() {
                     {expandedCommentPostIds.has(
                       post.id,
                     )
-                      ? "Hide comments"
-                      : `View all ${post.comments.length} comments`}
+                      ? t("home.hideComments")
+                      : t("home.viewAllComments", { count: post.comments.length })}
                   </button>
                 )}
               </div>
                 {commentModeratingPostId === post.id && (
                   <ModerationStatusBar
-                    label="Checking your comment"
+                    label={t("home.checkingComment")}
                   />
                 )}
                 {moderationWarning?.type ===
@@ -2670,8 +2675,8 @@ function Home() {
                           addComment(post.id);
                         }
                       }}
-                      placeholder="Add a quiet thought..."
-                      aria-label={`Comment on ${post.book}`}
+                      placeholder={t("home.addThought")}
+                      aria-label={t("home.commentOn", { book: post.book })}
                     />
                   </div>
 
@@ -2688,8 +2693,8 @@ function Home() {
                   >
                     {commentModeratingPostId ===
                     post.id
-                      ? "Checking..."
-                      : "Send"}
+                      ? t("home.checking")
+                      : t("home.send")}
                   </button>
                 </div>
               </article>
@@ -2700,11 +2705,10 @@ function Home() {
         {feedTotalCount > FEED_PAGE_SIZE ? (
           <nav
             className="feed-pagination"
-            aria-label="Reading notes pages"
+            aria-label={t("home.pagesAria")}
           >
             <p>
-              Showing {feedRangeStart}-{feedRangeEnd} of{" "}
-              {feedTotalCount} posts
+              {t("home.showingPosts", { start: feedRangeStart, end: feedRangeEnd, count: feedTotalCount })}
             </p>
             <div>
               <button
@@ -2714,10 +2718,10 @@ function Home() {
                 }
                 disabled={feedLoading || feedPage <= 1}
               >
-                Previous
+                {t("common.previous")}
               </button>
               <span>
-                Page {feedPage} of {feedPageCount}
+                {t("home.pageOf", { page: feedPage, count: feedPageCount })}
               </span>
               <button
                 type="button"
@@ -2730,7 +2734,7 @@ function Home() {
                   feedLoading || feedPage >= feedPageCount
                 }
               >
-                Next
+                {t("common.next")}
               </button>
             </div>
           </nav>
@@ -2759,18 +2763,18 @@ function Home() {
               className="modal-close"
               type="button"
               onClick={closeComposer}
-              aria-label="Close composer"
+              aria-label={t("home.closeComposer")}
             >
               x
             </button>
-            <p className="eyebrow">Publish to the feed</p>
-            <h2 id="composer-title">Add a reading note</h2>
+            <p className="eyebrow">{t("home.publishFeed")}</p>
+            <h2 id="composer-title">{t("home.addNote")}</h2>
             <form onSubmit={publishNote}>
             <label>
-              <span>Book</span>
+              <span>{t("clubs.book")}</span>
 
               {libraryLoading ? (
-                <p>Loading your books...</p>
+                <p>{t("home.loadingBooks")}</p>
               ) : libraryError ? (
                 <p className="profile-save-error">
                   {libraryError}
@@ -2786,21 +2790,21 @@ function Home() {
                     }))
                   }
                 >
-                  <option value="">No specific book</option>
+                  <option value="">{t("home.noSpecificBook")}</option>
 
                   {libraryBooks.map((book) => (
                     <option
                       value={String(book.bookId)}
                       key={book.shelfEntryId}
                     >
-                      {book.title} - {book.author} / {getShelfLabel(book.shelf)}
+                      {book.title} - {book.author} / {getShelfLabel(book.shelf, t)}
                     </option>
                   ))}
                 </select>
               )}
             </label>
               <label>
-                <span>Your note or quote</span>
+                <span>{t("home.noteOrQuote")}</span>
                 <textarea
                   ref={composerTextareaRef}
                   value={composeDraft.note}
@@ -2827,7 +2831,7 @@ function Home() {
                       setModerationBlocked(null);
                     }
                   }}
-                  placeholder="What line, thought, or review do you want to share?"
+                  placeholder={t("home.notePlaceholder")}
                   rows="6"
                 />
               </label>
@@ -2847,7 +2851,7 @@ function Home() {
                       }))
                     }
                   />
-                  <span>This note contains spoilers</span>
+                  <span>{t("home.containsSpoilers")}</span>
                 </label>
                 <button
                   className="ghost-button spoiler-mark-button"
@@ -2859,12 +2863,12 @@ function Home() {
                   }
                   onClick={markSelectedTextAsSpoiler}
                 >
-                  Mark Selected Text
+                  {t("home.markSelected")}
                 </button>
               </div>
               {composeDraft.hasSpoilers ? (
                 <p className="spoiler-help">
-                  Highlight the spoiler sentence, then mark it before publishing.
+                  {t("home.spoilerHelp")}
                 </p>
               ) : null}
               <label className="spoiler-checkbox public-feed-checkbox">
@@ -2882,12 +2886,12 @@ function Home() {
                     }))
                   }
                 />
-                <span>Want To Share To The Public Feed?</span>
+                <span>{t("home.sharePublic")}</span>
               </label>
               {publishingNote &&
                 moderationWarning?.type !== "feed-post" && (
                   <ModerationStatusBar
-                    label="Checking your reading note"
+                    label={t("home.checkingNote")}
                   />
                 )}
               {moderationWarning?.type ===
@@ -2923,18 +2927,18 @@ function Home() {
                         loading="lazy"
                       />
                     ) : (
-                      <span>General reading note</span>
+                      <span>{t("home.generalNote")}</span>
                     )}
                   </div>
 
                   <div>
                     <strong>
-                      {selectedComposerBook?.title || "No book linked"}
+                      {selectedComposerBook?.title || t("home.noBookLinked")}
                     </strong>
                     <small>
                       {selectedComposerBook
-                        ? `${selectedComposerBook.author} / ${getShelfLabel(selectedComposerBook.shelf)}`
-                        : "Post a thought that is not attached to a specific title."}
+                        ? `${selectedComposerBook.author} / ${getShelfLabel(selectedComposerBook.shelf, t)}`
+                        : t("home.unattachedHelp")}
                     </small>
                   </div>
                 </div>
@@ -2952,10 +2956,10 @@ function Home() {
                 }
               >
                 {publishingNote
-                  ? "Checking..."
+                  ? t("home.checking")
                   : composeDraft.shareToFeed
-                    ? "Share Note"
-                    : "Save Privately"}
+                    ? t("home.shareNote")
+                    : t("home.savePrivately")}
               </button>
             </form>
           </section>
@@ -2969,15 +2973,15 @@ function Home() {
               className="modal-close"
               type="button"
               onClick={() => setIsLogBookOpen(false)}
-              aria-label="Close book logger"
+              aria-label={t("home.closeLogger")}
             >
               x
             </button>
-            <p className="eyebrow">Currently Reading</p>
-            <h2>Log a book</h2>
+            <p className="eyebrow">{t("books.currentlyReading")}</p>
+            <h2>{t("home.logBook")}</h2>
             <form onSubmit={logCurrentBook}>
               <label>
-                <span>Book</span>
+                <span>{t("clubs.book")}</span>
                 <select
                   value={readingDraft.bookTitle}
                   onChange={(event) =>
@@ -2992,7 +2996,7 @@ function Home() {
                 </select>
               </label>
               <button className="primary-button full" type="submit">
-                Start Tracking
+                {t("home.startTracking")}
               </button>
             </form>
           </section>
@@ -3007,26 +3011,26 @@ function Home() {
               type="button"
               disabled={finishReviewSaving}
               onClick={closeFinishReview}
-              aria-label="Close review popup"
+              aria-label={t("books.closeReview")}
             >
               x
             </button>
-            <p className="eyebrow">Finished Shelf</p>
-            <h2>Finish this book</h2>
+            <p className="eyebrow">{t("books.finishedShelf")}</p>
+            <h2>{t("home.finishBook")}</h2>
             <form onSubmit={submitFinishReview}>
               <label>
-                <span>Rating</span>
+                <span>{t("home.rating")}</span>
                 {renderRatingPicker()}
               </label>
               <label>
-                <span>Review</span>
+                <span>{t("home.review")}</span>
                 <textarea
                   rows="5"
                   value={finishReview.review}
                   onChange={(event) =>
                     setFinishReview((draft) => ({ ...draft, review: event.target.value }))
                   }
-                  placeholder="What did you think? Save a private reflection or share it to the feed."
+                  placeholder={t("home.finishReviewPlaceholder")}
                 />
               </label>
 
@@ -3042,7 +3046,7 @@ function Home() {
                     }))
                   }
                 />
-                <span>Want To Share To The Public Feed?</span>
+                <span>{t("home.sharePublic")}</span>
               </label>
 
               <div className="modal-preview">
@@ -3054,16 +3058,16 @@ function Home() {
                       loading="lazy"
                     />
                   ) : (
-                    <span>Finished book</span>
+                    <span>{t("home.finishedBook")}</span>
                   )}
                 </div>
 
                 <div>
-                  <strong>{finishingBook?.title || "Finished book"}</strong>
+                  <strong>{finishingBook?.title || t("home.finishedBook")}</strong>
                   <small>
                     {finishingBook
-                      ? `${finishingBook.author} / Moving to Finished`
-                      : "Save your final thoughts and rating."}
+                      ? `${finishingBook.author} / ${t("home.movingFinished")}`
+                      : t("home.finalThoughts")}
                   </small>
                 </div>
               </div>
@@ -3073,10 +3077,10 @@ function Home() {
               ) : null}
               <button className="primary-button full" type="submit" disabled={finishReviewSaving}>
                 {finishReviewSaving
-                  ? "Saving..."
+                  ? t("profile.saving")
                   : finishReview.visibility === "public"
-                    ? "Share Finished Review"
-                    : "Save Privately"}
+                    ? t("home.shareFinished")
+                    : t("home.savePrivately")}
               </button>
             </form>
           </section>
@@ -3094,16 +3098,16 @@ function Home() {
         footer={
           <>
             <label className="isbn-shelf-choice">
-              <span>Add to</span>
+              <span>{t("search.addTo")}</span>
 
               <select
                 value={modalShelf}
                 onChange={(e) => setModalShelf(e.target.value)}
                 disabled={addingBook || bookAdded}
               >
-                <option value="to-be-read">To Be Read</option>
-                <option value="currently-reading">Currently Reading</option>
-                <option value="read">Read</option>
+                <option value="to-be-read">{t("search.toBeRead")}</option>
+                <option value="currently-reading">{t("books.currentlyReading")}</option>
+                <option value="read">{t("search.read")}</option>
               </select>
             </label>
 
@@ -3114,10 +3118,10 @@ function Home() {
               disabled={addingBook || bookAdded}
             >
               {addingBook
-                ? "Adding..."
+                ? t("books.adding")
                 : bookAdded
-                  ? "Added to Shelf"
-                  : "Add to My Shelf"}
+                  ? t("books.addedToShelf")
+                  : t("books.addToMyShelf")}
             </button>
           </>
         }

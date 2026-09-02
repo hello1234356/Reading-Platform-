@@ -1,6 +1,9 @@
+import { useTranslation } from "react-i18next";
+
 function ModerationStatusBar({
-  label = "Checking your message",
+  label,
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className="moderation-status-bar"
@@ -12,7 +15,7 @@ function ModerationStatusBar({
         aria-hidden="true"
       />
 
-      <span>{label}</span>
+      <span>{label || t("moderation.checkingMessage")}</span>
 
       <span
         className="moderation-status-dots"

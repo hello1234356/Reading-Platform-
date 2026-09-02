@@ -1,8 +1,11 @@
+import { useTranslation } from "react-i18next";
+
 function ModerationBlockedCard({
   level = "block",
   message,
   onEdit,
 }) {
+  const { t } = useTranslation();
   const isReported = level === "report";
 
   return (
@@ -26,15 +29,15 @@ function ModerationBlockedCard({
         <div>
           <strong>
             {isReported
-              ? "Serious community violation"
-              : "This cannot be posted"}
+              ? t("moderation.serious")
+              : t("moderation.cannotPost")}
           </strong>
 
           <p>
             {message ||
               (isReported
-                ? "This message severely violates our community guidelines. It has been blocked and submitted to school moderators for review."
-                : "This message contains language that is not permitted on the school platform. Please revise it before posting.")}
+                ? t("moderation.seriousDetail")
+                : t("moderation.blockedDetail"))}
           </p>
         </div>
       </div>
@@ -45,7 +48,7 @@ function ModerationBlockedCard({
           type="button"
           onClick={onEdit}
         >
-          Edit message
+          {t("moderation.editMessage")}
         </button>
       </div>
     </div>

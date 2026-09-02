@@ -6,6 +6,7 @@ import {
 } from "react";
 import { requireSupabase } from "../lib/supabase";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import BookCoverImage from "../components/BookCoverImage";
 import { searchBooksByQueryLanguage } from "../lib/bookSearch";
@@ -44,9 +45,9 @@ function getDefaultSchedule(duration = "4 weeks") {
   ];
 }
 
-function getClubActivityLabel(lastActivityAt) {
+function getClubActivityLabel(lastActivityAt, t) {
   if (!lastActivityAt) {
-    return "No activity yet";
+    return t("clubs.activityNone");
   }
 
   const activityDate = new Date(lastActivityAt);
@@ -55,18 +56,18 @@ function getClubActivityLabel(lastActivityAt) {
   );
 
   if (Number.isNaN(daysSinceActivity) || daysSinceActivity < 0) {
-    return "Recently active";
+    return t("clubs.activityRecent");
   }
 
   if (daysSinceActivity === 0) {
-    return "Active today";
+    return t("clubs.activityToday");
   }
 
   if (daysSinceActivity === 1) {
-    return "Active yesterday";
+    return t("clubs.activityYesterday");
   }
 
-  return `Active ${daysSinceActivity} days ago`;
+  return t("clubs.activityDays", { count: daysSinceActivity });
 }
 
 function shouldRecordClubRoomVisit({ clubId, userId }) {
@@ -155,27 +156,28 @@ function fetchGoogleBooks(searchTerm) {
   return request;
 }
 
-function getTypingLabel(names) {
+function getTypingLabel(names, t) {
   if (!Array.isArray(names) || names.length === 0) {
     return "";
   }
 
   if (names.length === 1) {
-    return `${names[0]} is typing`;
+    return t("clubs.typingOne", { first: names[0] });
   }
 
   if (names.length === 2) {
-    return `${names[0]} and ${names[1]} are typing`;
+    return t("clubs.typingTwo", { first: names[0], second: names[1] });
   }
 
   if (names.length === 3) {
-    return `${names[0]}, ${names[1]}, and ${names[2]} are typing`;
+    return t("clubs.typingThree", { first: names[0], second: names[1], third: names[2] });
   }
 
-  return "3+ users are typing";
+  return t("clubs.typingMany");
 }
 
 function BookClubs() {
+  const { t, i18n } = useTranslation();
   const { requireLogin, user } = useRequireLogin();
   const navigate = useNavigate();
   const { clubId } = useParams();
@@ -1388,27 +1390,27 @@ const filteredClubs = clubs.filter((club) => {
   }
 
   return (
-    <section className="home-page clubs-page" aria-label="Book clubs">
+    <section className="home-page clubs-page" aria-label={t("clubs.pageAria")}>
       {!activeClub && !lockedClub && (
         <>
           <header className="clubs-hero">
-            <p className="eyebrow">Join or Create a Book Club</p>
-            <h1>Circles</h1>
-            <p className="school-motto">Fortune favors the bold.</p>
+            <p className="eyebrow">{t("clubs.hero")}</p>
+            <h1>{t("clubs.title")}</h1>
+            <p className="school-motto">{t("clubs.motto")}</p>
           </header>
 
-          <section className="club-toolbar" aria-label="Book club filters">
+          <section className="club-toolbar" aria-label={t("clubs.filters")}>
             <div>
-              <p className="eyebrow">Reading Circles</p>
-              <h2>Join the Reading Fun</h2>
+              <p className="eyebrow">{t("clubs.readingCircles")}</p>
+              <h2>{t("clubs.joinFun")}</h2>
             </div>
             <label className="club-search-control">
-              <span className="sr-only">Search book clubs</span>
+              <span className="sr-only">{t("clubs.search")}</span>
               <input
                 type="search"
                 value={clubSearchQuery}
                 onChange={(event) => setClubSearchQuery(event.target.value)}
-                placeholder="Search clubs by book, creator, or ..."
+                placeholder={t("clubs.searchPlaceholder")}
               />
             </label>
             <button
@@ -1419,7 +1421,7 @@ const filteredClubs = clubs.filter((club) => {
                 setIsCreateOpen(true);
               }}
             >
-              Create Club
+              {t("clubs.createClubButton")}
             </button>
           </section>
         </>
@@ -1428,7 +1430,7 @@ const filteredClubs = clubs.filter((club) => {
       {lockedClub && (
         <section className="club-locked-room" aria-label={`${lockedClub.title} locked room`}>
           <Link className="club-room-back" to="/clubs">
-            Back to All Clubs
+            {t("clubs.backAll")}
           </Link>
           <div className="club-locked-card">
             <div className="club-detail-cover" aria-hidden="true">
@@ -1439,14 +1441,13 @@ const filteredClubs = clubs.filter((club) => {
               />
             </div>
             <div>
-              <p className="eyebrow">Join Required</p>
+              <p className="eyebrow">{t("clubs.joinRequired")}</p>
               <h2>{lockedClub.title}</h2>
               <p>
-                Join this book club first to unlock the discussion room, schedule,
-                and reader list.
+                {t("clubs.joinRequiredHelp")}
               </p>
               <button className="primary-button" type="button" onClick={() => joinClub(lockedClub.id)}>
-                Join Club
+                {t("clubs.joinClub")}
               </button>
             </div>
           </div>
@@ -1456,7 +1457,7 @@ const filteredClubs = clubs.filter((club) => {
       {activeClub ? (
         <section className="club-room" aria-label={`${activeClub.title} room`}>
           <Link className="club-room-back" to="/clubs">
-            Back to All Clubs
+            {t("clubs.backAll")}
           </Link>
           <div className="club-room-heading">
             <div className="club-room-cover" aria-hidden="true">
@@ -1467,21 +1468,21 @@ const filteredClubs = clubs.filter((club) => {
               />
             </div>
             <div>
-              <p className="eyebrow">You Joined</p>
+              <p className="eyebrow">{t("clubs.youJoined")}</p>
               <h2>{activeClub.title}</h2>
               <p className="club-room-meta">
                 <strong>{activeClub.bookTitle}</strong>
                 <span>by {activeClub.author}</span>
 
                 <em>
-                  Host:{" "}
+                  {t("clubs.host")}:{" "}
                   <ProfileLink userId={activeClub.creatorId}>
                     {activeClub.creatorName}
                   </ProfileLink>
                 </em>
               </p>
               <button className="club-danger-action" type="button" onClick={() => quitClub(activeClub.id)}>
-                Quit Club
+                {t("clubs.quit")}
               </button>
               {isClubCreator(activeClub) && (
                 <button
@@ -1489,7 +1490,7 @@ const filteredClubs = clubs.filter((club) => {
                   type="button"
                   onClick={() => deleteClub(activeClub.id)}
                 >
-                  Delete Club
+                  {t("clubs.deleteClub")}
                 </button>
               )}
             </div>
@@ -1498,11 +1499,11 @@ const filteredClubs = clubs.filter((club) => {
           <div className="club-room-grid">
             <section
               className="reading-calendar"
-              aria-label="Reading calendar"
+              aria-label={t("clubs.readingSchedule")}
             >
               <div className="reading-calendar-heading">
                 <p className="eyebrow">
-                  Manager Schedule
+                  {t("clubs.managerSchedule")}
                 </p>
 
                 {isClubCreator(activeClub) && (
@@ -1511,7 +1512,7 @@ const filteredClubs = clubs.filter((club) => {
                     type="button"
                     onClick={openScheduleEditor}
                   >
-                    Edit Schedule
+                    {t("clubs.editSchedule")}
                   </button>
                 )}
               </div>
@@ -1522,7 +1523,7 @@ const filteredClubs = clubs.filter((club) => {
 
                     <div>
                       <strong>
-                        Week {step.position || index + 1}:{" "}
+                        {t("clubs.week", { week: step.position || index + 1 })}:{" "}
                         {step.title || step.milestone}
                       </strong>
 
@@ -1541,15 +1542,15 @@ const filteredClubs = clubs.filter((club) => {
               </div>
             </section>
 
-            <section className="club-posts" aria-label="Club posts">
+            <section className="club-posts" aria-label={t("clubs.messages")}>
               <div className="club-chat-heading">
-                <p className="eyebrow">Discussion Room</p>
+                <p className="eyebrow">{t("clubs.discussionRoom")}</p>
                 <strong>#{activeClub.bookTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-")}</strong>
               </div>
               <div className="club-post-list">
                 {(clubPosts[activeClub.id] || []).length === 0 ? (
                   <p>
-                    No messages yet. Start the discussion.
+                    {t("clubs.noMessages")}
                   </p>
                 ) : (
                   (clubPosts[activeClub.id] || []).map((post) => (
@@ -1582,7 +1583,7 @@ const filteredClubs = clubs.filter((club) => {
                         )}
 
                         <small>
-                          {new Date(post.createdAt).toLocaleString()}
+                          {new Date(post.createdAt).toLocaleString(i18n.resolvedLanguage)}
                         </small>
 
                         <p>{post.message}</p>       
@@ -1598,7 +1599,7 @@ const filteredClubs = clubs.filter((club) => {
               ) : null}
               {clubMessageChecking && (
                 <ModerationStatusBar
-                  label="Checking your club message"
+                  label={t("clubs.checkingMessage")}
                 />
               )}
               {clubModerationWarning && (
@@ -1632,7 +1633,7 @@ const filteredClubs = clubs.filter((club) => {
                   className="club-realtime-error"
                   role="status"
                 >
-                  Live updates disconnected. Reconnecting…
+                  {t("clubs.disconnected")}
                 </p>
               )}
               {typingNames.length > 0 && (
@@ -1651,9 +1652,7 @@ const filteredClubs = clubs.filter((club) => {
                   </span>
 
                   <span>
-                    {getTypingLabel(
-                      typingNames,
-                    )}
+                    {getTypingLabel(typingNames, t)}
                   </span>
                 </div>
               )}
@@ -1669,7 +1668,7 @@ const filteredClubs = clubs.filter((club) => {
                       event.target.value,
                     );
                   }}
-                  placeholder={`Message ${activeClub.title}...`}
+                  placeholder={t("clubs.messageTo", { club: activeClub.title })}
                   rows="2"
                 />
                 <button
@@ -1681,14 +1680,14 @@ const filteredClubs = clubs.filter((club) => {
                   }
                 >
                   {clubMessageChecking
-                    ? "Checking..."
-                    : "Send"}
+                    ? t("home.checking")
+                    : t("home.send")}
                 </button>
               </form>
             </section>
 
-            <aside className="club-members-panel" aria-label="Club members">
-              <p className="eyebrow">Readers</p>
+            <aside className="club-members-panel" aria-label={t("clubs.members")}>
+              <p className="eyebrow">{t("clubs.readers")}</p>
               <strong>{activeClub.memberCount}/{activeClub.membersWanted}</strong>              
               <div>
                 {(activeClub.members || []).map((member) => (
@@ -1715,7 +1714,7 @@ const filteredClubs = clubs.filter((club) => {
   <>
     {clubsLoading && (
       <p className="club-empty-state">
-        Loading reading circles...
+        {t("clubs.loading")}
       </p>
     )}
 
@@ -1732,7 +1731,7 @@ const filteredClubs = clubs.filter((club) => {
     )}
 
     {!clubsLoading && !clubsError && (
-      <section className="club-grid" aria-label="Available book clubs">
+      <section className="club-grid" aria-label={t("clubs.available")}>
 {filteredClubs.map((club) => (
               <article className={`club-card ${club.tone}`} key={club.id}>
                 <div className="club-cover" aria-hidden="true">
@@ -1747,7 +1746,7 @@ const filteredClubs = clubs.filter((club) => {
                     <h2>{club.bookTitle}</h2>
                     <p className="club-card-name">{club.title}</p>
                     <small className="club-card-founder">
-                      Started by{" "}
+                      {t("clubs.startedByLabel")}{" "}
                       <ProfileLink userId={club.creatorId}>
                         {club.creatorName}
                       </ProfileLink>
@@ -1757,10 +1756,10 @@ const filteredClubs = clubs.filter((club) => {
                   <p className="club-card-description">{club.description}</p>
                   <div className="club-card-meta">
                     <p className="club-activity-status">
-                      {getClubActivityLabel(club.lastActivityAt)}
+                      {getClubActivityLabel(club.lastActivityAt, t)}
                     </p>
                     <strong>
-                      {club.memberCount}/{club.membersWanted} readers
+                      {t("clubs.readerCount", { current: club.memberCount, wanted: club.membersWanted })}
                     </strong>
                   </div>
                   <div className="club-capacity" aria-hidden="true">
@@ -1772,7 +1771,7 @@ const filteredClubs = clubs.filter((club) => {
                       type="button"
                       onClick={() => setDetailClubId(club.id)}
                     >
-                      Details
+                      {t("clubs.details")}
                     </button>
                     <button
                       className="primary-button"
@@ -1780,11 +1779,11 @@ const filteredClubs = clubs.filter((club) => {
                       onClick={() => joinClub(club.id)}
                       disabled={club.isJoined || actionLoading}
                     >
-                      {club.isJoined ? "Joined" : "Join"}
+                      {club.isJoined ? t("clubs.joined") : t("clubs.join")}
                     </button>
                     {club.isJoined && (
                       <Link className="primary-button" to={`/clubs/${club.id}`}>
-                        Open Room
+                        {t("clubs.openRoom")}
                       </Link>
                     )}
                     {club.isJoined && (
@@ -1793,7 +1792,7 @@ const filteredClubs = clubs.filter((club) => {
                         type="button"
                         onClick={() => quitClub(club.id)}
                       >
-                        Quit Club
+                        {t("clubs.quit")}
                       </button>
                     )}
                     {isClubCreator(club) && (
@@ -1802,7 +1801,7 @@ const filteredClubs = clubs.filter((club) => {
                         type="button"
                         onClick={() => deleteClub(club.id)}
                       >
-                        Delete Club
+                        {t("clubs.deleteClub")}
                       </button>
                     )}
                   </div>
@@ -1813,8 +1812,8 @@ const filteredClubs = clubs.filter((club) => {
         {filteredClubs.length === 0 && (
           <p className="club-empty-state">
             {clubs.length === 0
-              ? "No reading circles have been created yet. Start the first one when you are ready."
-              : "No circles match that search yet. Try another title, creator, or description."}
+              ? t("clubs.empty")
+              : t("clubs.noMatch")}
           </p>
         )}
       </section>
@@ -1842,11 +1841,11 @@ const filteredClubs = clubs.filter((club) => {
               className="modal-close"
               type="button"
               onClick={() => setDetailClubId(null)}
-              aria-label="Close club details"
+              aria-label={t("clubs.closeDetails")}
             >
               x
             </button>
-              <p className="eyebrow">Before You Join</p>
+              <p className="eyebrow">{t("clubs.beforeJoin")}</p>
             <div className="club-detail-cover" aria-hidden="true">
               <BookCoverImage
                 src={detailClub.coverUrl}
@@ -1860,15 +1859,15 @@ const filteredClubs = clubs.filter((club) => {
             </p>
             <dl>
               <div>
-                <dt>Tags</dt>
+                <dt>{t("clubs.tags")}</dt>
                 <dd>
                   {detailClub.tags.length > 0
                     ? detailClub.tags.join(", ")
-                    : "No tags"}
+                    : t("clubs.noTags")}
                 </dd>
               </div>
               <div>
-                <dt>Started by</dt>
+                <dt>{t("clubs.startedByLabel")}</dt>
                 <dd>
                   <ProfileLink userId={detailClub.creatorId}>
                     {detailClub.creatorName}
@@ -1877,11 +1876,11 @@ const filteredClubs = clubs.filter((club) => {
               </div>
 
               <div>
-                <dt>Looking for</dt>
-                <dd>{detailClub.membersWanted} readers</dd>
+                <dt>{t("clubs.lookingFor")}</dt>
+                <dd>{t("clubs.memberCount", { count: detailClub.membersWanted })}</dd>
               </div>
               <div>
-                <dt>Length</dt>
+                <dt>{t("clubs.length")}</dt>
                 <dd>{detailClub.duration}</dd>
               </div>
               <div>
@@ -1895,11 +1894,11 @@ const filteredClubs = clubs.filter((club) => {
               onClick={() => joinClub(detailClub.id)}
               disabled={detailClub.isJoined || actionLoading}
             >
-              {detailClub.isJoined ? "Joined - Linked to Profile" : "Join This Club"}
+              {detailClub.isJoined ? t("clubs.joinedProfile") : t("clubs.joinThis")}
             </button>
             {detailClub.isJoined && (
               <Link className="primary-button full" to={`/clubs/${detailClub.id}`}>
-                Open Club Room
+                {t("clubs.openClubRoom")}
               </Link>
             )}
             {detailClub.isJoined && (
@@ -1908,7 +1907,7 @@ const filteredClubs = clubs.filter((club) => {
                 type="button"
                 onClick={() => quitClub(detailClub.id)}
               >
-                Quit Club
+                {t("clubs.quit")}
               </button>
             )}
             {isClubCreator(detailClub) && (
@@ -1917,7 +1916,7 @@ const filteredClubs = clubs.filter((club) => {
                 type="button"
                 onClick={() => deleteClub(detailClub.id)}
               >
-                Delete Club
+                {t("clubs.deleteClub")}
               </button>
             )}
           </section>
@@ -1945,7 +1944,7 @@ const filteredClubs = clubs.filter((club) => {
             onClick={() =>
               setIsScheduleEditorOpen(false)
             }
-            aria-label="Close schedule editor"
+            aria-label={t("common.close")}
           >
             x
           </button>
@@ -1983,7 +1982,7 @@ const filteredClubs = clubs.filter((club) => {
                         event.target.value,
                       )
                     }
-                    placeholder="Theme or milestone"
+                    placeholder={t("clubs.theme")}
                   />
 
                   <input
@@ -1996,7 +1995,7 @@ const filteredClubs = clubs.filter((club) => {
                         event.target.value,
                       )
                     }
-                    placeholder="Chapters or pages"
+                    placeholder={t("clubs.chapters")}
                   />
 
                   <textarea
@@ -2008,7 +2007,7 @@ const filteredClubs = clubs.filter((club) => {
                         event.target.value,
                       )
                     }
-                    placeholder="Discussion prompt or instructions"
+                    placeholder={t("clubs.prompt")}
                     rows="3"
                   />
 
@@ -2075,16 +2074,16 @@ const filteredClubs = clubs.filter((club) => {
               className="modal-close"
               type="button"
               onClick={() => setIsCreateOpen(false)}
-              aria-label="Close create club"
+              aria-label={t("clubs.closeCreate")}
             >
               x
             </button>
-            <p className="eyebrow">Start a Circle</p>
-            <h2 id="create-club-title">Create a Book Club</h2>
+            <p className="eyebrow">{t("clubs.startCircle")}</p>
+            <h2 id="create-club-title">{t("clubs.createBookClub")}</h2>
             <div className="create-club-layout">
               <form onSubmit={createClub}>
                 <label>
-                  <span>Book club name</span>
+                  <span>{t("clubs.bookClubName")}</span>
                   <input
                     type="text"
                     value={newClub.clubName}
@@ -2095,7 +2094,7 @@ const filteredClubs = clubs.filter((club) => {
                   />
                 </label>
                 <label className="book-search-field">
-                  <span>Book title</span>
+                  <span>{t("clubs.bookTitle")}</span>
                   <input
                     type="search"
                     value={newClub.bookTitle}
@@ -2111,17 +2110,17 @@ const filteredClubs = clubs.filter((club) => {
                         setBookSearchMessage("");
                       }
                     }}
-                    placeholder="Search title, author, or ISBN..."
+                    placeholder={t("clubs.searchBook")}
                   />
                 </label>
                 {bookSearchStatus === "loading" && (
-                  <p className="book-search-status">Searching the ISBN database...</p>
+                  <p className="book-search-status">{t("clubs.searchingDatabase")}</p>
                 )}
                 {bookSearchMessage ? (
                   <p className="book-search-status error">{bookSearchMessage}</p>
                 ) : null}
                 {bookSearchResults.length > 0 && (
-                  <div className="book-search-suggestions" aria-label="Book suggestions">
+                  <div className="book-search-suggestions" aria-label={t("clubs.suggestions")}>
                     {bookSearchResults.map((book) => (
                       <div
                         className="book-search-suggestion"
@@ -2165,7 +2164,7 @@ const filteredClubs = clubs.filter((club) => {
                   </div>
                 )}
                 <label>
-                  <span>Tags</span>
+                  <span>{t("clubs.tags")}</span>
 
                   <input
                     type="text"
@@ -2185,7 +2184,7 @@ const filteredClubs = clubs.filter((club) => {
                   </small>
                 </label>
                 <label>
-                  <span>Members wanted</span>
+                  <span>{t("clubs.membersWanted")}</span>
                   <input
                     type="number"
                     min="2"
@@ -2197,7 +2196,7 @@ const filteredClubs = clubs.filter((club) => {
                   />
                 </label>
                 <label>
-                  <span>How long</span>
+                  <span>{t("clubs.howLong")}</span>
                   <input
                     type="text"
                     value={newClub.duration}
@@ -2208,18 +2207,18 @@ const filteredClubs = clubs.filter((club) => {
                   />
                 </label>
                 <fieldset className="schedule-builder">
-                  <legend>Reading schedule</legend>
+                  <legend>{t("clubs.readingSchedule")}</legend>
                   <div className="schedule-builder-list">
                     {(Array.isArray(newClub.schedule) ? newClub.schedule : []).map((step, index) => (
                       <div className="schedule-builder-row" key={`schedule-step-${index + 1}`}>
-                        <span>Week {index + 1}</span>
+                        <span>{t("clubs.week", { week: index + 1 })}</span>
                         <input
                           type="text"
                           value={step.theme}
                           onChange={(event) =>
                             updateScheduleStep(index, "theme", event.target.value)
                           }
-                          placeholder="Theme"
+                          placeholder={t("clubs.theme")}
                         />
                         <input
                           type="text"
@@ -2227,14 +2226,14 @@ const filteredClubs = clubs.filter((club) => {
                           onChange={(event) =>
                             updateScheduleStep(index, "chapters", event.target.value)
                           }
-                          placeholder="Chapters"
+                          placeholder={t("clubs.chapters")}
                         />
                         <textarea
                           value={step.description}
                           onChange={(event) =>
                             updateScheduleStep(index, "description", event.target.value)
                           }
-                          placeholder="Discussion prompt or instructions"
+                          placeholder={t("clubs.prompt")}
                           rows="2"
                         />
                         <button
@@ -2245,24 +2244,24 @@ const filteredClubs = clubs.filter((club) => {
                             !Array.isArray(newClub.schedule) || newClub.schedule.length <= 1
                           }
                         >
-                          Delete
+                          {t("common.delete")}
                         </button>
                       </div>
                     ))}
                   </div>
                   <button className="schedule-add-button" type="button" onClick={addScheduleStep}>
-                    Add Week
+                    {t("clubs.addWeek")}
                   </button>
                 </fieldset>
                 <label>
-                  <span>Description</span>
+                  <span>{t("clubs.description")}</span>
                   <textarea
                     maxLength="350"
                     value={newClub.description}
                     onChange={(event) =>
                       setNewClub((draft) => ({ ...draft, description: event.target.value }))
                     }
-                    placeholder="What kind of reading circle are you creating?"
+                    placeholder={t("clubs.description")}
                     rows="4"
                   />
                   <small className="character-count">{newClub.description.length}/350 characters</small>
@@ -2272,10 +2271,10 @@ const filteredClubs = clubs.filter((club) => {
                   type="submit"
                   disabled={actionLoading}
                 >
-                  {actionLoading ? "Creating..." : "Create club"}
+                  {actionLoading ? t("clubs.creating") : t("clubs.createAction")}
                 </button>
               </form>
-              <aside className="create-club-preview" aria-label="Selected book preview">
+              <aside className="create-club-preview" aria-label={t("clubs.selectedPreview")}>
                 <div className="club-detail-cover">
                   <BookCoverImage
                     src={previewBook.coverUrl}

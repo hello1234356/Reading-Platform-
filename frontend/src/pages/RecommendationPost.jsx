@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { recommendationLists } from "../data/recommendationLists";
 import BookCoverImage from "../components/BookCoverImage";
+import { useTranslation } from "react-i18next";
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -78,6 +79,7 @@ function renderPostBody(post) {
 }
 
 function RecommendationPost() {
+  const { t } = useTranslation();
   const { listSlug } = useParams();
   const post = recommendationLists.find((list) => list.slug === listSlug);
 
@@ -85,13 +87,13 @@ function RecommendationPost() {
     return (
       <section className="home-page blog-post-page">
         <Link className="blog-back-link" to="/discover">
-          Back to Discover
+          {t("search.backDiscover")}
         </Link>
         <article className="blog-post-shell">
-          <p className="eyebrow">Recommendation Post</p>
-          <h1>Post not found.</h1>
+          <p className="eyebrow">{t("search.recommendationPost")}</p>
+          <h1>{t("search.postNotFound")}</h1>
           <p className="blog-placeholder">
-            This list may still be waiting for its first draft.
+            {t("search.draftWaiting")}
           </p>
         </article>
       </section>
@@ -101,7 +103,7 @@ function RecommendationPost() {
   return (
     <section className="home-page blog-post-page">
       <Link className="blog-back-link" to="/discover">
-        Back to Discover
+        {t("search.backDiscover")}
       </Link>
       <article
         className={`blog-post-shell ${post.language === "zh" ? "chinese-post" : ""} post-${post.slug}`}
@@ -118,8 +120,8 @@ function RecommendationPost() {
           <div>
             <p>{post.kicker}</p>
             <h1>{post.title}</h1>
-            {post.username ? <small>By {post.username}</small> : null}
-            <span>{post.count} books</span>
+            {post.username ? <small>{t("search.by", { name: post.username })}</small> : null}
+            <span>{t("search.bookCount", { count: post.count })}</span>
           </div>
         </header>
       {renderPostBody(post)}

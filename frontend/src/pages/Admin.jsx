@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ProfileLink from "../components/ProfileLink";
 import {
   addAdmin,
@@ -71,11 +72,12 @@ function getModerationErrorMessage(error) {
 }
 
 function AdminTabs({ activeTab, onChange, isOwner }) {
+  const { t } = useTranslation();
   const tabs = ["moderation", "books", "book-ai", "clubs", "banners", "announcements"];
   if (isOwner) tabs.push("admins");
 
   return (
-    <div className="admin-tabs" role="tablist" aria-label="Admin sections">
+    <div className="admin-tabs" role="tablist" aria-label={t("admin.sections")}>
       {tabs.map((tab) => (
         <button
           key={tab}
@@ -84,14 +86,14 @@ function AdminTabs({ activeTab, onChange, isOwner }) {
           onClick={() => onChange(tab)}
         >
           {tab === "books"
-            ? "Book Verification"
+            ? t("admin.bookVerification")
             : tab === "book-ai"
-              ? "Book AI Review"
+              ? t("admin.bookAi")
             : tab === "clubs"
-              ? "Club Activity"
+              ? t("admin.clubs")
               : tab === "banners"
-                ? "Homepage Banners"
-              : titleCase(tab)}
+                ? t("admin.banners")
+              : t(`admin.${tab}`, { defaultValue: titleCase(tab) })}
         </button>
       ))}
     </div>
@@ -99,6 +101,7 @@ function AdminTabs({ activeTab, onChange, isOwner }) {
 }
 
 function FilterTabs({ filters, activeFilter, onChange }) {
+  const { t } = useTranslation();
   return (
     <div className="admin-filter-tabs">
       {filters.map((filter) => (
@@ -108,7 +111,7 @@ function FilterTabs({ filters, activeFilter, onChange }) {
           className={activeFilter === filter ? "active" : ""}
           onClick={() => onChange(filter)}
         >
-          {titleCase(filter)}
+          {t(`admin.status.${filter}`, { defaultValue: titleCase(filter) })}
         </button>
       ))}
     </div>
@@ -215,6 +218,7 @@ function OwnerDeleteButton({ label, disabled, onClick }) {
 }
 
 function ModerationTab({ isOwner }) {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState("pending");
   const [reports, setReports] = useState([]);
   const [status, setStatus] = useState("loading");
@@ -285,12 +289,12 @@ function ModerationTab({ isOwner }) {
   }
 
   return (
-    <section className="admin-panel" aria-label="Moderation reports">
+    <section className="admin-panel" aria-label={t("admin.moderationReports")}>
       <FilterTabs filters={moderationFilters} activeFilter={filter} onChange={setFilter} />
       {message ? <p className="admin-error" role="alert">{message}</p> : null}
-      {status === "loading" ? <p className="admin-empty">Loading reports...</p> : null}
+      {status === "loading" ? <p className="admin-empty">{t("admin.loadingReports")}</p> : null}
       {status === "ready" && reports.length === 0 ? (
-        <p className="admin-empty">No reports in this queue.</p>
+        <p className="admin-empty">{t("admin.noReports")}</p>
       ) : null}
       <div className="admin-card-list">
         {reports.map((report) => (
@@ -393,6 +397,7 @@ function ModerationTab({ isOwner }) {
 }
 
 function BookVerificationTab({ isOwner }) {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState("pending");
   const [submissions, setSubmissions] = useState([]);
   const [status, setStatus] = useState("loading");
@@ -463,12 +468,12 @@ function BookVerificationTab({ isOwner }) {
   }
 
   return (
-    <section className="admin-panel" aria-label="Book verification">
+    <section className="admin-panel" aria-label={t("admin.bookVerification")}>
       <FilterTabs filters={submissionFilters} activeFilter={filter} onChange={setFilter} />
       {message ? <p className="admin-error" role="alert">{message}</p> : null}
-      {status === "loading" ? <p className="admin-empty">Loading submissions...</p> : null}
+      {status === "loading" ? <p className="admin-empty">{t("admin.loadingSubmissions")}</p> : null}
       {status === "ready" && submissions.length === 0 ? (
-        <p className="admin-empty">No book submissions in this queue.</p>
+        <p className="admin-empty">{t("admin.noSubmissions")}</p>
       ) : null}
       <div className="admin-card-list">
         {submissions.map((submission) => (
@@ -555,7 +560,7 @@ function BookVerificationTab({ isOwner }) {
               </div>
 
               <aside className="admin-book-submitter">
-                <p className="eyebrow">Submitted by</p>
+                <p className="eyebrow">{t("admin.submittedBy")}</p>
                 <ProfileLine profile={submission.submitter} fallback="Unknown submitter" />
               </aside>
             </div>
@@ -574,6 +579,7 @@ function BookVerificationTab({ isOwner }) {
 }
 
 function BookAiModerationTab() {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState("review_required");
   const [assessments, setAssessments] = useState([]);
   const [status, setStatus] = useState("loading");
@@ -613,15 +619,15 @@ function BookAiModerationTab() {
   }
 
   return (
-    <section className="admin-panel" aria-label="Book AI moderation review">
+    <section className="admin-panel" aria-label={t("admin.aiReviewAria")}>
       <p className="admin-muted">
         Enforcement mode: search cards remain visible, but only approved books can be opened or used.
       </p>
       <FilterTabs filters={bookAssessmentFilters} activeFilter={filter} onChange={setFilter} />
       {message ? <p className="admin-error" role="alert">{message}</p> : null}
-      {status === "loading" ? <p className="admin-empty">Loading assessments...</p> : null}
+      {status === "loading" ? <p className="admin-empty">{t("admin.loadingAssessments")}</p> : null}
       {status === "ready" && assessments.length === 0 ? (
-        <p className="admin-empty">No book assessments in this queue.</p>
+        <p className="admin-empty">{t("admin.noAssessments")}</p>
       ) : null}
       <div className="admin-card-list">
         {assessments.map((assessment) => (
@@ -674,7 +680,7 @@ function BookAiModerationTab() {
               {assessment.reasonForReview ? (
                 <p className="admin-muted">Reason for review: {assessment.reasonForReview}</p>
               ) : null}
-              <div className="admin-risk-grid" aria-label="Risk scores">
+              <div className="admin-risk-grid" aria-label={t("admin.riskScores")}>
                 {Object.entries(assessment.riskScores).map(([dimension, score]) => (
                   <span key={dimension}>{titleCase(dimension)}: {score}/3</span>
                 ))}
@@ -683,7 +689,7 @@ function BookAiModerationTab() {
                 <p className="admin-muted">Flags: {assessment.flags.join(", ")}</p>
               ) : null}
               <details className="admin-evidence-details">
-                <summary>Evidence used</summary>
+                <summary>{t("admin.evidence")}</summary>
                 {assessment.evidence.description ? <p>{assessment.evidence.description}</p> : null}
                 <dl>
                   {Object.entries(assessment.evidence)
@@ -705,12 +711,12 @@ function BookAiModerationTab() {
                 {assessment.status !== "error" ? (
                   <button className="ghost-button" type="button"
                     disabled={savingId === assessment.id}
-                    onClick={() => decide(assessment.id, "block")}>Block</button>
+                    onClick={() => decide(assessment.id, "block")}>{t("admin.block")}</button>
                 ) : null}
                 {assessment.manuallyReviewed ? (
                   <button className="ghost-button" type="button"
                     disabled={savingId === assessment.id}
-                    onClick={() => decide(assessment.id, "review_required")}>Return to review</button>
+                    onClick={() => decide(assessment.id, "review_required")}>{t("admin.returnReview")}</button>
                 ) : null}
               </div>
             </div>
@@ -722,6 +728,7 @@ function BookAiModerationTab() {
 }
 
 function ClubActivityTab() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [clubs, setClubs] = useState([]);
@@ -758,20 +765,20 @@ function ClubActivityTab() {
   }, [query]);
 
   return (
-    <section className="admin-panel" aria-label="Club activity">
+    <section className="admin-panel" aria-label={t("admin.clubActivityAria")}>
       <label className="admin-search-control">
-        <span className="sr-only">Search clubs</span>
+        <span className="sr-only">{t("admin.searchClubs")}</span>
         <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search clubs..."
+          placeholder={t("admin.searchClubsPlaceholder")}
         />
       </label>
       {message ? <p className="admin-error" role="alert">{message}</p> : null}
-      {status === "loading" ? <p className="admin-empty">Loading clubs...</p> : null}
+      {status === "loading" ? <p className="admin-empty">{t("admin.loadingClubs")}</p> : null}
       {status === "ready" && clubs.length === 0 ? (
-        <p className="admin-empty">No matching clubs.</p>
+        <p className="admin-empty">{t("admin.noMatchingClubs")}</p>
       ) : null}
       <div className="admin-card-grid">
         {clubs.map((club) => (
@@ -820,6 +827,7 @@ function ClubActivityTab() {
 }
 
 function AdminManagementTab() {
+  const { t } = useTranslation();
   const [admins, setAdmins] = useState([]);
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("loading");
@@ -886,14 +894,14 @@ function AdminManagementTab() {
   }
 
   return (
-    <section className="admin-panel" aria-label="Admin management">
+    <section className="admin-panel" aria-label={t("admin.management")}>
       {message ? <p className="admin-error" role="alert">{message}</p> : null}
-      {status === "loading" ? <p className="admin-empty">Loading admins...</p> : null}
+      {status === "loading" ? <p className="admin-empty">{t("admin.loadingAdmins")}</p> : null}
       <div className="admin-card-list">
         {owners.map((owner) => (
           <article className="admin-card admin-row-card" key={owner.email}>
             <div>
-              <p className="eyebrow">Owner</p>
+              <p className="eyebrow">{t("admin.owner")}</p>
               <strong>{owner.email}</strong>
             </div>
           </article>
@@ -903,7 +911,7 @@ function AdminManagementTab() {
         {normalAdmins.map((admin) => (
           <article className="admin-card admin-row-card" key={admin.email}>
             <div>
-              <p className="eyebrow">Admin</p>
+              <p className="eyebrow">{t("admin.title")}</p>
               <strong>{admin.email}</strong>
             </div>
             <button
@@ -922,7 +930,7 @@ function AdminManagementTab() {
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          placeholder="email address"
+          placeholder={t("admin.emailPlaceholder")}
           required
         />
         <button className="primary-button" type="submit" disabled={saving}>
@@ -934,6 +942,7 @@ function AdminManagementTab() {
 }
 
 function AnnouncementsTab() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState("everyone");
   const [draft, setDraft] = useState({
     announcementId: null,
@@ -1090,42 +1099,41 @@ function AnnouncementsTab() {
   }
 
   return (
-    <section className="admin-panel" aria-label="Notification announcements">
+    <section className="admin-panel" aria-label={t("admin.announcements")}>
       <div className="admin-card admin-announcement-card">
         <div>
-          <p className="eyebrow">Notification delivery</p>
-          <h2>{mode === "everyone" ? "Public announcement" : "Targeted admin message"}</h2>
-          <p className="admin-muted">Public announcements are stored once and remain visible to
-            current and future users while active. Targeted messages go only to the selected user.</p>
+          <p className="eyebrow">{t("admin.notificationDelivery")}</p>
+          <h2>{mode === "everyone" ? t("admin.publicAnnouncement") : t("admin.targetedMessage")}</h2>
+          <p className="admin-muted">{t("admin.deliveryHelp")}</p>
         </div>
         <form className="admin-announcement-form" onSubmit={sendAnnouncement}>
           <fieldset className="admin-announcement-mode">
-            <legend>Send to</legend>
+            <legend>{t("admin.sendTo")}</legend>
             <label><input type="radio" name="announcement-audience" value="specific"
               checked={mode === "specific"} onChange={() => resetDraft("specific")} />
-              Specific user</label>
+              {t("admin.specificUser")}</label>
             <label><input type="radio" name="announcement-audience" value="everyone"
               checked={mode === "everyone"} onChange={() => resetDraft("everyone")} />
-              Everyone</label>
+              {t("admin.everyone")}</label>
           </fieldset>
           {mode === "specific" ? (
             <div className="admin-recipient-picker">
               <label>
-                <span>Find user by username or name</span>
+                <span>{t("admin.findUser")}</span>
                 <span className="admin-recipient-search-row">
                   <input value={recipientQuery} maxLength="100"
                     onChange={(event) => setRecipientQuery(event.target.value)} />
                   <button className="ghost-button" type="button" disabled={searching}
-                    onClick={findRecipient}>{searching ? "Searching..." : "Find user"}</button>
+                    onClick={findRecipient}>{searching ? t("common.searching") : t("admin.findUserButton")}</button>
                 </span>
               </label>
               {selectedRecipient ? (
-                <p className="admin-muted">Recipient: <strong>@{
+                <p className="admin-muted">{t("admin.recipient")}: <strong>@{
                   selectedRecipient.username || selectedRecipient.fullName
                 }</strong></p>
               ) : null}
               {recipientResults.length ? (
-                <div className="admin-recipient-results" aria-label="Matching users">
+                <div className="admin-recipient-results" aria-label={t("admin.matchingUsers")}>
                   {recipientResults.map((recipient) => (
                     <button type="button" key={recipient.id}
                       className={selectedRecipient?.id === recipient.id ? "selected" : ""}
@@ -1139,67 +1147,67 @@ function AnnouncementsTab() {
             </div>
           ) : null}
           <label>
-            <span>Title</span>
+            <span>{t("admin.titleLabel")}</span>
             <input value={draft.title} maxLength="180" required
               onChange={(event) => updateDraft("title", event.target.value)} />
           </label>
           <label>
-            <span>Message</span>
+            <span>{t("admin.message")}</span>
             <textarea value={draft.body} maxLength="1000" required rows="5"
               onChange={(event) => updateDraft("body", event.target.value)} />
           </label>
           <label>
-            <span>Optional link or destination</span>
-            <input value={draft.targetUrl} maxLength="500" placeholder="/discover or https://example.com"
+            <span>{t("admin.optionalDestination")}</span>
+            <input value={draft.targetUrl} maxLength="500" placeholder={t("admin.destinationPlaceholder")}
               onChange={(event) => updateDraft("targetUrl", event.target.value)} />
           </label>
           {mode === "everyone" ? (
             <div className="admin-announcement-schedule">
               <label>
-                <span>Visible from</span>
+                <span>{t("admin.visibleFrom")}</span>
                 <input type="datetime-local" value={draft.startsAt}
                   onChange={(event) => updateDraft("startsAt", event.target.value)} />
               </label>
               <label>
-                <span>Visible until (optional)</span>
+                <span>{t("admin.visibleUntil")}</span>
                 <input type="datetime-local" value={draft.endsAt}
                   onChange={(event) => updateDraft("endsAt", event.target.value)} />
               </label>
               <label className="admin-announcement-active">
                 <input type="checkbox" checked={draft.isActive}
                   onChange={(event) => updateDraft("isActive", event.target.checked)} />
-                <span>Active</span>
+                <span>{t("admin.active")}</span>
               </label>
             </div>
           ) : null}
           <div className="admin-actions">
             <button className="primary-button" type="submit" disabled={saving}>
-              {saving ? "Saving..." : mode === "everyone"
-                ? draft.announcementId ? "Update public announcement" : "Publish for everyone"
-                : "Send to specific user"}
+              {saving ? t("profile.saving") : mode === "everyone"
+                ? draft.announcementId ? t("admin.updateAnnouncement") : t("admin.publishEveryone")
+                : t("admin.sendSpecific")}
             </button>
             {draft.announcementId ? (
               <button className="ghost-button" type="button"
-                onClick={() => resetDraft("everyone")}>Cancel edit</button>
+                onClick={() => resetDraft("everyone")}>{t("admin.cancelEdit")}</button>
             ) : null}
           </div>
         </form>
         {message ? <p className="admin-muted" role="status">{message}</p> : null}
       </div>
       <div className="admin-announcement-history">
-        <h2>Public announcements</h2>
+        <h2>{t("admin.announcements")}</h2>
         {announcements.length === 0 ? (
-          <p className="admin-empty">No public announcements yet.</p>
+          <p className="admin-empty">{t("admin.noAnnouncements")}</p>
         ) : announcements.map((announcement) => (
           <article className="admin-card" key={announcement.id}>
             <div className="admin-card-heading">
               <div><h3>{announcement.title}</h3><p className="admin-muted">{
-                announcement.isActive ? "Active" : "Inactive"
+                announcement.isActive ? t("admin.active") : t("admin.inactive")
               } · visible {formatDate(announcement.startsAt)}{
                 announcement.endsAt ? ` until ${formatDate(announcement.endsAt)}` : " with no expiry"
               }</p></div>
               <button className="ghost-button" type="button"
-                onClick={() => editAnnouncement(announcement)}>Edit</button>
+                onClick={() => editAnnouncement(announcement)}>{t("common.edit")}</button>
             </div>
           </article>
         ))}
@@ -1209,6 +1217,7 @@ function AnnouncementsTab() {
 }
 
 function Admin() {
+  const { t } = useTranslation();
   const { loading, isLoggedIn } = useAuth();
   const [role, setRole] = useState(null);
   const [roleStatus, setRoleStatus] = useState("loading");
@@ -1262,30 +1271,30 @@ function Admin() {
 
   if (loading || roleStatus === "loading") {
     return (
-      <section className="home-page admin-page" aria-label="Admin">
-        <p className="admin-empty">Checking admin access...</p>
+      <section className="home-page admin-page" aria-label={t("admin.title")}>
+        <p className="admin-empty">{t("admin.checking")}</p>
       </section>
     );
   }
 
   if (!role) {
     return (
-      <section className="home-page admin-page" aria-label="Admin">
+      <section className="home-page admin-page" aria-label={t("admin.title")}>
         <div className="admin-denied">
-          <p className="eyebrow">Admin</p>
-          <h1>Access unavailable</h1>
-          <p>This area is only available to LitShelf admins.</p>
+          <p className="eyebrow">{t("admin.title")}</p>
+          <h1>{t("admin.denied")}</h1>
+          <p>{t("admin.deniedHelp")}</p>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="home-page admin-page" aria-label="Admin">
+    <section className="home-page admin-page" aria-label={t("admin.title")}>
       <header className="admin-hero">
         <p className="eyebrow">LitShelf</p>
-        <h1>Admin</h1>
-        <p className="school-motto">{isOwner ? "Owner access" : "Admin access"}</p>
+        <h1>{t("admin.title")}</h1>
+        <p className="school-motto">{isOwner ? t("admin.ownerAccess") : t("admin.adminAccess")}</p>
       </header>
 
       <AdminTabs activeTab={activeTab} onChange={setActiveTab} isOwner={isOwner} />

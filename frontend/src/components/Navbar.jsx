@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
 import {
   getAdminNotificationSummary,
@@ -8,16 +9,18 @@ import {
 import { requireSupabase } from "../lib/supabase";
 import tsinglanLogo from "../assets/tsinglan-logo-official-alt.png";
 import NotificationInbox from "./NotificationInbox";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 const navItems = [
-  { to: "/", label: "Reading" },
-  { to: "/discover", label: "Discover" },
-  { to: "/clubs", label: "Circles" },
-  { to: "/profile", label: "Shelf" },
+  { to: "/", labelKey: "nav.reading" },
+  { to: "/discover", labelKey: "nav.discover" },
+  { to: "/clubs", labelKey: "nav.circles" },
+  { to: "/profile", labelKey: "nav.shelf" },
 ];
 
 function Navbar() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { user, isLoggedIn, loading } = useAuth();
   const [adminRole, setAdminRole] = useState(null);
   const [adminNotificationsOpen, setAdminNotificationsOpen] =
@@ -140,7 +143,7 @@ function Navbar() {
   }, [adminNotificationsOpen]);
 
   const visibleNavItems = adminRole
-    ? [...navItems, { to: "/admin", label: "Admin" }]
+    ? [...navItems, { to: "/admin", labelKey: "nav.admin" }]
     : navItems;
 
   function handleSearch(event) {
@@ -165,12 +168,12 @@ function Navbar() {
   return (
   <nav
     className={adminRole ? "site-nav site-nav-admin" : "site-nav"}
-    aria-label="Primary navigation"
+    aria-label={t("nav.primary")}
   >
     <NavLink
       className="nav-brand"
       to="/"
-      aria-label="LitShelf home"
+      aria-label={t("nav.home")}
     >
       <img
         className="litshelf-logo"
@@ -188,7 +191,7 @@ function Navbar() {
             isActive ? "nav-link active" : "nav-link"
           }
         >
-          <span>{item.label}</span>
+          <span>{t(item.labelKey)}</span>
         </NavLink>
       ))}
     </div>
@@ -202,11 +205,11 @@ function Navbar() {
         <input
           name="site-search"
           type="search"
-          placeholder="Search books..."
-          aria-label="Search books"
+          placeholder={t("nav.searchPlaceholder")}
+          aria-label={t("nav.searchBooks")}
         />
 
-        <button type="submit" aria-label="Search">
+        <button type="submit" aria-label={t("common.search")}>
           <span aria-hidden="true">⌕</span>
         </button>
       </form>
@@ -217,11 +220,11 @@ function Navbar() {
           type="button"
           onClick={handleLogout}
         >
-          Log out
+          {t("common.logOut")}
         </button>
       ) : (
         <NavLink className="nav-login" to="/login">
-          Sign in
+          {t("common.signIn")}
         </NavLink>
       )}
       {isLoggedIn && user?.id ? <NotificationInbox userId={user.id} /> : null}
@@ -234,7 +237,7 @@ function Navbar() {
           <button
             className="admin-notification-trigger"
             type="button"
-            aria-label="Admin notifications"
+            aria-label={t("nav.adminNotifications")}
             aria-expanded={adminNotificationsOpen}
             onClick={() =>
               setAdminNotificationsOpen((open) => !open)
@@ -249,8 +252,8 @@ function Navbar() {
           {adminNotificationsOpen ? (
             <div className="admin-notification-popover">
               <div>
-                <p className="eyebrow">Admin Notifications</p>
-                <h2>Shared Queue</h2>
+                <p className="eyebrow">{t("nav.adminNotifications")}</p>
+                <h2>{t("nav.sharedQueue")}</h2>
               </div>
               <button
                 type="button"
@@ -259,29 +262,31 @@ function Navbar() {
                   navigate("/admin");
                 }}
               >
-                Open Admin
+                {t("nav.openAdmin")}
               </button>
               <ul>
                 <li>
-                  <span>Moderation</span>
+                  <span>{t("nav.moderation")}</span>
                   <strong>{adminNotifications.moderationCount}</strong>
                 </li>
                 <li>
-                  <span>Book Requests</span>
+                  <span>{t("nav.bookRequests")}</span>
                   <strong>{adminNotifications.bookSubmissionCount}</strong>
                 </li>
                 <li>
-                  <span>Club Chat Reports</span>
+                  <span>{t("nav.clubReports")}</span>
                   <strong>{adminNotifications.clubMessageCount}</strong>
                 </li>
               </ul>
               <small>
-                Resolving an item updates this queue for every admin.
+                {t("nav.queueHelp")}
               </small>
             </div>
           ) : null}
         </div>
       ) : null}
+
+      <LanguageSwitcher />
 
       <img
         className="school-logo"

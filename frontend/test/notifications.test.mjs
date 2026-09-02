@@ -62,8 +62,14 @@ test("database destination validation accepts only internal paths and HTTPS link
 
 test("notification relative timestamps remain deterministic", () => {
   const now = new Date("2026-08-25T12:00:00Z").getTime();
-  assert.equal(formatNotificationTime("2026-08-25T11:58:00Z", now), "2m ago");
-  assert.equal(formatNotificationTime("2026-08-24T12:00:00Z", now), "Yesterday");
+  const copy = {
+    "relativeTime.notification.minute": ({ count }) => `${count}m ago`,
+    "relativeTime.notification.yesterday": () => "Yesterday",
+  };
+  const t = (key, values = {}) => copy[key]?.(values) || key;
+  const options = { now, t, locale: "en" };
+  assert.equal(formatNotificationTime("2026-08-25T11:58:00Z", options), "2m ago");
+  assert.equal(formatNotificationTime("2026-08-24T12:00:00Z", options), "Yesterday");
 });
 
 test("notification panel height is derived from its rendered top and viewport bottom", () => {
@@ -208,8 +214,8 @@ test("Admin composer keeps targeted and Everyone delivery paths distinct", async
   ]);
   assert.match(api, /rpc\("send_targeted_admin_notification"[\s\S]*p_recipient_id: recipientId/);
   assert.match(api, /rpc\("save_public_announcement"/);
-  assert.match(admin, /Specific user/);
-  assert.match(admin, /Everyone/);
+  assert.match(admin, /t\("admin\.specificUser"\)/);
+  assert.match(admin, /t\("admin\.everyone"\)/);
   assert.match(admin, /await sendTargetedAdminNotification\([\s\S]*recipientId: selectedRecipient\.id/);
   assert.match(admin, /await savePublicAnnouncement\([\s\S]*startsAt,[\s\S]*endsAt/);
   assert.match(admin, /getPublicAnnouncementsForAdmin/);
@@ -225,7 +231,7 @@ test("navbar mailbox placement, bounded inbox, and accessibility are explicit", 
   assert.ok(navbar.indexOf('className="nav-search"') < navbar.indexOf('className="nav-login"'));
   assert.match(inbox, /aria-expanded=\{open\}/);
   assert.match(inbox, /event\.key === "Escape"/);
-  assert.match(inbox, /You&apos;re all caught up/);
+  assert.match(inbox, /t\("notifications\.empty"\)/);
   assert.match(css, /\.notification-mailbox[\s\S]*position: relative/);
   const buttonRule = css.match(/\.notification-mailbox-button\s*\{([^}]*)\}/)?.[1] || "";
   assert.match(buttonRule, /width:\s*44px/);
@@ -273,8 +279,8 @@ test("notification clicks persist read state before navigating", async () => {
 
 test("Admin labels notification destinations as links or destinations", async () => {
   const admin = await readFile(adminUrl, "utf8");
-  assert.match(admin, /Optional link or destination/);
-  assert.match(admin, /placeholder="\/discover or https:\/\/example\.com"/);
+  assert.match(admin, /t\("admin\.optionalDestination"\)/);
+  assert.match(admin, /placeholder=\{t\("admin\.destinationPlaceholder"\)\}/);
 });
 
 test("feed deep links wait for data, reveal comments, scroll, and fail safely", async () => {

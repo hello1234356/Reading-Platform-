@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { editorPicks } from "../data/books";
 import { recommendationLists } from "../data/recommendationLists";
 import { useRequireLogin } from "../hooks/useRequireLogin";
@@ -69,13 +70,14 @@ const initialSubmissionDraft = {
 };
 
 function SubmitBookEntry({ hasResults, onSubmitBook }) {
+  const { t } = useTranslation();
   return (
     <div className="submit-book-entry">
       <span>
-        {hasResults ? "Still can't find your book?" : "Can't find your book?"}
+        {hasResults ? t("search.stillMissing") : t("search.submitMissing")}
       </span>
       <button className="primary-button" type="button" onClick={onSubmitBook}>
-        Submit Book for Review
+        {t("search.submitReview")}
       </button>
     </div>
   );
@@ -91,6 +93,7 @@ function isHttpUrl(value) {
 }
 
 function Discover() {
+  const { t } = useTranslation();
   const { requireLogin } = useRequireLogin();
   const { user, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
@@ -135,7 +138,7 @@ function Discover() {
     query.trim() &&
     searchStatus === "error" &&
     bookResults.length === 0 &&
-    searchMessage.startsWith("No matching books found");
+    searchMessage === t("search.noResultsLong");
   const shouldShowResultSubmission =
     query.trim() && searchStatus === "success" && bookResults.length > 0;
   const shouldUseFloatingSubmission =
@@ -187,7 +190,7 @@ function Discover() {
       setRecentFinishes(finishedBooks);
     } catch (error) {
       console.error("Failed to load recent finished books:", error);
-      setRecentFinishesError("Recent finishes are unavailable right now.");
+      setRecentFinishesError(t("search.recentUnavailable"));
     } finally {
       if (showLoading) {
         setRecentFinishesLoading(false);
@@ -210,7 +213,7 @@ function Discover() {
     if (!normalizedSearchTerm) {
       setBookResults([]);
       setSearchStatus("error");
-      setSearchMessage("Enter a title, author, or ISBN to search.");
+      setSearchMessage(t("search.enterQuery"));
       return;
     }
 
@@ -233,7 +236,7 @@ function Discover() {
       if (!results.length) {
         setSearchStatus("error");
         setSearchMessage(searchResult.moderationMessage ||
-          "No matching books found. Check the spelling, try fewer words, or search by author, title, or ISBN.");
+          t("search.noResultsLong"));
         return;
       }
 
@@ -248,7 +251,7 @@ function Discover() {
     } catch (error) {
       if (!bookSearchGateRef.current.isCurrent(requestId)) return;
       setSearchStatus("error");
-      setSearchMessage(error.message || "The book search is unavailable right now. Please try again.");
+      setSearchMessage(error.message || t("search.unavailable"));
     }
   }
 
@@ -269,7 +272,7 @@ function Discover() {
         console.error("Failed to load recent finished books:", error);
 
         if (!cancelled) {
-          setRecentFinishesError("Recent finishes are unavailable right now.");
+          setRecentFinishesError(t("search.recentUnavailable"));
         }
       } finally {
         if (!cancelled) {
@@ -283,7 +286,7 @@ function Discover() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
 
   useEffect(() => {
@@ -337,7 +340,7 @@ function Discover() {
 
   if (!user?.id) {
     setSearchStatus("error");
-    setSearchMessage("Your login session is still loading. Please try again.");
+    setSearchMessage(t("search.sessionLoading"));
     return;
   }
 
@@ -366,15 +369,14 @@ function Discover() {
           : currentKeys;
       });
 
-	    setSearchMessage(
-	      `${book.title} was added to ${
-          targetShelf === "read"
-            ? "your Read shelf"
-            : targetShelf === "currently-reading"
-              ? "Currently Reading"
-              : "To Be Read"
-        }.`,
-	    );
+	    setSearchMessage(t(
+        targetShelf === "read"
+          ? "search.addedToRead"
+          : targetShelf === "currently-reading"
+            ? "search.addedToCurrent"
+            : "search.addedToTbr",
+        { title: book.title },
+      ));
 
       if (targetShelf === "read") {
         await refreshRecentFinishes();
@@ -442,7 +444,7 @@ async function submitReview(event) {
 	    setReviewBook(null);
 	    setReviewDraft({ rating: 5, review: "", visibility: "private" });
       await refreshRecentFinishes();
-	    setSearchMessage(`${reviewBook.title} was added to Read with your review.`);
+	    setSearchMessage(t("search.addedWithReview", { title: reviewBook.title }));
   } catch (error) {
     console.error("Failed to save review:", error);
     setReviewError(error.message || "Could not save this review.");
@@ -454,7 +456,7 @@ async function submitReview(event) {
 async function openBookDetails(book) {
   setSelectedBook({
     ...book,
-    description: book.description || "Loading official description...",
+    description: book.description || t("books.loadingDescription"),
   });
   setBookDetailLoading(true);
   setBookDetailError("");
@@ -518,32 +520,32 @@ async function submitMissingBook(event) {
   const description = submissionDraft.description.trim();
 
   if (!title) {
-    setSubmissionError("Enter the book title.");
+    setSubmissionError(t("search.enterTitle"));
     return;
   }
 
   if (!author) {
-    setSubmissionError("Enter the author.");
+    setSubmissionError(t("search.enterAuthor"));
     return;
   }
 
   if (!language) {
-    setSubmissionError("Choose a language.");
+    setSubmissionError(t("search.chooseLanguage"));
     return;
   }
 
   if (!coverUrl) {
-    setSubmissionError("Enter a cover image URL.");
+    setSubmissionError(t("search.enterCover"));
     return;
   }
 
   if (!isHttpUrl(coverUrl)) {
-    setSubmissionError("Enter a valid http:// or https:// cover image URL.");
+    setSubmissionError(t("search.invalidCover"));
     return;
   }
 
   if (!publicationYearText) {
-    setSubmissionError("Enter the publication year.");
+    setSubmissionError(t("search.enterYear"));
     return;
   }
 
@@ -555,12 +557,12 @@ async function submitMissingBook(event) {
     publicationYear < 1 ||
     publicationYear > currentYear
   ) {
-    setSubmissionError("Enter a valid publication year.");
+    setSubmissionError(t("search.invalidYear"));
     return;
   }
 
   if (!description) {
-    setSubmissionError("Enter a description.");
+    setSubmissionError(t("search.enterDescription"));
     return;
   }
 
@@ -579,14 +581,14 @@ async function submitMissingBook(event) {
     });
 
     setSearchMessage(
-      "Book submitted for review. It will become available after approval.",
+      t("search.submitted"),
     );
     setSubmissionDraft(initialSubmissionDraft);
     setIsSubmissionOpen(false);
   } catch (error) {
     console.error("Failed to submit book:", error);
     setSubmissionError(
-      error.message || "Could not submit this book. Please try again.",
+      error.message || t("search.submitFailed"),
     );
   } finally {
     setSubmissionSaving(false);
@@ -594,41 +596,41 @@ async function submitMissingBook(event) {
 }
 
   return (
-    <section className="home-page discover-page" aria-label="Discover books">
+    <section className="home-page discover-page" aria-label={t("search.discoverBooks")}>
       <header className="discover-search-hero" ref={searchHeroRef}>
         <div className="discover-page-title">
-          <p className="eyebrow">Find your next shelf obsession</p>
-          <h1>Discover</h1>
-          <p className="school-motto">Try, and all is possible.</p>
+          <p className="eyebrow">{t("search.eyebrow")}</p>
+          <h1>{t("search.heading")}</h1>
+          <p className="school-motto">{t("search.motto")}</p>
         </div>
         <form className="discovery-search-bar" onSubmit={searchBooks}>
-          <label className="sr-only" htmlFor="book-search">Book title, author, or ISBN</label>
+          <label className="sr-only" htmlFor="book-search">{t("search.fieldLabel")}</label>
           <input
             id="book-search"
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by title, author, or ISBN..."
+            placeholder={t("search.placeholder")}
           />
           <button type="submit" disabled={searchStatus === "loading"}>
-            {searchStatus === "loading" ? "Searching..." : "Search"}
+            {searchStatus === "loading" ? t("common.searching") : t("common.search")}
           </button>
         </form>
         <section className="recent-finishes" aria-labelledby="recent-finishes-title">
           <div className="recent-finishes-heading">
             <div>
-              <p className="eyebrow">Around the reading room</p>
-              <h2 id="recent-finishes-title">Recently Finished</h2>
+              <p className="eyebrow">{t("search.aroundRoom")}</p>
+              <h2 id="recent-finishes-title">{t("search.recent")}</h2>
             </div>
-            <span>Anonymous activity</span>
+            <span>{t("search.anonymous")}</span>
           </div>
 
           {recentFinishesLoading ? (
-            <p className="recent-finishes-status">Loading recent finishes...</p>
+            <p className="recent-finishes-status">{t("search.loadingRecent")}</p>
           ) : recentFinishesError ? (
             <p className="recent-finishes-status" role="alert">{recentFinishesError}</p>
           ) : recentFinishes.length === 0 ? (
-            <p className="recent-finishes-status">No finished books yet.</p>
+            <p className="recent-finishes-status">{t("search.noRecent")}</p>
           ) : (
             <div className="recent-finishes-list">
               {recentFinishes.map((book) => (
@@ -639,8 +641,8 @@ async function submitMissingBook(event) {
                   onClick={() => openBookDetails(book)}
                   aria-label={
                     book.rating == null
-                      ? `View ${book.title}, finished anonymously`
-                      : `View ${book.title}, rated ${book.rating} out of 5 anonymously`
+                      ? t("search.viewFinished", { title: book.title })
+                      : t("search.viewRated", { title: book.title, rating: book.rating })
                   }
                 >
                   <div className="recent-finish-cover" aria-hidden="true">
@@ -654,11 +656,11 @@ async function submitMissingBook(event) {
                     <strong>{book.title}</strong>
                     <small>{book.author}</small>
                     {book.rating == null ? (
-                      <span className="recent-finish-rating">Finished</span>
+                      <span className="recent-finish-rating">{t("search.finished")}</span>
                     ) : (
                       <span
                         className="recent-finish-rating"
-                        aria-label={`${book.rating.toFixed(1)} out of 5 open books`}
+                        aria-label={t("rating.outOf", { rating: book.rating.toFixed(1) })}
                       >
                         <StarRating rating={book.rating} size={14} />
                         {book.rating.toFixed(1)}
@@ -673,7 +675,7 @@ async function submitMissingBook(event) {
         <div className="isbn-search-feedback" aria-live="polite">
           {searchMessage ? <p className="isbn-search-message">{searchMessage}</p> : null}
           {bookResults.length > 0 ? (
-            <div className="book-search-results" aria-label="Book search results">
+            <div className="book-search-results" aria-label={t("search.results")}>
               {bookResults.map((book, index) => {
                 const isSaved = isBookSaved(book);
                 const isSaving = savingBookKey === getBookKey(book);
@@ -691,12 +693,12 @@ async function submitMissingBook(event) {
                           className="isbn-result-details-button"
                           type="button"
                           onClick={() => openBookDetails(book)}
-                          aria-label={`View details for ${book.title}`}
+                          aria-label={t("search.viewDetails", { title: book.title })}
                         >
                           <div className="isbn-result-cover">
                             <BookCoverImage
                               src={book.coverUrl}
-                              alt={`Cover of ${book.title}`}
+                              alt={t("books.coverAlt", { title: book.title })}
                               decorative
                             />
                           </div>
@@ -706,14 +708,14 @@ async function submitMissingBook(event) {
                             </p>
                             <h2>{book.title}</h2>
                             <p className="isbn-result-author">{book.author}</p>
-                            {book.firstPublished ? <small>First published {book.firstPublished}</small> : null}
+                            {book.firstPublished ? <small>{t("books.firstPublished", { year: book.firstPublished })}</small> : null}
                             {book.isbn ? <small>ISBN {book.isbn}</small> : null}
                           </div>
                         </button>
 	                      <BookModerationStatus book={book} onRetry={retryBookModeration} />
 	                      <div className="isbn-result-actions">
                           <label className="isbn-shelf-choice">
-                            <span>Add to</span>
+                            <span>{t("search.addTo")}</span>
                             <select
                               value={selectedShelves[getBookKey(book)] || "to-be-read"}
                               onChange={(event) =>
@@ -724,9 +726,9 @@ async function submitMissingBook(event) {
                               }
                               disabled={isSaving || !isModerationApproved}
                             >
-                              <option value="to-be-read">To Be Read</option>
-                              <option value="currently-reading">Currently Reading</option>
-                              <option value="read">Read</option>
+                              <option value="to-be-read">{t("search.toBeRead")}</option>
+                              <option value="currently-reading">{t("books.currentlyReading")}</option>
+                              <option value="read">{t("search.read")}</option>
                             </select>
                           </label>
 		                      <button
@@ -736,12 +738,12 @@ async function submitMissingBook(event) {
                           onClick={() => addToReadingList(book)}
                         >
                           {isSaving
-                            ? "Adding..."
+                            ? t("books.adding")
                             : isSaved
-                              ? "Added to Reading List"
+                              ? t("search.addedReadingList")
                               : book.moderationStatus === "checking"
-                                ? "Add to Shelf — checking…"
-                                : "Add to My Shelf"}
+                                ? t("search.addChecking")
+                                : t("books.addToMyShelf")}
 	                      </button>
 	                    </div>
 	                  </article>
@@ -781,20 +783,20 @@ async function submitMissingBook(event) {
       </header>
       {shouldShowFloatingSubmission ? (
         <div className="submit-book-floating-cta">
-          <span>Still can't find your book?</span>
+          <span>{t("search.stillMissing")}</span>
           <button className="primary-button" type="button" onClick={openSubmissionForm}>
-            Submit Book for Review
+            {t("search.submitReview")}
           </button>
         </div>
       ) : null}
 
       <div className="discovery-layout">
         <main className="discovery-main">
-          <section className="discovery-editor-picks" aria-label="This month's editor picks">
+          <section className="discovery-editor-picks" aria-label={t("search.monthlyPicks")}>
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Seasonal shelf</p>
-                <h2>Monthly Editors' Picks</h2>
+                <p className="eyebrow">{t("search.seasonalShelf")}</p>
+                <h2>{t("search.monthlyPicks")}</h2>
               </div>
             </div>
             <div className="discovery-pick-showcase">
@@ -802,14 +804,14 @@ async function submitMissingBook(event) {
                 className={`discovery-featured-pick ${featuredPick.tone}`}
                 type="button"
                 onClick={() => openBookDetails(featuredPick)}
-                aria-label={`View details for ${featuredPick.title}`}
+                aria-label={t("search.viewDetails", { title: featuredPick.title })}
               >
                 <EditorPickCover book={featuredPick} featured />
                 <div>
-                  <p>Recommended by the editors</p>
+                  <p>{t("search.recommendedEditors")}</p>
                   <h3>{featuredPick.title}</h3>
                   <blockquote>{featuredPick.blurb}</blockquote>
-                  <span className="editor-pick-cta">Read More</span>
+                  <span className="editor-pick-cta">{t("search.readMore")}</span>
                 </div>
               </button>
 
@@ -820,7 +822,7 @@ async function submitMissingBook(event) {
                     type="button"
                     key={book.title}
                     onClick={() => openBookDetails(book)}
-                    aria-label={`View details for ${book.title}`}
+                    aria-label={t("search.viewDetails", { title: book.title })}
                   >
                     <EditorPickCover book={book} />
                     <div>
@@ -835,11 +837,11 @@ async function submitMissingBook(event) {
 	          </section>
 
             {authoredRecommendationPosts.length > 0 ? (
-              <section className="themed-lists-section" aria-label="Student recommendation posts">
+              <section className="themed-lists-section" aria-label={t("search.studentPosts")}>
                 <div className="section-heading">
                   <div>
-                    <p className="eyebrow">Student Essays</p>
-                    <h2>Recommendation Posts</h2>
+                    <p className="eyebrow">{t("search.studentEssays")}</p>
+                    <h2>{t("search.recommendationPosts")}</h2>
                   </div>
                 </div>
                 <div className="themed-list-grid">
@@ -863,7 +865,7 @@ async function submitMissingBook(event) {
                         <p>{list.kicker}</p>
                         <h3>{list.title}</h3>
                         <small>{list.blurb}</small>
-                        {list.username ? <em>By {list.username}</em> : null}
+                        {list.username ? <em>{t("search.by", { name: list.username })}</em> : null}
                       </div>
                     </Link>
                   ))}
@@ -913,16 +915,16 @@ async function submitMissingBook(event) {
             <button
               className="modal-close"
               type="button"
-              aria-label="Close book submission"
+              aria-label={t("search.closeSubmission")}
               onClick={closeSubmissionForm}
               disabled={submissionSaving}
             >
               ×
             </button>
-            <h2>Submit a book</h2>
+            <h2>{t("books.submitBook")}</h2>
             <form onSubmit={submitMissingBook}>
               <label>
-                <span>Title *</span>
+                <span>{t("books.title")} *</span>
                 <input
                   type="text"
                   value={submissionDraft.title}
@@ -932,7 +934,7 @@ async function submitMissingBook(event) {
                 />
               </label>
               <label>
-                <span>Author *</span>
+                <span>{t("books.author")} *</span>
                 <input
                   type="text"
                   value={submissionDraft.author}
@@ -942,20 +944,20 @@ async function submitMissingBook(event) {
                 />
               </label>
               <label>
-                <span>Language *</span>
+                <span>{t("books.language")} *</span>
                 <select
                   value={submissionDraft.language}
                   onChange={(event) => updateSubmissionDraft("language", event.target.value)}
                   disabled={submissionSaving}
                   required
                 >
-                  <option value="en">English</option>
-                  <option value="zh">Chinese</option>
-                  <option value="other">Other</option>
+                  <option value="en">{t("search.english")}</option>
+                  <option value="zh">{t("search.chinese")}</option>
+                  <option value="other">{t("search.other")}</option>
                 </select>
               </label>
               <label>
-                <span>ISBN</span>
+                <span>{t("books.isbn")}</span>
                 <input
                   type="text"
                   value={submissionDraft.isbn}
@@ -964,7 +966,7 @@ async function submitMissingBook(event) {
                 />
               </label>
               <label>
-                <span>Publisher</span>
+                <span>{t("books.publisher")}</span>
                 <input
                   type="text"
                   value={submissionDraft.publisher}
@@ -973,7 +975,7 @@ async function submitMissingBook(event) {
                 />
               </label>
               <label>
-                <span>Publication year *</span>
+                <span>{t("search.publicationYear")} *</span>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -986,7 +988,7 @@ async function submitMissingBook(event) {
                 />
               </label>
               <label>
-                <span>Cover image URL *</span>
+                <span>{t("search.coverUrl")} *</span>
                 <input
                   type="url"
                   value={submissionDraft.coverUrl}
@@ -995,11 +997,11 @@ async function submitMissingBook(event) {
                   required
                 />
                 <small className="submit-book-field-help">
-                  Find the book cover online, right-click the image and choose "Copy Image Address," then paste the link here. Please use a direct, publicly accessible image link.
+                  {t("search.coverHelp")}
                 </small>
               </label>
               <label>
-                <span>Description *</span>
+                <span>{t("books.description")} *</span>
                 <textarea
                   value={submissionDraft.description}
                   onChange={(event) => updateSubmissionDraft("description", event.target.value)}
@@ -1012,7 +1014,7 @@ async function submitMissingBook(event) {
                 <p className="profile-save-error" role="alert">{submissionError}</p>
               ) : null}
               <button className="primary-button full" type="submit" disabled={submissionSaving}>
-                {submissionSaving ? "Submitting..." : "Submit for Review"}
+                {submissionSaving ? t("common.submitting") : t("search.submitForReview")}
               </button>
             </form>
           </section>

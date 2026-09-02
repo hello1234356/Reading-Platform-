@@ -100,7 +100,7 @@ test("frontend renders checking cards before asynchronous moderation and keeps d
   assert.doesNotMatch(discover,
     /className="isbn-result-details-button"[\s\S]{0,180}disabled=\{!isModerationApproved\}/);
   assert.match(discover, /onRetry=\{retryBookModeration\}/);
-  assert.match(discover, /Add to Shelf — checking…/);
+  assert.match(discover, /t\("search\.addChecking"\)/);
   assert.doesNotMatch(discover, /moderationStatus === "blocked"[\s\S]*\.filter/);
   assert.doesNotMatch(clubs, /moderationStatus === "blocked"[\s\S]*\.filter/);
   assert.match(admin, /only approved books can be opened or used/);

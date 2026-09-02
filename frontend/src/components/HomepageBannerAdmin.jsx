@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { HomepageSpotlightSlide } from "./HomepageSpotlightCarousel";
 import {
   deleteHomepageBanner,
@@ -102,6 +103,7 @@ function Field({ label, hint, children, wide = false }) {
 }
 
 function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
+  const { t } = useTranslation();
   const [banner, setBanner] = useState(() => editorBanner(initialBanner || { sortOrder: nextOrder }));
   const [imageFile, setImageFile] = useState(null);
   const [localImageUrl, setLocalImageUrl] = useState("");
@@ -251,18 +253,18 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
     <form className="homepage-banner-editor" onSubmit={submit}>
       <div className="homepage-banner-editor-heading">
         <div>
-          <p className="eyebrow">Homepage Spotlight</p>
-          <h2>{banner.id ? "Edit banner" : "Create banner"}</h2>
+          <p className="eyebrow">{t("banners.spotlight")}</p>
+          <h2>{banner.id ? t("banners.edit") : t("banners.create")}</h2>
         </div>
-        <button className="ghost-button" type="button" onClick={cancel}>Back to banners</button>
+        <button className="ghost-button" type="button" onClick={cancel}>{t("banners.back")}</button>
       </div>
 
       {error ? <p className="admin-error" role="alert">{error}</p> : null}
       <div className="homepage-banner-editor-layout">
         <div className="homepage-banner-controls">
           <section className="homepage-banner-fieldset">
-            <h3>Desktop background</h3>
-            <Field label={banner.imageUrl || localImageUrl ? "Replace image" : "Background image"} wide hint="JPG, PNG, or WebP up to 10 MB. Around 2400 × 800px works best.">
+            <h3>{t("banners.desktopBackground")}</h3>
+            <Field label={banner.imageUrl || localImageUrl ? t("banners.replaceImage") : t("banners.backgroundImage")} wide hint="JPG, PNG, or WebP up to 10 MB. Around 2400 × 800px works best.">
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseImage} />
             </Field>
             {imageWarning ? <p className="homepage-banner-warning">{imageWarning}</p> : null}
@@ -275,12 +277,12 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
             <Field label={`Image zoom (${Number(banner.imageZoom).toFixed(2)}×)`} wide>
               <input type="range" min="1" max="2.5" step="0.05" value={banner.imageZoom} onChange={(event) => update("imageZoom", event.target.value)} />
             </Field>
-            <h3>Mobile background <small>(optional)</small></h3>
-            <Field label={banner.mobileImageUrl || localMobileImageUrl ? "Replace mobile image" : "Mobile image"} wide hint="Optional landscape image, ideally around 1200 × 900px. Without one, LitShelf crops the desktop image.">
+            <h3>{t("banners.mobileBackground")} <small>({t("banners.optional")})</small></h3>
+            <Field label={banner.mobileImageUrl || localMobileImageUrl ? t("banners.replaceMobile") : t("banners.mobileImage")} wide hint="Optional landscape image, ideally around 1200 × 900px. Without one, LitShelf crops the desktop image.">
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseMobileImage} />
             </Field>
             {banner.mobileImageUrl || localMobileImageUrl ? (
-              <button className="ghost-button homepage-banner-remove-mobile" type="button" onClick={clearMobileImage}>Use desktop image on mobile</button>
+              <button className="ghost-button homepage-banner-remove-mobile" type="button" onClick={clearMobileImage}>{t("banners.useDesktop")}</button>
             ) : null}
             {mobileImageWarning ? <p className="homepage-banner-warning">{mobileImageWarning}</p> : null}
             <Field label={`Mobile horizontal focal point (${banner.mobileImagePositionX ?? banner.imagePositionX}%)`}>
@@ -292,35 +294,35 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
           </section>
 
           <section className="homepage-banner-fieldset">
-            <h3>Text</h3>
-            <Field label="Eyebrow / label"><input value={banner.eyebrow} maxLength="80" onChange={(event) => update("eyebrow", event.target.value)} /></Field>
-            <Field label="Headline" wide><textarea rows="3" value={banner.headline} maxLength="180" onChange={(event) => update("headline", event.target.value)} /></Field>
-            <Field label="Body / subtitle" wide><textarea rows="3" value={banner.body} maxLength="360" onChange={(event) => update("body", event.target.value)} /></Field>
-            <Field label="Horizontal alignment"><select value={banner.textAlignment} onChange={(event) => update("textAlignment", event.target.value)}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></Field>
-            <Field label="Vertical placement"><select value={banner.textVerticalPosition} onChange={(event) => update("textVerticalPosition", event.target.value)}><option value="top">Top</option><option value="center">Center</option><option value="bottom">Bottom</option></select></Field>
-            <Field label="Font"><select value={banner.fontFamily} onChange={(event) => update("fontFamily", event.target.value)}><option value="lit_serif">LitShelf Serif</option><option value="lit_sans">LitShelf Display Sans</option><option value="editorial_serif">Editorial Serif</option><option value="classic_serif">Classic Serif</option><option value="clean_sans">Clean Sans</option></select></Field>
-            <Field label="Text size"><select value={banner.textSize} onChange={(event) => update("textSize", event.target.value)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option><option value="huge">Huge</option></select></Field>
-            <Field label="Text color"><select value={banner.textColor} onChange={(event) => update("textColor", event.target.value)}><option value="cream">Cream</option><option value="white">White</option><option value="brown">Brown</option><option value="black">Black</option><option value="custom">Custom</option></select></Field>
-            {banner.textColor === "custom" ? <Field label="Custom color"><input type="color" value={banner.customTextColor} onChange={(event) => update("customTextColor", event.target.value)} /></Field> : null}
-            <Field label="Background overlay"><select value={banner.overlayStrength} onChange={(event) => update("overlayStrength", event.target.value)}><option value="none">None</option><option value="light">Light</option><option value="medium">Medium</option><option value="strong">Strong</option></select></Field>
+            <h3>{t("banners.text")}</h3>
+            <Field label={t("banners.eyebrow")}><input value={banner.eyebrow} maxLength="80" onChange={(event) => update("eyebrow", event.target.value)} /></Field>
+            <Field label={t("banners.headline")} wide><textarea rows="3" value={banner.headline} maxLength="180" onChange={(event) => update("headline", event.target.value)} /></Field>
+            <Field label={t("banners.body")} wide><textarea rows="3" value={banner.body} maxLength="360" onChange={(event) => update("body", event.target.value)} /></Field>
+            <Field label={t("banners.horizontal")}><select value={banner.textAlignment} onChange={(event) => update("textAlignment", event.target.value)}><option value="left">{t("banners.left")}</option><option value="center">{t("banners.center")}</option><option value="right">{t("banners.right")}</option></select></Field>
+            <Field label={t("banners.vertical")}><select value={banner.textVerticalPosition} onChange={(event) => update("textVerticalPosition", event.target.value)}><option value="top">{t("banners.top")}</option><option value="center">{t("banners.center")}</option><option value="bottom">{t("banners.bottom")}</option></select></Field>
+            <Field label={t("banners.font")}><select value={banner.fontFamily} onChange={(event) => update("fontFamily", event.target.value)}><option value="lit_serif">LitShelf Serif</option><option value="lit_sans">LitShelf Display Sans</option><option value="editorial_serif">Editorial Serif</option><option value="classic_serif">Classic Serif</option><option value="clean_sans">Clean Sans</option></select></Field>
+            <Field label={t("banners.textSize")}><select value={banner.textSize} onChange={(event) => update("textSize", event.target.value)}><option value="small">{t("banners.small")}</option><option value="medium">{t("banners.medium")}</option><option value="large">{t("banners.large")}</option><option value="huge">{t("banners.huge")}</option></select></Field>
+            <Field label={t("banners.textColor")}><select value={banner.textColor} onChange={(event) => update("textColor", event.target.value)}><option value="cream">{t("banners.cream")}</option><option value="white">{t("banners.white")}</option><option value="brown">{t("banners.brown")}</option><option value="black">{t("banners.black")}</option><option value="custom">{t("banners.custom")}</option></select></Field>
+            {banner.textColor === "custom" ? <Field label={t("banners.customColor")}><input type="color" value={banner.customTextColor} onChange={(event) => update("customTextColor", event.target.value)} /></Field> : null}
+            <Field label={t("banners.overlay")}><select value={banner.overlayStrength} onChange={(event) => update("overlayStrength", event.target.value)}><option value="none">{t("banners.none")}</option><option value="light">{t("banners.light")}</option><option value="medium">{t("banners.medium")}</option><option value="strong">{t("banners.strong")}</option></select></Field>
           </section>
 
           <section className="homepage-banner-fieldset">
-            <h3>CTA and publishing</h3>
-            <Field label="Button label"><input value={banner.ctaLabel} maxLength="60" onChange={(event) => update("ctaLabel", event.target.value)} /></Field>
-            <Field label="Destination" hint="Use /discover, /profile, /clubs, /admin, or a full https:// URL."><input value={banner.ctaUrl} placeholder="/discover" onChange={(event) => update("ctaUrl", event.target.value)} /></Field>
-            <Field label="Status"><select value={banner.status} onChange={(event) => update("status", event.target.value)}><option value="draft">Draft</option><option value="published">Published</option></select></Field>
-            <Field label="Show from"><input type="datetime-local" value={banner.startsAt} onChange={(event) => update("startsAt", event.target.value)} /></Field>
-            <Field label="Show until"><input type="datetime-local" value={banner.endsAt} onChange={(event) => update("endsAt", event.target.value)} /></Field>
+            <h3>{t("banners.publishing")}</h3>
+            <Field label={t("banners.buttonLabel")}><input value={banner.ctaLabel} maxLength="60" onChange={(event) => update("ctaLabel", event.target.value)} /></Field>
+            <Field label={t("banners.destination")} hint="Use /discover, /profile, /clubs, /admin, or a full https:// URL."><input value={banner.ctaUrl} placeholder="/discover" onChange={(event) => update("ctaUrl", event.target.value)} /></Field>
+            <Field label={t("banners.status")}><select value={banner.status} onChange={(event) => update("status", event.target.value)}><option value="draft">{t("banners.draft")}</option><option value="published">{t("banners.published")}</option></select></Field>
+            <Field label={t("banners.showFrom")}><input type="datetime-local" value={banner.startsAt} onChange={(event) => update("startsAt", event.target.value)} /></Field>
+            <Field label={t("banners.showUntil")}><input type="datetime-local" value={banner.endsAt} onChange={(event) => update("endsAt", event.target.value)} /></Field>
           </section>
         </div>
 
         <aside className="homepage-banner-preview-panel">
           <div className="homepage-banner-preview-toolbar">
-            <strong>Live preview</strong>
-            <div role="group" aria-label="Preview size">
-              <button type="button" className={previewMode === "desktop" ? "active" : ""} onClick={() => setPreviewMode("desktop")}>Desktop</button>
-              <button type="button" className={previewMode === "mobile" ? "active" : ""} onClick={() => setPreviewMode("mobile")}>Mobile</button>
+            <strong>{t("banners.livePreview")}</strong>
+            <div role="group" aria-label={t("banners.previewSize")}>
+              <button type="button" className={previewMode === "desktop" ? "active" : ""} onClick={() => setPreviewMode("desktop")}>{t("banners.desktop")}</button>
+              <button type="button" className={previewMode === "mobile" ? "active" : ""} onClick={() => setPreviewMode("mobile")}>{t("banners.mobile")}</button>
             </div>
           </div>
           <div className={`homepage-banner-preview ${previewMode}`}>
@@ -334,14 +336,15 @@ function BannerEditor({ initialBanner, nextOrder, onSaved, onCancel }) {
       </div>
 
       <div className="admin-actions homepage-banner-save-actions">
-        <button className="primary-button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save banner"}</button>
-        <button className="ghost-button" type="button" disabled={saving} onClick={cancel}>Cancel</button>
+        <button className="primary-button" type="submit" disabled={saving}>{saving ? t("profile.saving") : t("banners.save")}</button>
+        <button className="ghost-button" type="button" disabled={saving} onClick={cancel}>{t("common.cancel")}</button>
       </div>
     </form>
   );
 }
 
 function HomepageBannerAdmin() {
+  const { t } = useTranslation();
   const [banners, setBanners] = useState([]);
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
@@ -421,18 +424,18 @@ function HomepageBannerAdmin() {
   }
 
   return (
-    <section className="admin-panel homepage-banner-admin" aria-label="Homepage banners">
+    <section className="admin-panel homepage-banner-admin" aria-label={t("banners.adminAria")}>
       <div className="homepage-banner-list-heading">
         <div>
-          <p className="eyebrow">Reading page</p>
-          <h2>Homepage Banners</h2>
-          <p className="admin-muted">Create, schedule, and order the spotlights shown at the top of Reading.</p>
+          <p className="eyebrow">{t("banners.page")}</p>
+          <h2>{t("admin.banners")}</h2>
+          <p className="admin-muted">{t("banners.adminHelp")}</p>
         </div>
-        <button className="primary-button" type="button" onClick={() => setCreating(true)}>Create banner</button>
+        <button className="primary-button" type="button" onClick={() => setCreating(true)}>{t("banners.create")}</button>
       </div>
       {message ? <p className="admin-error" role="alert">{message}</p> : null}
-      {status === "loading" ? <p className="admin-empty">Loading homepage banners…</p> : null}
-      {status === "ready" && banners.length === 0 ? <p className="admin-empty">No banners yet. The existing literary quote remains visible on Reading.</p> : null}
+      {status === "loading" ? <p className="admin-empty">{t("banners.loading")}</p> : null}
+      {status === "ready" && banners.length === 0 ? <p className="admin-empty">{t("banners.empty")}</p> : null}
       <div className="homepage-banner-list">
         {banners.map((banner, index) => (
           <article className="homepage-banner-row" key={banner.id}>
@@ -440,17 +443,17 @@ function HomepageBannerAdmin() {
               <img src={banner.imageUrl} alt="" loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} />
             </div>
             <div className="homepage-banner-row-copy">
-              <div><span className={`admin-status ${getBannerStatus(banner).toLowerCase()}`}>{getBannerStatus(banner)}</span><small>Order {index + 1}</small></div>
-              <h3>{banner.headline || banner.eyebrow || "Image-only banner"}</h3>
+              <div><span className={`admin-status ${getBannerStatus(banner).toLowerCase()}`}>{getBannerStatus(banner)}</span><small>{t("banners.order", { order: index + 1 })}</small></div>
+              <h3>{banner.headline || banner.eyebrow || t("banners.imageOnly")}</h3>
               <p>{formatRange(banner)}</p>
             </div>
             <div className="homepage-banner-row-actions">
               <div className="homepage-banner-order-actions" aria-label={`Reorder ${banner.headline || "banner"}`}>
-                <button type="button" disabled={index === 0 || savingOrder} aria-label="Move banner up" onClick={() => move(index, -1)}>↑</button>
-                <button type="button" disabled={index === banners.length - 1 || savingOrder} aria-label="Move banner down" onClick={() => move(index, 1)}>↓</button>
+                <button type="button" disabled={index === 0 || savingOrder} aria-label={t("banners.moveUp")} onClick={() => move(index, -1)}>↑</button>
+                <button type="button" disabled={index === banners.length - 1 || savingOrder} aria-label={t("banners.moveDown")} onClick={() => move(index, 1)}>↓</button>
               </div>
-              <button className="ghost-button" type="button" onClick={() => setEditing(banner)}>Edit</button>
-              <button className="homepage-banner-delete" type="button" onClick={() => remove(banner)}>Delete</button>
+              <button className="ghost-button" type="button" onClick={() => setEditing(banner)}>{t("common.edit")}</button>
+              <button className="homepage-banner-delete" type="button" onClick={() => remove(banner)}>{t("common.delete")}</button>
             </div>
           </article>
         ))}
