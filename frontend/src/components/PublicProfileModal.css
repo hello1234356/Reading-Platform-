@@ -68,7 +68,6 @@
 }
 
 .public-profile-modal .modal-close:hover {
-  transform: rotate(5deg) scale(1.04);
   background: rgba(255, 250, 241, 0.96);
 }
 

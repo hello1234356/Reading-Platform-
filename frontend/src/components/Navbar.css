@@ -106,6 +106,10 @@
     transform 180ms ease;
 }
 
+.nav-link:hover span {
+  color: var(--warm-ink);
+}
+
 .nav-link span {
   color: var(--charcoal);
   font-weight: 700;
@@ -114,7 +118,6 @@
 .nav-link:hover,
 .nav-login:hover {
   color: var(--warm-ink);
-  transform: translateY(-1px);
 }
 
 .nav-link.active {
@@ -322,7 +325,6 @@
 .nav-link:hover,
 .nav-login:hover {
   color: var(--warm-ink);
-  transform: translateY(-1px);
 }
 
 .nav-link.active,

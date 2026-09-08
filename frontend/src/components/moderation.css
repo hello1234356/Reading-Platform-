@@ -97,7 +97,6 @@
 }
 
 .moderation-confirm-button:hover {
-  transform: translateY(-1px);
   box-shadow:
     0 14px 26px rgba(74, 56, 47, 0.2);
 }
@@ -377,5 +376,4 @@
 .moderation-edit-button:hover {
   background: #fffdf8;
   border-color: rgba(138, 106, 88, 0.38);
-  transform: translateY(-1px);
 }

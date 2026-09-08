@@ -637,7 +637,6 @@
 
 .shelf-link:hover {
   background: transparent;
-  transform: translateY(-1px);
 }
 
 .shelf-link::after {
@@ -823,10 +822,16 @@
 
 .primary-button:hover,
 .comment-form button:not(.tales-egg):hover {
-  transform: translateY(-2px) scale(1.015);
   box-shadow:
     0 18px 34px rgba(89, 67, 49, 0.16),
     0 0 0 5px rgba(244, 220, 123, 0.22);
+}
+
+/* Send uses fill feedback instead of the shared outer hover ring. */
+.comment-form > button:not(:disabled):hover,
+.club-message-form .primary-button:not(:disabled):hover {
+  background: linear-gradient(135deg, var(--walnut), var(--terracotta));
+  box-shadow: var(--pillow-shadow);
 }
 
 .primary-button:disabled,
@@ -1027,7 +1032,6 @@
 .feed-compressed-line button:focus-visible {
   border-color: rgba(126, 98, 79, 0.34);
   color: var(--deep-mocha);
-  transform: translateY(-1px);
   background:
     linear-gradient(
       135deg,
@@ -1038,6 +1042,10 @@
     inset 0 1px 0 rgba(255, 250, 241, 0.95),
     inset 0 -3px 0 rgba(244, 220, 123, 0.2),
     0 12px 22px rgba(89, 67, 49, 0.1);
+}
+
+.feed-compressed-line button:focus-visible {
+  transform: translateY(-1px);
 }
 
 .feed-compressed-line button.expanded {
@@ -1058,7 +1066,6 @@
   transition: transform 180ms ease;
 }
 
-.feed-compressed-line button:hover svg,
 .feed-compressed-line button:focus-visible svg {
   transform: translateY(1px);
 }
@@ -1763,7 +1770,6 @@
 
 .feed-pagination button:not(:disabled):hover {
   color: var(--deep-mocha);
-  transform: translateY(-1px);
 }
 
 .feed-pagination button:disabled {

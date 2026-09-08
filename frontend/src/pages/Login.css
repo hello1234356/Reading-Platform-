@@ -203,10 +203,6 @@
   box-shadow: 0 16px 32px rgba(137, 113, 92, 0.18);
 }
 
-.beautiful-login-button:hover {
-  transform: translateY(-2px);
-}
-
 .login-switch-line {
   color: #735f52;
   text-align: center;

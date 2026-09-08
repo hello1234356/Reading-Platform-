@@ -251,7 +251,6 @@
 
 .homepage-spotlight-arrow:hover {
   background: var(--paper);
-  transform: translateY(-50%) scale(1.04);
 }
 
 .homepage-spotlight-carousel:hover .homepage-spotlight-arrow,

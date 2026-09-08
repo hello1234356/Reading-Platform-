@@ -194,10 +194,6 @@
   background: transparent;
 }
 
-.profile-review-button:hover {
-  transform: translateY(-2px);
-}
-
 .profile-review-button:focus-visible {
   outline: 3px solid currentColor;
   outline-offset: 4px;
