@@ -1,0 +1,63 @@
+body:has(.tales-dock) { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+.tales-dock { position: fixed; inset: auto 0 0; z-index: 45; background: var(--paper); border-top: 1px solid var(--border); padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); color: var(--warm-ink); }
+.tales-dock-inner { max-width: 420px; margin: auto; position: relative; }
+.tales-summary { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 20px; width: 100%; min-height: 60px; background: none; border: 0; color: inherit; font: 700 12px var(--button); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.tales-tray, .tales-puzzle { display: flex; justify-content: center; gap: 8px; }
+.tales-mini, .tales-tile { display: grid; place-items: center; border: 1px solid var(--walnut); background: var(--ivory); border-radius: 7px; box-shadow: 0 3px 0 var(--stone); font-family: var(--quote); color: var(--deep-mocha); }
+.tales-mini { width: 28px; height: 32px; font-size: 21px; }
+.tales-mini:not(:empty) { animation: tales-arrive .9s ease both; }
+.tales-panel { position: absolute; bottom: calc(100% + 16px); left: 0; right: 0; padding: 22px; border: 1px solid var(--border); border-radius: 18px; background: var(--paper); box-shadow: var(--shadow); max-height: min(540px, calc(100dvh - 120px)); overflow-y: auto; }
+.tales-panel h2 { font: 600 22px var(--heading); margin: 0 0 12px; }
+.tales-panel p { margin: 10px 0; }
+.tales-panel ul { padding-left: 22px; line-height: 1.8; }
+.tales-panel button:not(.tales-tile) { min-height: 44px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--walnut); background: var(--linen); color: var(--deep-mocha); cursor: pointer; }
+.tales-panel .tales-reset { display: block; margin-top: 14px; font-size: 12px; }
+.tales-help { font-size: 13px; color: var(--soft-gray); }
+.tales-puzzle { margin-top: 18px; }
+.tales-tile { flex: 1; min-width: 44px; height: 64px; font-size: 32px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tales-tile[aria-pressed=true] { background: var(--butter); outline: 3px solid var(--walnut); transform: translateY(-4px); }
+.tales-egg { display: inline-grid; place-items: center; min-width: 52px; min-height: 56px; margin: 4px 8px; background: transparent; border: 0; color: var(--walnut); cursor: pointer; vertical-align: middle; }
+.tales-egg span { position: relative; display: grid; place-items: center; width: 39px; height: 50px; padding: 3px 0 6px; background: linear-gradient(90deg, rgba(126, 98, 79, .09), transparent 24%, rgba(255, 250, 241, .5) 80%, rgba(126, 98, 79, .08)), var(--linen); color: var(--warm-ink); border: 0; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%); font: 28px var(--quote); transform: rotate(6deg); transition: transform 160ms ease, background-color 160ms ease; }
+.tales-egg span::before { content: ''; position: absolute; top: 4px; left: 8px; right: 8px; height: 1px; background: var(--walnut); opacity: .35; }
+.tales-egg span::after { content: ''; position: absolute; bottom: 11px; left: calc(50% - 1px); width: 2px; height: 2px; border-radius: 50%; background: var(--walnut); opacity: .6; }
+.tales-egg:hover span, .tales-egg:focus-visible span { background-color: var(--stone); transform: translateY(-3px) rotate(0); }
+.tales-focus-egg { display: none; flex-shrink: 0; }
+.comment-input-shell:focus-within .tales-focus-egg { display: inline-grid; }
+.tales-dock button:focus-visible, .tales-egg:focus-visible { outline: 3px solid var(--deep-mocha); outline-offset: 4px; }
+.tales-flight { pointer-events: none; position: fixed; z-index: 20000; width: 44px; height: 44px; display: grid; place-items: center; background: var(--paper); color: var(--deep-mocha); border: 1px solid var(--walnut); border-radius: 7px; font: 30px var(--quote); animation: tales-fly .9s ease-in-out both; }
+.tales-flight i { position: absolute; right: -15px; top: -14px; color: var(--walnut); }
+.tales-celebrate strong { display: block; font: 42px var(--quote); letter-spacing: .18em; animation: tales-arrive .9s ease; }
+.tales-wrong { animation: tales-shake .3s ease; }
+.tales-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@keyframes tales-fly { 0% { transform: scale(1); } 22% { transform: scale(1.45) rotate(-10deg); } 85% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(.5); opacity: 0; } }
+@keyframes tales-arrive { 0%, 70% { box-shadow: 0 3px 0 var(--stone); } 85% { box-shadow: 0 0 0 5px var(--butter); } 100% { box-shadow: 0 3px 0 var(--stone); } }
+@keyframes tales-shake { 25%, 75% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+@media (max-width: 360px) { .tales-panel { padding: 14px; } .tales-puzzle { gap: 6px; } }
+@media (prefers-reduced-motion: reduce) { .tales-flight { display: none; } .tales-mini, .tales-wrong, .tales-celebrate strong { animation: none; } .tales-tile[aria-pressed=true], .tales-egg:hover span { transform: none; } }
+.book-search-results > .tales-egg { grid-column: 1 / -1; justify-self: end; }
+.tales-tile { position: relative; }
+
+/* A tiny paper bookmark at the end of a deeper feed entry. */
+.tales-egg.tales-bookmark { display: flex; width: 52px; height: 58px; margin: 12px 12px -12px auto; }
+@media (prefers-reduced-motion: reduce) { .tales-egg span { transition: none; } .tales-egg:hover span, .tales-egg:focus-visible span { transform: none; } }
+
+/* Keep surrounding action-button styles off the collectible hit target. */
+button.tales-egg, button.tales-egg:hover, button.tales-egg:active { background: transparent; border: 0; box-shadow: none; }
+/* Placement belongs to each discovery surface; the bookmark itself stays consistent. */
+.tales-egg.tales-placement-feed { display: flex; width: 52px; margin: 18px auto 0; }
+.tales-placement-feed span { transform: rotate(-9deg); }
+.comment-input-shell { position: relative; }
+.comment-input-shell:has(.tales-focus-egg) { padding-right: 60px; }
+.tales-egg.tales-placement-reply { position: absolute; right: 5px; top: -17px; margin: 0; }
+.tales-placement-reply span { transform: rotate(12deg); }
+.profile-banner, .public-profile-header { position: relative; }
+.tales-egg.tales-placement-profile { position: absolute; right: 18px; top: -16px; margin: 0; }
+.public-profile-header > .tales-placement-profile { top: auto; bottom: -14px; right: 24px; }
+.book-search-results > .tales-placement-search { justify-self: center; margin: 8px 0 14px; }
+.tales-placement-search span { transform: rotate(-12deg); }
+.tales-egg.tales-placement-editorial { display: flex; width: 52px; margin: -16px 12% 20px auto; }
+.tales-placement-editorial span { transform: rotate(3deg); }
+.tales-prize-note { padding: 14px 0; border-top: 1px solid var(--border); line-height: 1.6; }
+
+.tales-panel .tales-prize-contacts { list-style: none; padding: 0; margin: 10px 0 0; font-size: 14px; line-height: 1.8; }
+.tales-prize-contacts span { user-select: text; overflow-wrap: anywhere; }

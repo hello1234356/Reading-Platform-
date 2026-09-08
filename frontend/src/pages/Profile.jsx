@@ -1,3 +1,4 @@
+import TalesCollectible from "../components/tales/TalesCollectible";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -1032,6 +1033,7 @@ function Profile() {
     <section className="home-page profile-page" aria-label={t("profile.personal")}>
       <header className="profile-hero">
         <div className="profile-banner">
+          <TalesCollectible letter="S" placement="profile" />
           <div className="profile-identity">
             <div className="profile-photo profile-photo-main">
               {profile?.avatar_url ? (

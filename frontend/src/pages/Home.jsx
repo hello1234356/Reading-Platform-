@@ -1,3 +1,4 @@
+import TalesCollectible from "../components/tales/TalesCollectible";
 import {
   useEffect,
   useMemo,
@@ -1923,6 +1924,8 @@ function Home() {
       b.booksRead - a.booksRead ||
       a.tieOrder - b.tieOrder,
   );
+  const huntFeedPosts = feedEntries.filter((entry) => entry.post);
+  const huntFeedPostId = huntFeedPosts[Math.min(3, huntFeedPosts.length - 1)]?.post.id;
   const feedPageCount = Math.max(
     Math.ceil(feedTotalCount / FEED_PAGE_SIZE),
     1,
@@ -2678,6 +2681,7 @@ function Home() {
                       placeholder={t("home.addThought")}
                       aria-label={t("home.commentOn", { book: post.book })}
                     />
+                    <TalesCollectible letter="E" placement="reply" focusReveal />
                   </div>
 
                   <button
@@ -2697,6 +2701,7 @@ function Home() {
                       : t("home.send")}
                   </button>
                 </div>
+                {post.id === huntFeedPostId && <TalesCollectible letter="L" placement="feed" revealOnScroll />}
               </article>
               );
             })

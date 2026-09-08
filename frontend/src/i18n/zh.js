@@ -1,4 +1,28 @@
 const zh = {
+  hunt: {
+    "solvePrompt": "五个字母已集齐！重新排列它们，猜出隐藏的英文单词。",
+    "title": "寻找隐藏的单词",
+    "find": "寻找隐藏的单词",
+    "collect": "收集隐藏字母",
+    "intro": "探索 LitShelf，找到五个隐藏的字母。仔细看看吧。",
+    "all": "五个字母都找到了！",
+    "unscramble": "重新排列字母，拼出隐藏的英文单词。",
+    "swap": "拖动字母，或依次点选两个字母来交换位置。",
+    "tile": "字母 {{letter}}，第 {{position}} 位。点选以交换位置。",
+    "check": "检查单词",
+    "wrong": "还差一点，再换个顺序试试。",
+    "won": "你找到了故事！",
+    "story": "你已经探索了 LitShelf。现在，去创造一个值得讲述的故事吧。",
+    "teamsPrize": "觉得自己拼对了吗？在 Microsoft Teams 上联系以下任意一位同学，发送你排好字母的截图，领取奖品吧！",
+    "talk": "大家交流的地方",
+    "reply": "你会留下回复的地方",
+    "personal": "属于某个人的小天地",
+    "editors": "编辑精心挑选的书",
+    "book": "搜一本书看看",
+    "reset": "重置寻字进度（开发模式）",
+    "progress": "已收集 {{count}} / 5 个字母",
+    "continue": "继续探索"
+  },
   common: {
     cancel: "取消", save: "保存", close: "关闭", edit: "编辑", delete: "删除",
     search: "搜索", searching: "搜索中…", loading: "加载中…", retry: "重试",

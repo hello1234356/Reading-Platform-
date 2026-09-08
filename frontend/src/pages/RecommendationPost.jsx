@@ -1,3 +1,4 @@
+import TalesCollectible from "../components/tales/TalesCollectible";
 import { Link, useParams } from "react-router-dom";
 import { recommendationLists } from "../data/recommendationLists";
 import BookCoverImage from "../components/BookCoverImage";
@@ -124,6 +125,7 @@ function RecommendationPost() {
             <span>{t("search.bookCount", { count: post.count })}</span>
           </div>
         </header>
+        {post.slug === "women-write-the-world" && <TalesCollectible letter="T" placement="editorial" />}
       {renderPostBody(post)}
       </article>
     </section>

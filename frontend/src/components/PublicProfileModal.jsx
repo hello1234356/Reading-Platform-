@@ -1,3 +1,4 @@
+import TalesCollectible from "./tales/TalesCollectible";
 import { useEffect, useState } from "react";
 import { getPublicProfile } from "../lib/publicProfileApi";
 import { getPublicDisplayName } from "../lib/identity";
@@ -113,6 +114,7 @@ export default function PublicProfileModal({
         ) : profile ? (
           <>
             <header className="public-profile-header">
+              <TalesCollectible letter="S" placement="profile" />
               <div className="public-profile-avatar">
                 {profile.avatar_url ? (
                   <img

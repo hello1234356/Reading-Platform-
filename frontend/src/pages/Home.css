@@ -795,7 +795,7 @@
 .primary-button,
 .ghost-button,
 .feed-action,
-.comment-form button,
+.comment-form button:not(.tales-egg),
 .database-list button {
   border: 0;
   border-radius: 999px;
@@ -808,7 +808,7 @@
 }
 
 .primary-button,
-.comment-form button {
+.comment-form button:not(.tales-egg) {
   min-height: 48px;
   display: inline-flex;
   align-items: center;
@@ -822,7 +822,7 @@
 }
 
 .primary-button:hover,
-.comment-form button:hover {
+.comment-form button:not(.tales-egg):hover {
   transform: translateY(-2px) scale(1.015);
   box-shadow:
     0 18px 34px rgba(89, 67, 49, 0.16),
@@ -830,7 +830,7 @@
 }
 
 .primary-button:disabled,
-.comment-form button:disabled {
+.comment-form button:not(.tales-egg):disabled {
   cursor: default;
   background: var(--sage);
   color: var(--warm-ink);
@@ -1810,7 +1810,7 @@
   margin: 12px 0 0 68px;
 }
 
-.comment-form button {
+.comment-form button:not(.tales-egg) {
   min-height: 42px;
   padding-inline: 18px;
 }

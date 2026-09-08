@@ -1,3 +1,4 @@
+import TalesCollectible from "../components/tales/TalesCollectible";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -676,6 +677,7 @@ async function submitMissingBook(event) {
           {searchMessage ? <p className="isbn-search-message">{searchMessage}</p> : null}
           {bookResults.length > 0 ? (
             <div className="book-search-results" aria-label={t("search.results")}>
+              <TalesCollectible letter="A" placement="search" />
               {bookResults.map((book, index) => {
                 const isSaved = isBookSaved(book);
                 const isSaving = savingBookKey === getBookKey(book);

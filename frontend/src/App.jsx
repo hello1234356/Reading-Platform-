@@ -1,5 +1,6 @@
 import { Component } from "react";
 import { HashRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
+import TalesHuntProvider from "./components/tales/TalesHuntProvider";
 import Navbar from "./components/Navbar";
 
 import Home from "./pages/Home";
@@ -70,6 +71,7 @@ function App() {
   return (
     <AppErrorBoundary>
       <HashRouter>
+        <TalesHuntProvider>
         <PublicProfileProvider>
           <div className="app-shell">
             <Navbar />
@@ -140,6 +142,7 @@ function App() {
             </main>
           </div>
         </PublicProfileProvider>
+        </TalesHuntProvider>
       </HashRouter>
     </AppErrorBoundary>
   );

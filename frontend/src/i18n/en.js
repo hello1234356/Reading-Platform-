@@ -1,4 +1,28 @@
 const en = {
+  hunt: {
+    "solvePrompt": "You have all five letters! Rearrange them to figure out the hidden word.",
+    "title": "Hidden Word Hunt",
+    "find": "Find the hidden word",
+    "collect": "Collect hidden letter",
+    "intro": "Find five hidden letters while exploring LitShelf. Look closely.",
+    "all": "You found all five.",
+    "unscramble": "Unscramble the hidden word.",
+    "swap": "Drag tiles, or select one tile and then another to swap.",
+    "tile": "{{letter}}, position {{position}}. Select to swap.",
+    "check": "Check word",
+    "wrong": "Not quite. Keep scrambling.",
+    "won": "You found the tale.",
+    "story": "You explored LitShelf. Now go make one worth telling.",
+    "teamsPrize": "Think you’ve solved it? Find one of us on Microsoft Teams and send a screenshot of your arranged letters to claim your prize.",
+    "talk": "Somewhere people are talking",
+    "reply": "Where you might reply",
+    "personal": "Somewhere personal",
+    "editors": "Chosen by the editors",
+    "book": "Find a book",
+    "reset": "Reset hunt (development)",
+    "progress": "{{count}} of 5 letters collected",
+    "continue": "Continue exploring"
+  },
   common: {
     cancel: "Cancel", save: "Save", close: "Close", edit: "Edit", delete: "Delete",
     search: "Search", searching: "Searching...", loading: "Loading...", retry: "Try again",
