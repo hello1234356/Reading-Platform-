@@ -820,16 +820,9 @@
   box-shadow: var(--pillow-shadow);
 }
 
-.primary-button:hover,
-.comment-form button:not(.tales-egg):hover {
-  box-shadow:
-    0 18px 34px rgba(89, 67, 49, 0.16),
-    0 0 0 5px rgba(244, 220, 123, 0.22);
-}
-
-/* Send uses fill feedback instead of the shared outer hover ring. */
-.comment-form > button:not(:disabled):hover,
-.club-message-form .primary-button:not(:disabled):hover {
+/* Shared filled actions, including Add to Shelf and Send. */
+.primary-button:not(:disabled):not([aria-disabled="true"]):hover,
+.comment-form > button:not(:disabled):hover {
   background: linear-gradient(135deg, var(--walnut), var(--terracotta));
   box-shadow: var(--pillow-shadow);
 }
@@ -859,8 +852,8 @@
   text-underline-offset: -3px;
 }
 
-.ghost-button:hover {
-  background: transparent;
+.ghost-button:not(:disabled):not([aria-disabled="true"]):hover {
+  background: var(--linen);
   color: var(--walnut);
 }
 

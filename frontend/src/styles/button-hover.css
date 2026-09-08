@@ -1,0 +1,38 @@
+/* Neutral actions change their fill; links, artwork and navigation keep their own treatment. */
+:is(
+  .feed-action,
+  .feed-pagination button,
+  .feed-search-bar button,
+  .comment-item-actions button,
+  .comment-fold-button,
+  .database-list button,
+  .profile-edit-button,
+  .profile-avatar-file-button,
+  .profile-review-button,
+  .profile-remove-book-button,
+  .club-danger-action,
+  .schedule-add-button,
+  .schedule-remove-button,
+  .login-switch-line button,
+  .login-verification-actions button,
+  .modal-close,
+  .admin-trash-button,
+  .book-moderation-report-action,
+  .book-moderation-retry-action
+):not(:disabled):not([aria-disabled="true"]):hover {
+  background-color: var(--linen);
+}
+
+.beautiful-login-button:not(:disabled):hover {
+  background: linear-gradient(135deg, var(--walnut), var(--terracotta));
+}
+
+/* The keyboard-focus treatment remains in Home.css. Hover alone has no ring. */
+.feed-compressed-line button:not(:disabled):hover:not(:focus-visible) {
+  background: var(--linen);
+  border-color: rgba(126, 98, 79, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 241, 0.9),
+    inset 0 -3px 0 rgba(244, 220, 123, 0.15),
+    0 10px 22px rgba(89, 67, 49, 0.08);
+}
