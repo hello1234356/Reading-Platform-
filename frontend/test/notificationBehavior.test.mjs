@@ -12,7 +12,7 @@ function inboxHarness() {
     items: [1, 2, 3].map(id => ({ id, isRead: false, itemKind: 'personal', targetUrl: `/post/${id}` })),
     count: 3, openRef: { current: false }, loadedRef: { current: true },
     confirmedReadRef: { current: new Set() },
-    openingReadRef: { current: false }, readWriteRef: { current: null }, refreshVersionRef: { current: 0 },
+    itemsRef: { current: [] }, readWriteRef: { current: null }, refreshVersionRef: { current: 0 },
     setItems(value) { ctx.items = value; },
     setUnreadCount(value) { ctx.count = typeof value === 'function' ? value(ctx.count) : value; },
     setOpen() {}, setMessage() {}, t: x => x, console,
@@ -20,29 +20,32 @@ function inboxHarness() {
     navigate: url => { ctx.destination = url; }, isExternalNotificationTarget: () => false,
     refresh: async () => {},
   };
+  ctx.itemsRef.current = ctx.items;
   vm.createContext(ctx);
   vm.runInContext(inbox.slice(inbox.indexOf('  function markLoadedRead('), inbox.indexOf('  async function markAll(')), ctx);
   return { ctx, writes };
 }
 
-test('opening acknowledges every loaded unread row once; later arrivals and clicks are independent', async () => {
+test('opening stays unread; closing persists loaded IDs once and reopening stays read', async () => {
   const { ctx, writes } = inboxHarness();
   ctx.togglePanel();
+  assert.equal(ctx.count, 3);
+  assert.ok(ctx.items.every(x => !x.isRead));
+  assert.equal(writes.length, 0);
+  ctx.closePanel();
   assert.equal(ctx.count, 0);
   assert.ok(ctx.items.every(x => x.isRead));
-  assert.equal(ctx.openRef.current, true);
   await ctx.readWriteRef.current;
   assert.deepEqual(Array.from(writes[0]), [1, 2, 3]);
-  ctx.togglePanel(); ctx.togglePanel();
+  ctx.togglePanel(); ctx.closePanel(); ctx.closePanel();
   await ctx.readWriteRef.current;
   assert.equal(writes.length, 1);
+  ctx.togglePanel();
   ctx.items.push({ id: 4, isRead: false }); ctx.count = 1;
   await ctx.openNotification(ctx.items[0]);
-  assert.equal(ctx.destination, '/post/1');
-  assert.equal(ctx.count, 1);
-  assert.equal(ctx.items[3].isRead, false);
-  ctx.togglePanel();
   await ctx.readWriteRef.current;
+  assert.equal(ctx.destination, '/post/1');
+  assert.equal(ctx.count, 0);
   assert.deepEqual(Array.from(writes[1]), [4]);
 });
 
@@ -53,10 +56,11 @@ test('failed batch persistence is reported and reconciled without retry loops', 
   ctx.refresh = () => refreshes++;
   ctx.markNotificationsRead = async () => { throw Error('offline'); };
   ctx.togglePanel();
+  ctx.closePanel();
   await ctx.readWriteRef.current;
   assert.equal(errors, 1);
   assert.equal(refreshes, 1);
-  assert.equal(ctx.openRef.current, true);
+  assert.equal(ctx.openRef.current, false);
 });
 
 function jumpHarness() {
@@ -118,7 +122,7 @@ test('post, comment, and deleted reply targets fall back safely', () => {
 });
 
 
-test('first async inbox fetch marks its snapshot, subsequent fetches retain unread arrivals', async () => {
+test('async inbox fetch remains unread until close, subsequent fetches retain unread arrivals', async () => {
   const { ctx, writes } = inboxHarness();
   ctx.loadedRef.current = false;
   ctx.setStatus = () => {};
@@ -127,6 +131,9 @@ test('first async inbox fetch marks its snapshot, subsequent fetches retain unre
   vm.runInContext(inbox.slice(inbox.indexOf('  async function refresh('), inbox.indexOf('  useEffect(')), ctx);
   ctx.togglePanel();
   await ctx.refresh({ includeItems: true });
+  assert.equal(ctx.count, 3);
+  assert.ok(ctx.items.every(x => !x.isRead));
+  ctx.closePanel();
   assert.equal(ctx.count, 0);
   assert.ok(ctx.items.every(x => x.isRead));
   await ctx.readWriteRef.current;
@@ -192,6 +199,7 @@ test('successful reads survive stale refetches, close/reopen, and realtime arriv
   ctx.getNotifications = async () => [...stale, { id: 4, itemKind: 'personal', isRead: false }];
   vm.runInContext(inbox.slice(inbox.indexOf('  async function refresh('), inbox.indexOf('  useEffect(')), ctx);
   ctx.togglePanel();
+  ctx.closePanel();
   await ctx.readWriteRef.current;
   ctx.togglePanel();
   await ctx.refresh();
@@ -199,6 +207,7 @@ test('successful reads survive stale refetches, close/reopen, and realtime arriv
   assert.equal(ctx.items[3].isRead, false);
   assert.equal(ctx.count, 1);
   ctx.togglePanel();
+  ctx.closePanel();
   await ctx.readWriteRef.current;
   assert.equal(writes.length, 2);
   assert.deepEqual(Array.from(writes[1]), [4]);
@@ -235,6 +244,7 @@ test('in-flight responses are discarded and realtime refresh waits for persisten
   const oldRefresh = ctx.refresh({ includeItems: true });
   await Promise.resolve();
   ctx.togglePanel();
+  ctx.closePanel();
   await Promise.resolve();
   const realtimeRefresh = ctx.refresh({ includeItems: true });
   resolveItems(stale);

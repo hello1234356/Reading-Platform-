@@ -31,8 +31,7 @@ function NotificationInbox({ userId }) {
   const panelRef = useRef(null);
   const firstActionRef = useRef(null);
   const openRef = useRef(false);
-  const loadedRef = useRef(false);
-  const openingReadRef = useRef(false);
+  const itemsRef = useRef([]);
   const readWriteRef = useRef(null);
   const confirmedReadRef = useRef(new Set());
   const refreshVersionRef = useRef(0);
@@ -58,16 +57,12 @@ function NotificationInbox({ userId }) {
       )).length;
       setUnreadCount(Math.max(0, count - staleUnread));
       if (nextItems) {
-        loadedRef.current = true;
         const reconciledItems = nextItems.map((item) => (
           confirmedReadRef.current.has(`${item.itemKind}:${item.id}`)
             ? { ...item, isRead: true } : item
         ));
+        itemsRef.current = reconciledItems;
         setItems(reconciledItems);
-        if (openingReadRef.current) {
-          openingReadRef.current = false;
-          markLoadedRead(reconciledItems);
-        }
       }
       setStatus("ready");
       setMessage("");
@@ -93,14 +88,12 @@ function NotificationInbox({ userId }) {
     void refresh({ includeItems: true });
     const handlePointer = (event) => {
       if (!wrapperRef.current?.contains(event.target)) {
-        openRef.current = false;
-        setOpen(false);
+        closePanel();
       }
     };
     const handleKey = (event) => {
       if (event.key === "Escape") {
-        openRef.current = false;
-        setOpen(false);
+        closePanel();
         wrapperRef.current?.querySelector(".notification-mailbox-button")?.focus();
       }
     };
@@ -146,7 +139,8 @@ function NotificationInbox({ userId }) {
     const unread = snapshot.filter((item) => !item.isRead);
     if (!unread.length) return;
     ++refreshVersionRef.current;
-    setItems(snapshot.map((item) => ({ ...item, isRead: true })));
+    itemsRef.current = snapshot.map((item) => ({ ...item, isRead: true }));
+    setItems(itemsRef.current);
     setUnreadCount((count) => Math.max(0, count - unread.length));
     const previous = readWriteRef.current;
     const write = (async () => {
@@ -165,18 +159,24 @@ function NotificationInbox({ userId }) {
     readWriteRef.current = write;
   }
 
+  function closePanel() {
+    if (!openRef.current) return;
+    openRef.current = false;
+    // Event listeners use the latest loaded data, including realtime arrivals.
+    markLoadedRead(itemsRef.current);
+    setOpen(false);
+  }
+
   function togglePanel() {
-    if (!openRef.current) {
-      if (loadedRef.current) markLoadedRead(items);
-      else openingReadRef.current = true;
+    if (openRef.current) closePanel();
+    else {
+      openRef.current = true;
+      setOpen(true);
     }
-    openRef.current = !openRef.current;
-    setOpen(openRef.current);
   }
 
   async function openNotification(item) {
-    openRef.current = false;
-    setOpen(false);
+    closePanel();
     if (item.targetUrl) {
       if (isExternalNotificationTarget(item.targetUrl)) {
         window.open(item.targetUrl, "_blank", "noopener,noreferrer");
@@ -187,7 +187,8 @@ function NotificationInbox({ userId }) {
   }
 
   async function markAll() {
-    setItems((current) => current.map((item) => ({ ...item, isRead: true })));
+    itemsRef.current = itemsRef.current.map((item) => ({ ...item, isRead: true }));
+    setItems(itemsRef.current);
     setUnreadCount(0);
     try { await markAllNotificationsRead(); }
     catch (error) { console.error("Failed to mark notifications read:", error); void refresh(); }
