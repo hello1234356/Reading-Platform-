@@ -441,6 +441,8 @@ function Home() {
   const location = useLocation();
   const { postId: routePostId } = useParams();
   const notificationTargetHandledRef = useRef("");
+  const loadedTargetPostRef = useRef(null);
+  const targetHighlightRef = useRef(null);
   const navigate = useNavigate();
   const [initialHomeState] = useState(getInitialHomeState);
   const [dailyQuote] = useState(() => getDailyLiteraryQuote());
@@ -647,9 +649,11 @@ function Home() {
           page: feedPage,
           pageSize: FEED_PAGE_SIZE,
           bookTitleQuery: feedSearchQuery,
+          targetPostId,
         });
 
         if (!cancelled) {
+          loadedTargetPostRef.current = targetPostId;
           setPosts(loadedFeed.posts);
           setFeedTotalCount(loadedFeed.totalCount);
         }
@@ -673,7 +677,7 @@ function Home() {
     return () => {
       cancelled = true;
     };
-  }, [feedPage, feedSearchQuery, user?.id]);
+  }, [feedPage, feedSearchQuery, user?.id, targetPostId]);
 
   function searchFeedPosts(event) {
     event.preventDefault();
@@ -688,8 +692,14 @@ function Home() {
   }
 
   useEffect(() => {
+    notificationTargetHandledRef.current = "";
+    return () => targetHighlightRef.current?.();
+  }, [location.key]);
+
+  useEffect(() => {
     if (feedLoading || !targetPostId) return undefined;
-    const targetKey = `${targetPostId}:${targetCommentId}:${targetReplyId}`;
+    if (loadedTargetPostRef.current !== targetPostId) return undefined;
+    const targetKey = `${location.key}:${targetPostId}:${targetCommentId}:${targetReplyId}`;
     if (notificationTargetHandledRef.current === targetKey) return undefined;
     const targetPost = posts.find((post) => String(post.id) === targetPostId);
     if (!targetPost) {
@@ -710,8 +720,8 @@ function Home() {
       }
     }
 
-    let highlightTimer;
-    const frame = window.requestAnimationFrame(() => {
+    let observer;
+    const scrollToTarget = () => {
       const element = document.getElementById(
         requestedContent
           ? `${requestedContent.isReply ? "reply" : "comment"}-${requestedContent.id}`
@@ -720,20 +730,29 @@ function Home() {
             : `feed-post-${targetPostId}`,
       );
       if (!element) return;
+      observer?.disconnect();
       notificationTargetHandledRef.current = targetKey;
+      targetHighlightRef.current?.();
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       element.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
       element.focus({ preventScroll: true });
       element.classList.add("notification-content-target");
-      highlightTimer = window.setTimeout(() => {
-        element.classList.remove("notification-content-target");
-      }, reducedMotion ? 0 : 2200);
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-      if (highlightTimer) window.clearTimeout(highlightTimer);
+      const clearHighlight = () => element.classList.remove("notification-content-target");
+      const timer = window.setTimeout(clearHighlight, 2200);
+      targetHighlightRef.current = () => {
+        window.clearTimeout(timer);
+        clearHighlight();
+      };
     };
-  }, [feedLoading, posts, expandedCommentPostIds, targetPostId, targetCommentId, targetReplyId]);
+    scrollToTarget();
+    if (notificationTargetHandledRef.current !== targetKey) {
+      observer = new MutationObserver(scrollToTarget);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+    return () => {
+      observer?.disconnect();
+    };
+  }, [feedLoading, posts, expandedCommentPostIds, targetPostId, targetCommentId, targetReplyId, location.key]);
 
   useEffect(() => {
     let cancelled = false;

@@ -268,13 +268,14 @@ test("navbar mailbox placement, bounded inbox, and accessibility are explicit", 
   assert.match(responsive, /max-width: 1020px[\s\S]*\.nav-school-actions[\s\S]*grid-column: 2/);
 });
 
-test("notification clicks persist read state before navigating", async () => {
+test("notification clicks only navigate", async () => {
   const inbox = await readFile(inboxUrl, "utf8");
   const handler = inbox.match(/async function openNotification\(item\) \{([\s\S]*?)\n  \}/)?.[1] || "";
-  assert.ok(handler.indexOf("await markNotificationRead(item)") < handler.indexOf("navigate(item.targetUrl)"));
+  assert.match(handler, /navigate\(item.targetUrl\)/);
+  assert.doesNotMatch(handler, /markNotification|setUnreadCount|setItems/);
   assert.match(handler, /window\.open\(item\.targetUrl, "_blank", "noopener,noreferrer"\)/);
   assert.match(handler, /isExternalNotificationTarget\(item\.targetUrl\)/);
-  assert.match(handler, /setUnreadCount\(\(count\) => Math\.max\(0, count - 1\)\)/);
+
 });
 
 test("Admin labels notification destinations as links or destinations", async () => {

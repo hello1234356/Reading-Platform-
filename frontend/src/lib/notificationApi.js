@@ -139,3 +139,14 @@ export function subscribeToNotifications(userId, onChange) {
     .subscribe();
   return () => { void supabase.removeChannel(channel); };
 }
+
+// Only IDs in the loaded opening snapshot are acknowledged.
+export async function markNotificationsRead(notifications) {
+  const unread = notifications.filter((item) => !item.isRead);
+  if (!unread.length) return;
+  const { error } = await requireSupabase().rpc("mark_notifications_read", {
+    p_notification_ids: unread.filter((item) => item.itemKind !== "public_announcement").map((item) => item.id),
+    p_announcement_ids: unread.filter((item) => item.itemKind === "public_announcement").map((item) => item.id),
+  });
+  if (error) throw error;
+}

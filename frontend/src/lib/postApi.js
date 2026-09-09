@@ -253,7 +253,7 @@ async function attachCommentLikes(posts) {
 
 export async function getFeedPosts(
   currentUserId = null,
-  { page = 1, pageSize = 15, bookTitleQuery = "" } = {},
+  { page = 1, pageSize = 15, bookTitleQuery = "", targetPostId = "" } = {},
 ) {
   const supabase = requireSupabase();
   const normalizedPage = Math.max(Number(page) || 1, 1);
@@ -265,7 +265,7 @@ export async function getFeedPosts(
   const to = from + normalizedPageSize - 1;
   const matchingBookIds = await getBookIdsByTitle(bookTitleQuery);
 
-  if (matchingBookIds && matchingBookIds.length === 0) {
+  if (!targetPostId && matchingBookIds && matchingBookIds.length === 0) {
     return {
       posts: [],
       totalCount: 0,
@@ -289,7 +289,14 @@ export async function getFeedPosts(
     throw error;
   }
 
-  const postsWithCommentLikes = await attachCommentLikes(data || []);
+  const rows = data || [];
+  if (targetPostId && !rows.some((row) => String(row.id) === String(targetPostId))) {
+    const { data: target, error: targetError } = await supabase
+      .from("posts").select(FEED_SELECT).eq("id", targetPostId).maybeSingle();
+    if (targetError) throw targetError;
+    if (target) rows.unshift(target);
+  }
+  const postsWithCommentLikes = await attachCommentLikes(rows);
 
   return {
     posts: postsWithCommentLikes.map((row) =>

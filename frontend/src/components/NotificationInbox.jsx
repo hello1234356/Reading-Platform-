@@ -9,7 +9,7 @@ import {
   getUnreadNotificationCount,
   isExternalNotificationTarget,
   markAllNotificationsRead,
-  markNotificationRead,
+  markNotificationsRead,
   subscribeToNotifications,
 } from "../lib/notificationApi";
 import { getNotificationPanelHeight } from "../lib/notificationLayout";
@@ -30,20 +30,35 @@ function NotificationInbox({ userId }) {
   const wrapperRef = useRef(null);
   const panelRef = useRef(null);
   const firstActionRef = useRef(null);
+  const openRef = useRef(false);
+  const loadedRef = useRef(false);
+  const openingReadRef = useRef(false);
+  const readWriteRef = useRef(null);
+  const refreshVersionRef = useRef(0);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
 
-  async function refresh({ includeItems = open } = {}) {
+  async function refresh({ includeItems = openRef.current } = {}) {
+    const version = ++refreshVersionRef.current;
     try {
+      await readWriteRef.current;
       const [count, nextItems] = await Promise.all([
         getUnreadNotificationCount(),
         includeItems ? getNotifications() : Promise.resolve(null),
       ]);
+      if (version !== refreshVersionRef.current) return;
       setUnreadCount(count);
-      if (nextItems) setItems(nextItems);
+      if (nextItems) {
+        loadedRef.current = true;
+        setItems(nextItems);
+        if (openingReadRef.current) {
+          openingReadRef.current = false;
+          markLoadedRead(nextItems);
+        }
+      }
       setStatus("ready");
       setMessage("");
     } catch (error) {
@@ -57,10 +72,10 @@ function NotificationInbox({ userId }) {
     // Initial remote synchronization for the authenticated recipient.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh({ includeItems: false });
-    return subscribeToNotifications(userId, () => void refresh({ includeItems: open }));
-    // The subscription is recreated when panel state changes so its callback has current state.
+    return subscribeToNotifications(userId, () => void refresh());
+    // Read current panel state without resubscribing on every toggle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, open]);
+  }, [userId]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -68,10 +83,14 @@ function NotificationInbox({ userId }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh({ includeItems: true });
     const handlePointer = (event) => {
-      if (!wrapperRef.current?.contains(event.target)) setOpen(false);
+      if (!wrapperRef.current?.contains(event.target)) {
+        openRef.current = false;
+        setOpen(false);
+      }
     };
     const handleKey = (event) => {
       if (event.key === "Escape") {
+        openRef.current = false;
         setOpen(false);
         wrapperRef.current?.querySelector(".notification-mailbox-button")?.focus();
       }
@@ -114,16 +133,37 @@ function NotificationInbox({ userId }) {
     };
   }, [open, items.length, message, status]);
 
-  async function openNotification(item) {
-    if (!item.isRead) {
-      setItems((current) => current.map((entry) => (
-        entry.id === item.id && entry.itemKind === item.itemKind
-      )
-        ? { ...entry, isRead: true } : entry));
-      setUnreadCount((count) => Math.max(0, count - 1));
-      try { await markNotificationRead(item); }
-      catch (error) { console.error("Failed to mark notification read:", error); void refresh(); }
+  function markLoadedRead(snapshot) {
+    const unread = snapshot.filter((item) => !item.isRead);
+    if (!unread.length) return;
+    ++refreshVersionRef.current;
+    setItems(snapshot.map((item) => ({ ...item, isRead: true })));
+    setUnreadCount((count) => Math.max(0, count - unread.length));
+    const previous = readWriteRef.current;
+    const write = (async () => {
+      await previous;
+      try { await markNotificationsRead(unread); }
+      catch (error) {
+        console.error("Failed to mark notifications read:", error);
+        setMessage(t("notifications.unavailable"));
+        // Reconcile with the server without marking later arrivals read.
+        void refresh({ includeItems: true });
+      }
+    })();
+    readWriteRef.current = write;
+  }
+
+  function togglePanel() {
+    if (!openRef.current) {
+      if (loadedRef.current) markLoadedRead(items);
+      else openingReadRef.current = true;
     }
+    openRef.current = !openRef.current;
+    setOpen(openRef.current);
+  }
+
+  async function openNotification(item) {
+    openRef.current = false;
     setOpen(false);
     if (item.targetUrl) {
       if (isExternalNotificationTarget(item.targetUrl)) {
@@ -146,7 +186,7 @@ function NotificationInbox({ userId }) {
       <button className="notification-mailbox-button" type="button"
         aria-label={unreadCount ? t("notifications.unread", { count: unreadCount }) : t("notifications.title")}
         aria-haspopup="dialog" aria-expanded={open} aria-controls="notification-inbox-panel"
-        onClick={() => setOpen((value) => !value)}>
+        onClick={togglePanel}>
         <MailboxIcon />
         {unreadCount > 0 ? (
           <span className="notification-unread-badge" aria-hidden="true">
