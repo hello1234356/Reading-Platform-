@@ -44,7 +44,7 @@ export default function TalesTracker() {
             </ul>
           </div>
           <button type="button" onClick={() => setOpen(false)}>{t('hunt.continue')}</button>
-        </> : <><p>{t('hunt.intro')}</p><ul>{['talk', 'reply', 'personal', 'editors', 'book'].map(hint => <li key={hint}>{t(`hunt.${hint}`)}</li>)}</ul></>}
+        </> : <><p>{t('hunt.intro')}</p><ol>{['hintExplore', 'hintInteract', 'hintChapter', 'hintLook'].map(hint => <li key={hint}>{t(`hunt.${hint}`)}</li>)}</ol></>}
         {import.meta.env.DEV && <button type="button" className="tales-reset" onClick={() => { dispatch({ type: 'reset' }); setSelected(null); }}>{t('hunt.reset')}</button>}
       </section>}
       <button type="button" ref={tray} className="tales-summary" aria-expanded={open} aria-controls="tales-panel" onClick={() => setOpen(value => !value)}>

@@ -148,5 +148,12 @@ export async function markNotificationsRead(notifications) {
     p_notification_ids: unread.filter((item) => item.itemKind !== "public_announcement").map((item) => item.id),
     p_announcement_ids: unread.filter((item) => item.itemKind === "public_announcement").map((item) => item.id),
   });
-  if (error) throw error;
+  if (!error) return;
+  if (error.code !== "PGRST202") throw error;
+
+  // Older databases may not yet have the batch migration. Use their existing
+  // recipient-scoped RPCs; never acknowledge notifications outside this snapshot.
+  const results = await Promise.allSettled(unread.map(markNotificationRead));
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure) throw failure.reason;
 }

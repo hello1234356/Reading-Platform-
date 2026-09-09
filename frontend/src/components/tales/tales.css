@@ -9,7 +9,7 @@ body:has(.tales-dock) { padding-bottom: calc(100px + env(safe-area-inset-bottom)
 .tales-panel { position: absolute; bottom: calc(100% + 16px); left: 0; right: 0; padding: 22px; border: 1px solid var(--border); border-radius: 18px; background: var(--paper); box-shadow: var(--shadow); max-height: min(540px, calc(100dvh - 120px)); overflow-y: auto; }
 .tales-panel h2 { font: 600 22px var(--heading); margin: 0 0 12px; }
 .tales-panel p { margin: 10px 0; }
-.tales-panel ul { padding-left: 22px; line-height: 1.8; }
+.tales-panel ul, .tales-panel ol { padding-left: 22px; line-height: 1.8; }
 .tales-panel button:not(.tales-tile) { min-height: 44px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--walnut); background: var(--linen); color: var(--deep-mocha); cursor: pointer; }
 .tales-panel .tales-reset { display: block; margin-top: 14px; font-size: 12px; }
 .tales-help { font-size: 13px; color: var(--soft-gray); }
@@ -61,3 +61,9 @@ button.tales-egg, button.tales-egg:hover, button.tales-egg:active { background: 
 
 .tales-panel .tales-prize-contacts { list-style: none; padding: 0; margin: 10px 0 0; font-size: 14px; line-height: 1.8; }
 .tales-prize-contacts span { user-select: text; overflow-wrap: anywhere; }
+
+.tales-summary:hover > span:first-child,
+.tales-summary:focus-visible > span:first-child {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

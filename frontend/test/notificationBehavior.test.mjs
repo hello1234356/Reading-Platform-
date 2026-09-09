@@ -11,6 +11,7 @@ function inboxHarness() {
   const ctx = {
     items: [1, 2, 3].map(id => ({ id, isRead: false, itemKind: 'personal', targetUrl: `/post/${id}` })),
     count: 3, openRef: { current: false }, loadedRef: { current: true },
+    confirmedReadRef: { current: new Set() },
     openingReadRef: { current: false }, readWriteRef: { current: null }, refreshVersionRef: { current: 0 },
     setItems(value) { ctx.items = value; },
     setUnreadCount(value) { ctx.count = typeof value === 'function' ? value(ctx.count) : value; },
@@ -180,4 +181,72 @@ test('off-page targets fetch full comments once; existing and deleted posts are 
       assert.equal(deleted.posts.length, 1);
     }
   }
+});
+
+
+test('successful reads survive stale refetches, close/reopen, and realtime arrivals', async () => {
+  const { ctx, writes } = inboxHarness();
+  const stale = ctx.items.map(item => ({ ...item }));
+  ctx.setStatus = () => {};
+  ctx.getUnreadNotificationCount = async () => 4;
+  ctx.getNotifications = async () => [...stale, { id: 4, itemKind: 'personal', isRead: false }];
+  vm.runInContext(inbox.slice(inbox.indexOf('  async function refresh('), inbox.indexOf('  useEffect(')), ctx);
+  ctx.togglePanel();
+  await ctx.readWriteRef.current;
+  ctx.togglePanel();
+  await ctx.refresh();
+  assert.ok(ctx.items.slice(0, 3).every(item => item.isRead));
+  assert.equal(ctx.items[3].isRead, false);
+  assert.equal(ctx.count, 1);
+  ctx.togglePanel();
+  await ctx.readWriteRef.current;
+  assert.equal(writes.length, 2);
+  assert.deepEqual(Array.from(writes[1]), [4]);
+});
+
+test('missing batch RPC falls back to existing durable read RPCs for exact IDs only', async () => {
+  const api = await readFile(new URL('../src/lib/notificationApi.js', import.meta.url), 'utf8');
+  const saved = [];
+  const ctx = {
+    requireSupabase: () => ({ rpc: async () => ({ error: { code: 'PGRST202' } }) }),
+    markNotificationRead: async item => saved.push(item.id),
+  };
+  vm.createContext(ctx);
+  vm.runInContext(api.slice(api.indexOf('export async function markNotificationsRead')).replace('export ', ''), ctx);
+  await ctx.markNotificationsRead([{ id: 'a' }, { id: 'b', itemKind: 'public_announcement' }, { id: 'c', isRead: true }]);
+  assert.deepEqual(saved, ['a', 'b']);
+  ctx.requireSupabase = () => ({ rpc: async () => ({ error: { code: '42501' } }) });
+  await assert.rejects(ctx.markNotificationsRead([{ id: 'd' }]));
+  assert.deepEqual(saved, ['a', 'b']);
+});
+
+test('in-flight responses are discarded and realtime refresh waits for persistence', async () => {
+  const { ctx } = inboxHarness();
+  const stale = ctx.items.map(item => ({ ...item }));
+  let resolveItems, resolveWrite, reads = 0;
+  ctx.setStatus = () => {};
+  ctx.getUnreadNotificationCount = async () => 3;
+  ctx.getNotifications = () => {
+    reads++;
+    return new Promise(resolve => { resolveItems = resolve; });
+  };
+  ctx.markNotificationsRead = () => new Promise(resolve => { resolveWrite = resolve; });
+  vm.runInContext(inbox.slice(inbox.indexOf('  async function refresh('), inbox.indexOf('  useEffect(')), ctx);
+  const oldRefresh = ctx.refresh({ includeItems: true });
+  await Promise.resolve();
+  ctx.togglePanel();
+  await Promise.resolve();
+  const realtimeRefresh = ctx.refresh({ includeItems: true });
+  resolveItems(stale);
+  await oldRefresh;
+  assert.ok(ctx.items.every(item => item.isRead));
+  assert.equal(reads, 1);
+  resolveWrite();
+  await ctx.readWriteRef.current;
+  await Promise.resolve();
+  assert.equal(reads, 2);
+  resolveItems(stale);
+  await realtimeRefresh;
+  assert.ok(ctx.items.every(item => item.isRead));
+  assert.equal(ctx.count, 0);
 });

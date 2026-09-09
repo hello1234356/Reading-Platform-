@@ -34,6 +34,7 @@ function NotificationInbox({ userId }) {
   const loadedRef = useRef(false);
   const openingReadRef = useRef(false);
   const readWriteRef = useRef(null);
+  const confirmedReadRef = useRef(new Set());
   const refreshVersionRef = useRef(0);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -47,21 +48,31 @@ function NotificationInbox({ userId }) {
       await readWriteRef.current;
       const [count, nextItems] = await Promise.all([
         getUnreadNotificationCount(),
-        includeItems ? getNotifications() : Promise.resolve(null),
+        includeItems || confirmedReadRef.current.size
+          ? getNotifications() : Promise.resolve(null),
       ]);
       if (version !== refreshVersionRef.current) return;
-      setUnreadCount(count);
+      // A late/stale inbox response cannot undo a successful acknowledgement.
+      const staleUnread = (nextItems || []).filter((item) => (
+        !item.isRead && confirmedReadRef.current.has(`${item.itemKind}:${item.id}`)
+      )).length;
+      setUnreadCount(Math.max(0, count - staleUnread));
       if (nextItems) {
         loadedRef.current = true;
-        setItems(nextItems);
+        const reconciledItems = nextItems.map((item) => (
+          confirmedReadRef.current.has(`${item.itemKind}:${item.id}`)
+            ? { ...item, isRead: true } : item
+        ));
+        setItems(reconciledItems);
         if (openingReadRef.current) {
           openingReadRef.current = false;
-          markLoadedRead(nextItems);
+          markLoadedRead(reconciledItems);
         }
       }
       setStatus("ready");
       setMessage("");
     } catch (error) {
+      if (version !== refreshVersionRef.current) return;
       console.error("Failed to load notifications:", error);
       setStatus("error");
       setMessage(t("notifications.unavailable"));
@@ -70,7 +81,6 @@ function NotificationInbox({ userId }) {
 
   useEffect(() => {
     // Initial remote synchronization for the authenticated recipient.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh({ includeItems: false });
     return subscribeToNotifications(userId, () => void refresh());
     // Read current panel state without resubscribing on every toggle.
@@ -80,7 +90,6 @@ function NotificationInbox({ userId }) {
   useEffect(() => {
     if (!open) return undefined;
     // Opening the panel requests its bounded inbox contents.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh({ includeItems: true });
     const handlePointer = (event) => {
       if (!wrapperRef.current?.contains(event.target)) {
@@ -142,7 +151,10 @@ function NotificationInbox({ userId }) {
     const previous = readWriteRef.current;
     const write = (async () => {
       await previous;
-      try { await markNotificationsRead(unread); }
+      try {
+        await markNotificationsRead(unread);
+        unread.forEach((item) => confirmedReadRef.current.add(`${item.itemKind}:${item.id}`));
+      }
       catch (error) {
         console.error("Failed to mark notifications read:", error);
         setMessage(t("notifications.unavailable"));
