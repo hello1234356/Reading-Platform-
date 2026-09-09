@@ -22,7 +22,8 @@ body:has(.tales-dock) { padding-bottom: calc(100px + env(safe-area-inset-bottom)
 .tales-egg span::after { content: ''; position: absolute; bottom: 11px; left: calc(50% - 1px); width: 2px; height: 2px; border-radius: 50%; background: var(--walnut); opacity: .6; }
 .tales-egg:hover span, .tales-egg:focus-visible span { background-color: var(--stone); transform: translateY(-3px) rotate(0); }
 .tales-focus-egg { display: none; flex-shrink: 0; }
-.comment-input-shell:focus-within .tales-focus-egg { display: inline-grid; }
+.comment-input-shell:focus-within .tales-focus-egg,
+.comment-input-shell .tales-focus-egg.tales-revealed { display: inline-grid; }
 .tales-dock button:focus-visible, .tales-egg:focus-visible { outline: 3px solid var(--deep-mocha); outline-offset: 4px; }
 .tales-flight { pointer-events: none; position: fixed; z-index: 20000; width: 44px; height: 44px; display: grid; place-items: center; background: var(--paper); color: var(--deep-mocha); border: 1px solid var(--walnut); border-radius: 7px; font: 30px var(--quote); animation: tales-fly .9s ease-in-out both; }
 .tales-flight i { position: absolute; right: -15px; top: -14px; color: var(--walnut); }
@@ -48,7 +49,7 @@ button.tales-egg, button.tales-egg:hover, button.tales-egg:active { background: 
 .tales-placement-feed span { transform: rotate(-9deg); }
 .comment-input-shell { position: relative; }
 .comment-input-shell:has(.tales-focus-egg) { padding-right: 60px; }
-.tales-egg.tales-placement-reply { position: absolute; right: 5px; top: -17px; margin: 0; }
+.tales-egg.tales-placement-reply { z-index: 2; position: absolute; right: 5px; top: -17px; margin: 0; }
 .tales-placement-reply span { transform: rotate(12deg); }
 .profile-banner, .public-profile-header { position: relative; }
 .tales-egg.tales-placement-profile { position: absolute; right: 18px; top: -16px; margin: 0; }
