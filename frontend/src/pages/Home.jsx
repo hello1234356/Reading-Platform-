@@ -2224,14 +2224,17 @@ function Home() {
                     <p className="feed-title">
                       <Trans
                         i18nKey={post.activityKey}
+                        tOptions={{ interpolation: { escapeValue: true } }}
+                        shouldUnescape
                         values={{
                           username: post.student,
                           bookTitle: post.book,
                         }}
                         components={{
-                          user: <ProfileLink userId={post.userId} />,
-                          bold: <strong />,
-                          book: <span />,
+                          user: <ProfileLink userId={post.userId} className="feed-author" />,
+                          bold: <bdi className="feed-author-name" />,
+                          activity: <span className="feed-activity" />,
+                          book: <span className="feed-book-title" />,
                         }}
                       />
                     </p>

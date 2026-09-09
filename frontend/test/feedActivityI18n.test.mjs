@@ -40,15 +40,15 @@ test("English and Chinese activity templates preserve dynamic names and titles",
 
   assert.equal(
     english.t(getFeedActivityKey("review", true), values),
-    "<user><bold>Chrystal</bold></user> reviewed <book>Immune</book>",
+    "<user><bold>Chrystal</bold></user> <activity>reviewed</activity> <book>Immune</book>",
   );
   assert.equal(
     chinese.t(getFeedActivityKey("review", true), values),
-    "<user><bold>Chrystal</bold></user> 评价了《<book>Immune</book>》",
+    "<user><bold>Chrystal</bold></user> <activity>评价了</activity> <book>《Immune》</book>",
   );
   assert.equal(
     chinese.t(getFeedActivityKey("note", false), values),
-    "<user><bold>Chrystal</bold></user> 发布了一条阅读笔记",
+    "<user><bold>Chrystal</bold></user> <activity>发布了一条阅读笔记</activity>",
   );
 });
 
@@ -86,4 +86,40 @@ test("Home renders activity templates with components instead of English fragmen
   assert.match(source, /<Trans[\s\S]*i18nKey=\{post\.activityKey\}/);
   assert.match(source, /user: <ProfileLink userId=\{post\.userId\}/);
   assert.doesNotMatch(source, /\{post\.action\}|\{post\.time\}/);
+});
+
+test("feed markup preserves Unicode names in an isolated author element", async () => {
+  const { createElement } = await import("react");
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { Trans } = await import("react-i18next");
+  const { getPublicDisplayName } = await import("../src/lib/identity.js");
+  const names = [
+    "\u115F", "Alice", "小明", "😀", "Élodie", "Reader 👩‍💻", "Jose\u0301",
+    "LongUsername".repeat(30), "✈\uFE0F", "A\u200BB", "A\u2066B\u2069",
+    "  Alice  ", "<book>Reader</book>",
+  ];
+  for (const language of ["en", "zh-CN"]) {
+    const instance = await translator(language);
+    for (const username of names) {
+      assert.equal(getPublicDisplayName({ username }), username);
+      for (const postType of ["review", "finished", "progress", "note"]) {
+        const markup = renderToStaticMarkup(createElement(Trans, {
+          i18n: instance,
+          i18nKey: getFeedActivityKey(postType, true),
+          tOptions: { interpolation: { escapeValue: true } },
+          shouldUnescape: true,
+          values: { username, bookTitle: "Immune" },
+          components: {
+            user: createElement("button", { className: "feed-author" }),
+            bold: createElement("bdi", { className: "feed-author-name" }),
+            activity: createElement("span", { className: "feed-activity" }),
+            book: createElement("span", { className: "feed-book-title" }),
+          },
+        }));
+        const escapedName = renderToStaticMarkup(createElement("bdi", { className: "feed-author-name" }, username));
+        assert.ok(markup.includes(escapedName), `${language}: ${username}`);
+        assert.match(markup, /<\/button> <span class="feed-activity">/);
+      }
+    }
+  }
 });

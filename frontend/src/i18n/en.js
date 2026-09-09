@@ -130,11 +130,11 @@ const en = {
     finishedBook: "Finished book", movingFinished: "Moving to Finished", finalThoughts: "Save your final thoughts and rating.", shareFinished: "Share Finished Review",
     revealSpoiler: "Reveal spoiler",
     activity: {
-      review: "<user><bold>{{username}}</bold></user> reviewed <book>{{bookTitle}}</book>",
-      finished: "<user><bold>{{username}}</bold></user> finished <book>{{bookTitle}}</book>",
-      progress: "<user><bold>{{username}}</bold></user> updated progress on <book>{{bookTitle}}</book>",
-      noteWithBook: "<user><bold>{{username}}</bold></user> posted a note about <book>{{bookTitle}}</book>",
-      noteWithoutBook: "<user><bold>{{username}}</bold></user> posted a reading note",
+      review: "<user><bold>{{username}}</bold></user> <activity>reviewed</activity> <book>{{bookTitle}}</book>",
+      finished: "<user><bold>{{username}}</bold></user> <activity>finished</activity> <book>{{bookTitle}}</book>",
+      progress: "<user><bold>{{username}}</bold></user> <activity>updated progress on</activity> <book>{{bookTitle}}</book>",
+      noteWithBook: "<user><bold>{{username}}</bold></user> <activity>posted a note about</activity> <book>{{bookTitle}}</book>",
+      noteWithoutBook: "<user><bold>{{username}}</bold></user> <activity>posted a reading note</activity>",
     },
   },
   profile: {

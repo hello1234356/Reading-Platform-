@@ -1099,17 +1099,51 @@
   background: var(--coral);
 }
 
+.feed-card-header > div:last-child {
+  min-width: 0;
+}
+
 .feed-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2em 0.45em;
   color: var(--soft-gray);
   font-size: 15px;
-  line-height: 1.45;
+  line-height: 1.6;
 }
 
-.feed-title strong {
+.feed-title > * {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Keep the button and its fallback glyphs inside their own wrapping item. */
+.feed-title .feed-author {
+  display: inline-flex;
+  /* Default-ignorable names can have zero advance but visible fallback ink. */
+  min-inline-size: 1.5em;
+  padding-inline: 0.15em;
+  white-space: normal;
+  font-family: Nunito, "Plus Jakarta Sans", "Helvetica Neue", Arial,
+    "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Apple SD Gothic Neo", "Malgun Gothic",
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  line-height: 1.6;
+  letter-spacing: normal;
+  unicode-bidi: isolate;
+}
+
+.feed-author-name {
+  min-width: 0;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   color: var(--charcoal);
+  font-weight: 700;
 }
 
-.feed-title span {
+.feed-title .feed-book-title {
   color: var(--mocha);
   font-family: var(--heading);
   font-size: 22px;

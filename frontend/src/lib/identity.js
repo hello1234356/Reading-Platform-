@@ -17,8 +17,8 @@ function titleCaseNamePart(part) {
 
 export function getPublicDisplayName(profile) {
   return (
-    profile?.username?.trim() ||
-    profile?.full_name?.trim() ||
+    (profile?.username?.trim() ? profile.username : "") ||
+    (profile?.full_name?.trim() ? profile.full_name : "") ||
     PUBLIC_NAME_FALLBACK
   );
 }

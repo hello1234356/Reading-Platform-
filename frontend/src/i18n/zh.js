@@ -130,11 +130,11 @@ const zh = {
     finishedBook: "已读完书籍", movingFinished: "移至已读完", finalThoughts: "保存最终感想和评分。", shareFinished: "分享读完书评",
     revealSpoiler: "显示剧透",
     activity: {
-      review: "<user><bold>{{username}}</bold></user> 评价了《<book>{{bookTitle}}</book>》",
-      finished: "<user><bold>{{username}}</bold></user> 读完了《<book>{{bookTitle}}</book>》",
-      progress: "<user><bold>{{username}}</bold></user> 更新了《<book>{{bookTitle}}</book>》的阅读进度",
-      noteWithBook: "<user><bold>{{username}}</bold></user> 发布了一条关于《<book>{{bookTitle}}</book>》的阅读笔记",
-      noteWithoutBook: "<user><bold>{{username}}</bold></user> 发布了一条阅读笔记",
+      review: "<user><bold>{{username}}</bold></user> <activity>评价了</activity> <book>《{{bookTitle}}》</book>",
+      finished: "<user><bold>{{username}}</bold></user> <activity>读完了</activity> <book>《{{bookTitle}}》</book>",
+      progress: "<user><bold>{{username}}</bold></user> <activity>更新了</activity> <book>《{{bookTitle}}》</book> <activity>的阅读进度</activity>",
+      noteWithBook: "<user><bold>{{username}}</bold></user> <activity>发布了一条关于</activity> <book>《{{bookTitle}}》</book> <activity>的阅读笔记</activity>",
+      noteWithoutBook: "<user><bold>{{username}}</bold></user> <activity>发布了一条阅读笔记</activity>",
     },
   },
   profile: {
