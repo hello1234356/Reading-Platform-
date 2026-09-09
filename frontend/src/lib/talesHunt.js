@@ -1,7 +1,9 @@
 // Temporary club-fair event: set false to remove every hunt surface.
 export const TALES_HUNT_ENABLED = true;
-export const HUNT_STORAGE_KEY = 'litshelf-tales-hunt';
-const letters = new Set(['T', 'A', 'L', 'E', 'S']);
+export const HUNT_STORAGE_KEY = 'litshelf-word-hunt-v2';
+// Collectible inventory only, deliberately unordered; no solution is stored here.
+const letters = new Set(['P', 'R', 'A', 'C', 'T', 'H', 'E']);
+export const HUNT_LETTER_COUNT = letters.size;
 export const emptyHunt = () => ({ collectedLetters: [], arrangement: [], completed: false });
 export function normalizeHunt(value) {
   const collectedLetters = [...new Set((Array.isArray(value?.collectedLetters) ? value.collectedLetters : []).filter(letter => letters.has(letter)))];
@@ -15,7 +17,7 @@ export function huntReducer(state, action) {
   if (action.type === 'collect' && letters.has(action.letter) && !state.collectedLetters.includes(action.letter)) {
     return { ...state, collectedLetters: [...state.collectedLetters, action.letter], arrangement: [...state.arrangement, action.letter] };
   }
-  if (action.type === 'swap' && state.arrangement.length === 5 && [action.from, action.to].every(i => Number.isInteger(i) && i >= 0 && i < 5)) {
+  if (action.type === 'swap' && state.arrangement.length === HUNT_LETTER_COUNT && [action.from, action.to].every(i => Number.isInteger(i) && i >= 0 && i < HUNT_LETTER_COUNT)) {
     const arrangement = [...state.arrangement];
     [arrangement[action.from], arrangement[action.to]] = [arrangement[action.to], arrangement[action.from]];
     return { ...state, arrangement };

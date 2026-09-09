@@ -2703,7 +2703,7 @@ function Home() {
                       placeholder={t("home.addThought")}
                       aria-label={t("home.commentOn", { book: post.book })}
                     />
-                    <TalesCollectible letter="E" placement="reply" focusReveal />
+                    <TalesCollectible letter="R" placement="reply" focusReveal />
                   </div>
 
                   <button
@@ -2723,7 +2723,7 @@ function Home() {
                       : t("home.send")}
                   </button>
                 </div>
-                {post.id === huntFeedPostId && <TalesCollectible letter="L" placement="feed" revealOnScroll />}
+                {post.id === huntFeedPostId && <TalesCollectible letter="P" placement="feed" revealOnScroll />}
               </article>
               );
             })

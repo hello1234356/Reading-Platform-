@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { TALES_HUNT_ENABLED, emptyHunt, huntReducer, readHunt, saveHunt } from '../../lib/talesHunt';
 import { TalesContext } from './context';
+import TalesCollectible from './TalesCollectible';
 import TalesTracker from './TalesTracker';
 import './tales.css';
 
@@ -10,6 +11,13 @@ export default function TalesHuntProvider({ children }) {
     try { return readHunt(window.localStorage); } catch { return emptyHunt(); }
   });
   const [flight, setFlight] = useState(null);
+  const [shelfDiscovered, setShelfDiscovered] = useState(false);
+  useEffect(() => {
+    if (!TALES_HUNT_ENABLED) return;
+    const reveal = () => setShelfDiscovered(true);
+    window.addEventListener('litshelf:book-added', reveal);
+    return () => window.removeEventListener('litshelf:book-added', reveal);
+  }, []);
   const tray = useRef(null);
   useEffect(() => {
     if (!TALES_HUNT_ENABLED) return;
@@ -30,6 +38,7 @@ export default function TalesHuntProvider({ children }) {
   return <TalesContext.Provider value={{ enabled: TALES_HUNT_ENABLED, state, dispatch, collectLetter, tray }}>
     {children}
     {TALES_HUNT_ENABLED && <TalesTracker />}
+    {TALES_HUNT_ENABLED && shelfDiscovered && <div className="tales-shelf-discovery"><TalesCollectible letter="E" placement="shelf" /></div>}
     {TALES_HUNT_ENABLED && flight && <span key={flight.id} aria-hidden="true" className="tales-flight" style={{ left: flight.x, top: flight.y, '--dx': `${flight.dx}px`, '--dy': `${flight.dy}px` }}>{flight.letter}<i>✧</i></span>}
   </TalesContext.Provider>;
 }

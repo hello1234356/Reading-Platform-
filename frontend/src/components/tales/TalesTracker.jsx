@@ -1,3 +1,4 @@
+import { HUNT_LETTER_COUNT } from '../../lib/talesHunt';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTalesHunt } from './context';
@@ -5,13 +6,13 @@ import { useTalesHunt } from './context';
 export default function TalesTracker() {
   const { state, dispatch, tray } = useTalesHunt();
   const { t } = useTranslation();
-  const full = state.arrangement.length === 5;
+  const full = state.arrangement.length === HUNT_LETTER_COUNT;
   const [open, setOpen] = useState(full);
   const [previousFull, setPreviousFull] = useState(full);
   const [selected, setSelected] = useState(null);
   const gesture = useRef(null);
   const suppressClick = useRef(false);
-  // Open once on the transition to five letters, without reopening after dismissal.
+  // Open once on the transition to all letters, without reopening after dismissal.
   if (full !== previousFull) {
     setPreviousFull(full);
     if (full) setOpen(true);
@@ -44,12 +45,12 @@ export default function TalesTracker() {
             </ul>
           </div>
           <button type="button" onClick={() => setOpen(false)}>{t('hunt.continue')}</button>
-        </> : <><p>{t('hunt.intro')}</p><ol>{['hintExplore', 'hintInteract', 'hintChapter', 'hintLook'].map(hint => <li key={hint}>{t(`hunt.${hint}`)}</li>)}</ol></>}
+        </> : <><p>{t('hunt.intro')}</p><ol>{['hintExplore', 'hintInteract', 'hintWander', 'hintLook'].map(hint => <li key={hint}>{t(`hunt.${hint}`)}</li>)}</ol></>}
         {import.meta.env.DEV && <button type="button" className="tales-reset" onClick={() => { dispatch({ type: 'reset' }); setSelected(null); }}>{t('hunt.reset')}</button>}
       </section>}
       <button type="button" ref={tray} className="tales-summary" aria-expanded={open} aria-controls="tales-panel" onClick={() => setOpen(value => !value)}>
         <span>{t(full ? 'hunt.unscramble' : 'hunt.find')}</span>
-        <span className="tales-tray" aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <span className="tales-mini" key={`${index}-${state.arrangement[index] || ''}`}>{state.arrangement[index] || ' '}</span>)}</span>
+        <span className="tales-tray" aria-hidden="true">{Array.from({ length: HUNT_LETTER_COUNT }, (_, index) => <span className="tales-mini" key={`${index}-${state.arrangement[index] || ''}`}>{state.arrangement[index] || ' '}</span>)}</span>
         <span className="tales-sr">{t('hunt.progress', { count: state.collectedLetters.length })}</span>
       </button>
       <span className="tales-sr" role="status">{t(full ? 'hunt.solvePrompt' : 'hunt.progress', { count: state.collectedLetters.length })}</span>

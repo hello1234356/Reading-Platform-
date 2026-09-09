@@ -677,7 +677,7 @@ async function submitMissingBook(event) {
           {searchMessage ? <p className="isbn-search-message">{searchMessage}</p> : null}
           {bookResults.length > 0 ? (
             <div className="book-search-results" aria-label={t("search.results")}>
-              <TalesCollectible letter="A" placement="search" />
+              <TalesCollectible letter="C" placement="search" />
               {bookResults.map((book, index) => {
                 const isSaved = isBookSaved(book);
                 const isSaving = savingBookKey === getBookKey(book);

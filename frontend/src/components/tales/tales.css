@@ -67,3 +67,10 @@ button.tales-egg, button.tales-egg:hover, button.tales-egg:active { background: 
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+/* Seven tiles retain usable touch targets on narrow screens. */
+.tales-dock-inner { max-width: 480px; }
+.tales-puzzle { gap: 6px; overflow-x: auto; padding: 6px 4px 10px; }
+.tales-tile { flex: 1 0 44px; }
+.tales-panel { padding-inline: 16px; }
+.tales-egg.tales-placement-favorites { display: flex; margin: 0 auto 12px; width: 52px; }
+.tales-shelf-discovery { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: calc(110px + env(safe-area-inset-bottom)); z-index: 20001; }

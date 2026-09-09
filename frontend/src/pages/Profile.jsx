@@ -1033,7 +1033,7 @@ function Profile() {
     <section className="home-page profile-page" aria-label={t("profile.personal")}>
       <header className="profile-hero">
         <div className="profile-banner">
-          <TalesCollectible letter="S" placement="profile" />
+          <TalesCollectible letter="A" placement="profile" />
           <div className="profile-identity">
             <div className="profile-photo profile-photo-main">
               {profile?.avatar_url ? (
@@ -1623,6 +1623,7 @@ function Profile() {
             </button>
             <p className="eyebrow">{t("profile.fourFavorites")}</p>
             <h2 id="favorite-picker-title">{t("profile.addFavoriteTitle")}</h2>
+            <TalesCollectible letter="H" placement="favorites" />
             <label>
               <span>{t("profile.searchBooks")}</span>
               <input
