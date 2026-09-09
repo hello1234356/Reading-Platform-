@@ -262,15 +262,14 @@ Deno.serve(async (request) => {
       if (packet.source === "google_books" || packet.source === "open_library") {
         const verifiedAt = new Date().toISOString();
         const expiresAt = new Date(Date.now() + PROVIDER_EVIDENCE_TTL_MS).toISOString();
-        const { error: evidenceWriteError } = await service
-          .from("book_provider_evidence_cache")
-          .upsert({ source: packet.source, external_id: packet.externalId,
-            evidence: safeEvidenceForStorage(verified), verified_at: verifiedAt,
-            expires_at: expiresAt }, { onConflict: "source,external_id" });
-        if (evidenceWriteError) console.error("Provider evidence cache write failed", {
-          identity, failureCode: "evidence_cache_persistence_failed",
-          message: evidenceWriteError.message,
+        const { error: evidenceWriteError } = await service.rpc("cache_book_evidence_for_review", {
+          p_source: packet.source, p_external_id: packet.externalId,
+          p_evidence: safeEvidenceForStorage(verified), p_verified_at: verifiedAt,
+          p_expires_at: expiresAt, p_policy_version: POLICY_VERSION,
+          p_model_version: MODEL_VERSION, p_initiated_by_user_id: authData.user.id,
         });
+        // Do not submit uncached evidence to AI if the atomic origin/cache write failed.
+        if (evidenceWriteError) throw evidenceWriteError;
       }
       return verified;
     } catch (error) {

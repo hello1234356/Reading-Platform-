@@ -688,6 +688,7 @@ function BookAiModerationTab() {
               {assessment.flags.length ? (
                 <p className="admin-muted">Flags: {assessment.flags.join(", ")}</p>
               ) : null}
+              <BookReviewOrigin assessment={assessment} />
               <details className="admin-evidence-details">
                 <summary>{t("admin.evidence")}</summary>
                 {assessment.evidence.description ? <p>{assessment.evidence.description}</p> : null}
@@ -724,6 +725,36 @@ function BookAiModerationTab() {
         ))}
       </div>
     </section>
+  );
+}
+
+function BookReviewOrigin({ assessment }) {
+  const [origin, setOrigin] = useState(null);
+  const [status, setStatus] = useState("idle");
+  async function loadOrigin(event) {
+    if (!event.currentTarget.open || status !== "idle") return;
+    setStatus("loading");
+    try {
+      const { data, error } = await requireSupabase().rpc("get_book_review_origin", {
+        p_source: assessment.source, p_external_id: assessment.externalId,
+      });
+      if (error) throw error;
+      setOrigin(data?.[0] || null);
+      setStatus("ready");
+    } catch {
+      setStatus("error");
+    }
+  }
+  return (
+    <details className="admin-evidence-details" onToggle={loadOrigin}>
+      <summary>Origin audit</summary>
+      {status === "loading" ? <p>Loading origin…</p> : null}
+      {status === "error" ? <p role="alert">Could not load origin audit.</p> : null}
+      {status === "ready" ? <>
+        <p>Origin: {origin ? "External search" : "Unknown"}</p>
+        <p>Initiated by user: {origin?.initiated_by_user_id || "Unknown"}</p>
+      </> : null}
+    </details>
   );
 }
 
