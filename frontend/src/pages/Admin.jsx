@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import ProfileLink from "../components/ProfileLink";
 import {
@@ -1221,7 +1221,17 @@ function Admin() {
   const { loading, isLoggedIn } = useAuth();
   const [role, setRole] = useState(null);
   const [roleStatus, setRoleStatus] = useState("loading");
-  const [activeTab, setActiveTab] = useState("moderation");
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const activeTab = ["moderation", "books", "book-ai", "clubs", "banners", "announcements", "admins"].includes(requestedTab)
+    ? requestedTab : "moderation";
+  const setActiveTab = useCallback((tab) => {
+    setSearchParams((params) => {
+      params.set("tab", tab);
+      return params;
+    });
+  }, [setSearchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1264,10 +1274,9 @@ function Admin() {
   useEffect(() => {
     if (!isOwner && activeTab === "admins") {
       // Keep an owner-only tab from surviving a role refresh.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab("moderation");
     }
-  }, [isOwner, activeTab]);
+  }, [isOwner, activeTab, setActiveTab]);
 
   if (loading || roleStatus === "loading") {
     return (
@@ -1301,7 +1310,7 @@ function Admin() {
 
       {activeTab === "moderation" ? <ModerationTab isOwner={isOwner} /> : null}
       {activeTab === "books" ? <BookVerificationTab isOwner={isOwner} /> : null}
-      {activeTab === "book-ai" ? <BookAiModerationTab /> : null}
+      {activeTab === "book-ai" ? <BookAiModerationTab key={location.key} /> : null}
       {activeTab === "clubs" ? <ClubActivityTab /> : null}
       {activeTab === "banners" ? <HomepageBannerAdmin /> : null}
       {activeTab === "announcements" ? <AnnouncementsTab /> : null}

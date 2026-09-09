@@ -765,3 +765,17 @@
   font-weight: 700;
   text-align: center;
 }
+
+.admin-notification-queue-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.admin-notification-queue-link:hover {
+  color: var(--terracotta);
+}

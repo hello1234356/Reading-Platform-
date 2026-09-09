@@ -29,6 +29,7 @@ function Navbar() {
   const [adminNotifications, setAdminNotifications] = useState({
     moderationCount: 0,
     bookSubmissionCount: 0,
+    aiReviewCount: 0,
     clubMessageCount: 0,
     total: 0,
   });
@@ -66,6 +67,7 @@ function Navbar() {
       setAdminNotifications({
         moderationCount: 0,
         bookSubmissionCount: 0,
+        aiReviewCount: 0,
         clubMessageCount: 0,
         total: 0,
       });
@@ -113,6 +115,11 @@ function Navbar() {
           schema: "public",
           table: "club_message_moderation_reports",
         },
+        loadAdminNotifications,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "book_moderation_assessments" },
         loadAdminNotifications,
       )
       .subscribe();
@@ -272,6 +279,16 @@ function Navbar() {
                 <li>
                   <span>{t("nav.bookRequests")}</span>
                   <strong>{adminNotifications.bookSubmissionCount}</strong>
+                </li>
+                <li>
+                  <NavLink
+                    className="admin-notification-queue-link"
+                    to="/admin?tab=book-ai"
+                    onClick={() => setAdminNotificationsOpen(false)}
+                  >
+                    <span>{t("nav.aiReviewQueue")}</span>
+                    <strong>{adminNotifications.aiReviewCount}</strong>
+                  </NavLink>
                 </li>
                 <li>
                   <span>{t("nav.clubReports")}</span>

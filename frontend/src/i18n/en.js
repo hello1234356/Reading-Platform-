@@ -13,7 +13,7 @@ const en = {
     "wrong": "Not quite. Keep scrambling.",
     "won": "You found the tale.",
     "story": "You explored LitShelf. Now go make one worth telling.",
-    "teamsPrize": "Think you’ve solved it? Find one of us on Microsoft Teams and send a screenshot of your arranged letters to claim your prize.",
+    "teamsPrize": "Think you’ve solved it? Find one of us on Microsoft Teams and send a screenshot of your arranged letters along with your locker location to claim your prize.",
     "hintExplore": "Each letter hides somewhere new",
     "hintInteract": "Some appear only after you interact",
     "hintChapter": "Stuck? Turn to another “chapter”",
@@ -37,6 +37,7 @@ const en = {
     searchPlaceholder: "Search books...", searchBooks: "Search books",
     adminNotifications: "Admin notifications", sharedQueue: "Shared Queue",
     openAdmin: "Open Admin", moderation: "Moderation", bookRequests: "Book Requests",
+    aiReviewQueue: "AI Review Queue",
     clubReports: "Club Chat Reports", queueHelp: "Resolving an item updates this queue for every admin.",
   },
   app: { 

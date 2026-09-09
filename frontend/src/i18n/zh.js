@@ -37,6 +37,7 @@ const zh = {
     searchPlaceholder: "搜索书籍…", searchBooks: "搜索书籍",
     adminNotifications: "管理员通知", sharedQueue: "共享待办",
     openAdmin: "打开管理后台", moderation: "内容审核", bookRequests: "书籍申请",
+    aiReviewQueue: "AI 待审核书籍",
     clubReports: "阅读圈聊天举报", queueHelp: "任何管理员处理后，共享待办都会同步更新。",
   },
   app: {

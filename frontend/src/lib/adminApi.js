@@ -164,10 +164,27 @@ async function countRows(tableName, applyFilter) {
   return count || 0;
 }
 
+async function countAiReviewQueue() {
+  const supabase = requireSupabase();
+  const pageSize = 500;
+  let count = 0;
+  while (true) {
+    const { data, error } = await supabase.rpc(
+      "list_effective_book_moderation_assessments",
+      { p_status: "review_required", p_limit: pageSize, p_offset: count },
+    ).select("id");
+    if (error) throw error;
+    const pageCount = data?.length || 0;
+    count += pageCount;
+    if (pageCount < pageSize) return count;
+  }
+}
+
 export async function getAdminNotificationSummary() {
   const [
     moderationResult,
     bookSubmissionResult,
+    aiReviewResult,
     clubMessageResult,
   ] = await Promise.allSettled([
     countRows("moderation_reports", (query) =>
@@ -176,6 +193,7 @@ export async function getAdminNotificationSummary() {
     countRows("book_submissions", (query) =>
       query.eq("status", "pending"),
     ),
+    countAiReviewQueue(),
     countRows("club_message_moderation_reports", (query) =>
       query.eq("status", "open"),
     ),
@@ -185,16 +203,20 @@ export async function getAdminNotificationSummary() {
     moderationResult.status === "fulfilled" ? moderationResult.value : 0;
   const bookSubmissionCount =
     bookSubmissionResult.status === "fulfilled" ? bookSubmissionResult.value : 0;
+  const aiReviewCount =
+    aiReviewResult.status === "fulfilled" ? aiReviewResult.value : 0;
   const clubMessageCount =
     clubMessageResult.status === "fulfilled" ? clubMessageResult.value : 0;
 
   return {
     moderationCount,
     bookSubmissionCount,
+    aiReviewCount,
     clubMessageCount,
     total:
       moderationCount +
       bookSubmissionCount +
+      aiReviewCount +
       clubMessageCount,
   };
 }
