@@ -263,7 +263,6 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
   }
 
   if (shelfRow) {
-    window.dispatchEvent(new Event("litshelf:book-added"));
     return { shelf: shelfRow, book: savedBook };
   }
 
@@ -298,7 +297,6 @@ export async function addBookToLibrary(userId, book, targetShelf = null) {
     throw updateShelfError;
   }
 
-  window.dispatchEvent(new Event("litshelf:book-added"));
   return { shelf: updatedShelfRow, book: savedBook };
 }
 export async function getUserLibrary(userId) {

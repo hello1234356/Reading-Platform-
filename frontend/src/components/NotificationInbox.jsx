@@ -1,3 +1,4 @@
+import TalesCollectible from "./tales/TalesCollectible";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -222,6 +223,7 @@ function NotificationInbox({ userId }) {
           {status === "ready" && items.length === 0 ? (
             <p className="notification-inbox-state">{t("notifications.empty")}</p>
           ) : null}
+          <TalesCollectible letter="E" placement="inbox" />
           <div className="notification-inbox-list">
             {items.map((item) => (
               <button key={`${item.itemKind}:${item.id}`} type="button"

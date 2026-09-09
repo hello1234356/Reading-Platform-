@@ -74,4 +74,5 @@ button.tales-egg, button.tales-egg:hover, button.tales-egg:active { background: 
 .tales-tile { flex: 1 0 44px; }
 .tales-panel { padding-inline: 16px; }
 .tales-egg.tales-placement-favorites { display: flex; margin: 0 auto 12px; width: 52px; }
-.tales-shelf-discovery { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: calc(110px + env(safe-area-inset-bottom)); z-index: 20001; }
+
+.tales-egg.tales-placement-inbox { flex: 0 0 56px; align-self: center; margin: 0 0 8px; }
