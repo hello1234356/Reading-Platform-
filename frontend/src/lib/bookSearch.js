@@ -13,6 +13,7 @@ import {
   searchGoogleWithQuotaFallback,
 } from "./bookSearchPolicy";
 import {
+  createSearchModerationInvoker,
   initializeBookModerationResults,
   moderateBookSearchResults,
 } from "./bookModerationApi";
@@ -183,6 +184,7 @@ export async function searchBooksByQueryLanguage(
   limit = 20,
   options = {},
 ) {
+  const invokeModeration = await createSearchModerationInvoker();
   const startedAt = globalThis.performance?.now?.() ?? Date.now();
   const result = await searchBooksByQueryLanguageRaw(
     searchTerm,
@@ -222,6 +224,6 @@ export async function searchBooksByQueryLanguage(
     results,
     providerDurationMs,
     startModeration: (onUpdate) =>
-      moderateBookSearchResults(results, onUpdate, providerDurationMs),
+      moderateBookSearchResults(results, onUpdate, providerDurationMs, invokeModeration),
   };
 }

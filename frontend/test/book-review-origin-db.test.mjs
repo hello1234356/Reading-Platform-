@@ -14,6 +14,7 @@ test('isolated database: first origin, cached/legacy exclusions, immutable audit
       create function public.is_admin() returns boolean language sql as
         $$ select coalesce(current_setting('test.admin', true), 'false') = 'true' $$;
       create table books(id bigint, source text, external_id text);
+      create table profiles(id uuid primary key, username text);
       create table book_moderation_assessments(
         id uuid primary key default gen_random_uuid(), source text, external_id text,
         evidence jsonb, evidence_quality text, policy_version text, model_version text,
@@ -27,11 +28,12 @@ test('isolated database: first origin, cached/legacy exclusions, immutable audit
       grant select on book_moderation_events to authenticated;
       create policy admin_read on book_moderation_events for select to authenticated using(public.is_admin());
     `);
-    for (const file of ['202608260002_book_provider_evidence_cache.sql', '202609090003_book_review_origin.sql']) {
+    for (const file of ['202608260002_book_provider_evidence_cache.sql', '202609090003_book_review_origin.sql', '202609200001_book_review_origin_profile.sql']) {
       await db.exec(await readFile(new URL(`../../supabase/migrations/${file}`, import.meta.url), 'utf8'));
     }
     const a = '00000000-0000-0000-0000-000000000001';
     const b = '00000000-0000-0000-0000-000000000002';
+    await db.query('insert into profiles values ($1, $2)', [a, 'student_a']);
     const cache = (id, user, policy = 'v1') => db.query(`select cache_book_evidence_for_review(
       'google_books', $1, '{"title":"Verified book"}', now(), now() + interval '7 days', $2, 'model', $3)`, [id, policy, user]);
     const origins = async () => (await db.query('select initiated_by_user_id from book_moderation_events order by id')).rows;
@@ -58,9 +60,21 @@ test('isolated database: first origin, cached/legacy exclusions, immutable audit
     await db.exec('set role authenticated');
     assert.deepEqual((await db.query('select * from book_moderation_events')).rows, []);
     await assert.rejects(db.query("select * from get_book_review_origin('google_books','new')"), /Only admins/);
+    await assert.rejects(db.query("select * from get_book_review_origin_profile('google_books','new')"), /Only admins/);
     await assert.rejects(cache('forged', b), /permission denied/);
     await db.exec("set test.admin = 'true'");
     assert.equal((await db.query("select * from get_book_review_origin('google_books','new')")).rows[0].initiated_by_user_id, a);
     assert.deepEqual((await db.query("select * from get_book_review_origin('google_books','old')")).rows, []);
+    assert.deepEqual((await db.query("select * from get_book_review_origin_profile('google_books','new')")).rows,
+      [{ initiation_source: 'external_search', initiated_by_user_id: a, username: 'student_a' }]);
+    await db.exec('reset role');
+    await db.query('delete from profiles where id=$1', [a]);
+    await db.exec('set role authenticated');
+    assert.deepEqual((await db.query("select * from get_book_review_origin_profile('google_books','new')")).rows,
+      [{ initiation_source: 'external_search', initiated_by_user_id: a, username: null }]);
+    assert.deepEqual((await db.query("select * from get_book_review_origin_profile('google_books','old')")).rows, []);
+    await db.exec('set role anon');
+    await assert.rejects(db.query("select * from get_book_review_origin_profile('google_books','new')"), /permission denied/);
+
   } finally { await db.close(); }
 });

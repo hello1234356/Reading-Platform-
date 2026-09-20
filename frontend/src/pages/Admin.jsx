@@ -735,7 +735,7 @@ function BookReviewOrigin({ assessment }) {
     if (!event.currentTarget.open || status !== "idle") return;
     setStatus("loading");
     try {
-      const { data, error } = await requireSupabase().rpc("get_book_review_origin", {
+      const { data, error } = await requireSupabase().rpc("get_book_review_origin_profile", {
         p_source: assessment.source, p_external_id: assessment.externalId,
       });
       if (error) throw error;
@@ -752,7 +752,15 @@ function BookReviewOrigin({ assessment }) {
       {status === "error" ? <p role="alert">Could not load origin audit.</p> : null}
       {status === "ready" ? <>
         <p>Origin: {origin ? "External search" : "Unknown"}</p>
-        <p>Initiated by user: {origin?.initiated_by_user_id || "Unknown"}</p>
+        <p>Searched by {origin?.username && origin?.initiated_by_user_id ? (
+          <ProfileLink userId={origin.initiated_by_user_id}>
+            @{origin.username}
+          </ProfileLink>
+        ) : origin?.initiated_by_user_id ? "an unavailable account" : "Unknown"}</p>
+        <p className="admin-muted">
+          First search request that brought this provider book into AI review.
+          Search results are assessed automatically; this does not mean the book was selected or submitted.
+        </p>
       </> : null}
     </details>
   );

@@ -124,36 +124,12 @@ function getBookSelectionKey(book) {
   );
 }
 
-const BOOK_CLUB_QUERY_CACHE_TTL_MS = 15 * 60 * 1000;
-const BOOK_CLUB_QUERY_FAILURE_TTL_MS = 30 * 1000;
-const bookClubQueryCache = new Map();
-
 function fetchGoogleBooks(searchTerm) {
-  const cacheKey = String(searchTerm || "").trim().toLocaleLowerCase();
-  const cached = bookClubQueryCache.get(cacheKey);
-
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.promise;
-  }
-
-  if (cached) bookClubQueryCache.delete(cacheKey);
-
-  const request = searchBooksByQueryLanguage(searchTerm).then(
+  // Provider results are cached by bookSearchCache. Never cache the returned
+  // startModeration closure: it belongs to the session initiating this search.
+  return searchBooksByQueryLanguage(searchTerm).then(
     (result) => ({ ...result, results: result.results.filter(canPersistBook) }),
   );
-  const cacheEntry = {
-    promise: request,
-    expiresAt: Date.now() + BOOK_CLUB_QUERY_CACHE_TTL_MS,
-  };
-  bookClubQueryCache.set(cacheKey, cacheEntry);
-  void request.then(
-    () => {},
-    () => {
-      cacheEntry.expiresAt = Date.now() + BOOK_CLUB_QUERY_FAILURE_TTL_MS;
-    },
-  );
-
-  return request;
 }
 
 function getTypingLabel(names, t) {

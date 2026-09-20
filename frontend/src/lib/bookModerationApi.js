@@ -79,6 +79,27 @@ export function initializeBookModerationResults(books) {
     moderationKey: moderationIdentityForBook(book).key || `invalid:${index}` }));
 }
 
+// Capture credentials before provider work. The Edge function validates this
+// JWT with getUser(); no client-provided UUID is accepted as attribution.
+export async function captureBookModerationRequest(client = requireSupabase()) {
+  const { data, error } = await client.auth.getSession();
+  if (error) throw error;
+  const token = data?.session?.access_token;
+  if (!token || !data?.session?.user?.id) {
+    throw new Error("Sign in to assess books.");
+  }
+  return (batch, { cacheOnly }) => client.functions.invoke("moderate-books", {
+    headers: { Authorization: `Bearer ${token}` },
+    body: { books: batch, cacheOnly },
+  });
+}
+
+export async function createSearchModerationInvoker(client = requireSupabase()) {
+  const request = await captureBookModerationRequest(client);
+  return (books, cacheOnly, onBatch) =>
+    invokeModerationBatches(books, cacheOnly, onBatch, request);
+}
+
 export async function invokeModerationBatches(books, cacheOnly, onBatch, invokeBatch) {
   const batches = [];
   const batchSize = cacheOnly ? MODERATION_CACHE_BATCH_SIZE : MODERATION_BATCH_SIZE;
@@ -87,10 +108,7 @@ export async function invokeModerationBatches(books, cacheOnly, onBatch, invokeB
   }
   if (!batches.length) return;
 
-  const supabase = invokeBatch ? null : requireSupabase();
-  const callBatch = invokeBatch || ((batch) => supabase.functions.invoke("moderate-books", {
-    body: { books: batch, cacheOnly },
-  }));
+  const callBatch = invokeBatch || await captureBookModerationRequest();
   let nextBatchIndex = 0;
 
   async function worker() {
@@ -127,10 +145,6 @@ export async function invokeModerationBatches(books, cacheOnly, onBatch, invokeB
   ));
 }
 
-async function invokeBatches(books, cacheOnly, onBatch) {
-  return invokeModerationBatches(books, cacheOnly, onBatch);
-}
-
 export function shouldApplyModerationTransition(previousStatus, nextStatus) {
   return !(String(previousStatus || "").toLowerCase() === "approved" &&
     String(nextStatus || "").toLowerCase() !== "approved");
@@ -154,8 +168,9 @@ export async function moderateBookSearchResults(
   books,
   onUpdate,
   providerDurationMs = 0,
-  invoke = invokeBatches,
+  suppliedInvoke,
 ) {
+  const invoke = suppliedInvoke || await createSearchModerationInvoker();
   const startedAt = now();
   debugTiming("provider results rendered", { durationMs: providerDurationMs,
     resultCount: books.length });
