@@ -22,6 +22,7 @@ import {
   sendTargetedAdminNotification,
 } from "../lib/adminApi";
 import { useAuth } from "../hooks/useAuth";
+import LibraryDisplayAdmin from "../components/LibraryDisplayAdmin";
 import HomepageBannerAdmin from "../components/HomepageBannerAdmin";
 import { requireSupabase } from "../lib/supabase";
 import BookCoverImage from "../components/BookCoverImage";
@@ -73,7 +74,7 @@ function getModerationErrorMessage(error) {
 
 function AdminTabs({ activeTab, onChange, isOwner }) {
   const { t } = useTranslation();
-  const tabs = ["moderation", "books", "book-ai", "clubs", "banners", "announcements"];
+  const tabs = ["moderation", "books", "book-ai", "clubs", "banners", "announcements", "events"];
   if (isOwner) tabs.push("admins");
 
   return (
@@ -85,7 +86,7 @@ function AdminTabs({ activeTab, onChange, isOwner }) {
           className={activeTab === tab ? "active" : ""}
           onClick={() => onChange(tab)}
         >
-          {tab === "books"
+          {tab === "events" ? t("events.review") : tab === "books"
             ? t("admin.bookVerification")
             : tab === "book-ai"
               ? t("admin.bookAi")
@@ -1263,7 +1264,7 @@ function Admin() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const activeTab = ["moderation", "books", "book-ai", "clubs", "banners", "announcements", "admins"].includes(requestedTab)
+  const activeTab = ["moderation", "books", "book-ai", "clubs", "banners", "announcements", "events", "admins"].includes(requestedTab)
     ? requestedTab : "moderation";
   const setActiveTab = useCallback((tab) => {
     setSearchParams((params) => {
@@ -1351,6 +1352,7 @@ function Admin() {
       {activeTab === "books" ? <BookVerificationTab isOwner={isOwner} /> : null}
       {activeTab === "book-ai" ? <BookAiModerationTab key={location.key} /> : null}
       {activeTab === "clubs" ? <ClubActivityTab /> : null}
+      {activeTab === "events" ? <LibraryDisplayAdmin /> : null}
       {activeTab === "banners" ? <HomepageBannerAdmin /> : null}
       {activeTab === "announcements" ? <AnnouncementsTab /> : null}
       {activeTab === "admins" && isOwner ? <AdminManagementTab /> : null}

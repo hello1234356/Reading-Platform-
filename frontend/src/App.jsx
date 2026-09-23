@@ -3,6 +3,8 @@ import { HashRouter, Navigate, Routes, Route, useLocation } from "react-router-d
 import TalesHuntProvider from "./components/tales/TalesHuntProvider";
 import Navbar from "./components/Navbar";
 
+import EventsAccessProvider from "./context/EventsAccessProvider";
+import Events from "./pages/Events";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
@@ -73,6 +75,7 @@ function App() {
       <HashRouter>
         <TalesHuntProvider>
         <PublicProfileProvider>
+        <EventsAccessProvider>
           <div className="app-shell">
             <Navbar />
 
@@ -80,6 +83,8 @@ function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/post/:postId" element={<Home />} />
+                <Route path="/events" element={<Events />} />
+                <Route path="/events/:eventSlug" element={<Events />} />
                 <Route path="/login" element={<Login />} />
 
                 <Route
@@ -141,6 +146,7 @@ function App() {
               </Routes>
             </main>
           </div>
+        </EventsAccessProvider>
         </PublicProfileProvider>
         </TalesHuntProvider>
       </HashRouter>

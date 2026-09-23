@@ -9,6 +9,7 @@ import {
 import { requireSupabase } from "../lib/supabase";
 import tsinglanLogo from "../assets/tsinglan-logo-official-alt.png";
 import NotificationInbox from "./NotificationInbox";
+import { useEventsAccess } from "../context/eventsAccess";
 import LanguageSwitcher from "./LanguageSwitcher";
 
 const navItems = [
@@ -16,10 +17,12 @@ const navItems = [
   { to: "/discover", labelKey: "nav.discover" },
   { to: "/clubs", labelKey: "nav.circles" },
   { to: "/profile", labelKey: "nav.shelf" },
+  { to: "/events", labelKey: "events.title" },
 ];
 
 function Navbar() {
   const navigate = useNavigate();
+  const { canView: canViewEvents } = useEventsAccess();
   const { t } = useTranslation();
   const { user, isLoggedIn, loading } = useAuth();
   const [adminRole, setAdminRole] = useState(null);
@@ -190,7 +193,7 @@ function Navbar() {
     </NavLink>
 
     <div className="nav-links">
-      {visibleNavItems.map((item) => (
+      {visibleNavItems.filter(item => item.to !== "/events" || canViewEvents).map((item) => (
         <NavLink
           key={item.to}
           to={item.to}

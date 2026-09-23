@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { requireSupabase } from "../lib/supabase";
 import {
@@ -19,6 +19,8 @@ const RESEND_COOLDOWN_MS = 30_000;
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = typeof location.state?.from === "string" && location.state.from.startsWith("/") && !location.state.from.startsWith("//") ? location.state.from : "/";
   const { t } = useTranslation();
   const restoredEmail = readPendingSignupEmail(window.sessionStorage);
   const [mode, setMode] = useState(restoredEmail ? "verify" : "login");
@@ -70,7 +72,7 @@ export default function Login() {
         setMessage(t("auth.verifyBeforeLogin"));
         return;
       }
-      navigate("/");
+      navigate(returnTo, { replace: true });
     } catch (error) {
       setMessage(error?.code === "invalid_domain" ? error.message : friendlyAuthError(error, mode));
     } finally {
@@ -94,7 +96,7 @@ export default function Login() {
       setCode("");
       // verifyOtp persists the session and emits SIGNED_IN. The existing auth
       // listener remains the sole owner of application auth state/bootstrap.
-      navigate("/");
+      navigate(returnTo, { replace: true });
     } catch (error) {
       setMessage(friendlyAuthError(error, "verify"));
     } finally {

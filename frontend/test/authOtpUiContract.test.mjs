@@ -32,6 +32,6 @@ test("verification secrets are neither logged nor placed in a URL", () => {
 test("successful verification relies on the existing auth listener without profile bootstrap duplication", () => {
   assert.match(authHookSource, /onAuthStateChange/);
   assert.match(loginSource, /await verifySignupOtp/);
-  assert.equal((loginSource.match(/navigate\("\/"\)/g) || []).length, 2);
+  assert.equal((loginSource.match(/navigate\(returnTo, \{ replace: true \}\)/g) || []).length, 2);
   assert.doesNotMatch(loginSource, /from\(["']profiles["']\)|createProfile|upsert/);
 });

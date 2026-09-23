@@ -1,4 +1,6 @@
+import { eventsEn } from "./events.js";
 const en = {
+  events: eventsEn,
   hunt: {
     "solvePrompt": "You have all seven letters! Rearrange them to figure out the hidden word.",
     "title": "Hidden Word Hunt",

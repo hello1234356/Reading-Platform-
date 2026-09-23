@@ -1,4 +1,6 @@
+import { eventsZh } from "./events.js";
 const zh = {
+  events: eventsZh,
   hunt: {
     "solvePrompt": "七个字母已集齐！重新排列它们，猜出隐藏的英文单词。",
     "title": "寻找隐藏的单词",
