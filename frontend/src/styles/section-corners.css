@@ -1,0 +1,145 @@
+/* Permanent section geometry. Load after responsive rules so legacy circular
+   radii cannot override the fallback; no layout or overflow changes needed. */
+.reading-room-hero {
+  border-radius: 38px / 30px;
+}
+
+.signin-rail-card,
+.current-book-card {
+  border-radius: 26px / 20px;
+}
+
+.profile-banner,
+.profile-challenge,
+.profile-shelf-card,
+.discovery-featured-pick {
+  border-radius: 30px / 22px;
+}
+
+/* Match the offset backdrop to the featured card's outline. */
+.discovery-featured-pick::before {
+  border-radius: inherit;
+}
+
+.discovery-pick-card {
+  border-radius: 24px / 18px;
+}
+
+.podium-step {
+  border-radius: 22px 22px 10px 10px / 16px 16px 8px 8px;
+}
+
+.book-strip,
+.recent-finish-card {
+  border-radius: 18px / 14px;
+}
+
+/* Retain the book-spine asymmetry with shallower outer corners. */
+.book-cover,
+.recent-finish-cover {
+  border-radius: 6px 10px 10px 6px / 5px 8px 8px 5px;
+}
+
+.discovery-book-cover {
+  border-radius: 8px 18px 18px 8px / 6px 14px 14px 6px;
+}
+
+@media (max-width: 900px) {
+  .reading-room-hero {
+    border-radius: 30px / 24px;
+  }
+
+  .profile-banner,
+  .profile-challenge,
+  .profile-shelf-card,
+  .discovery-featured-pick {
+    border-radius: 26px / 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .reading-room-hero {
+    border-radius: 24px / 20px;
+  }
+
+  .signin-rail-card,
+  .current-book-card,
+  .profile-banner,
+  .profile-challenge,
+  .profile-shelf-card,
+  .discovery-featured-pick,
+  .discovery-pick-card {
+    border-radius: 20px / 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .reading-room-hero {
+    border-radius: 22px / 18px;
+  }
+
+  .signin-rail-card,
+  .current-book-card,
+  .profile-banner,
+  .profile-challenge,
+  .profile-shelf-card,
+  .discovery-featured-pick,
+  .discovery-pick-card {
+    border-radius: 18px / 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .podium-step {
+    border-radius: 18px 18px 8px 8px / 14px 14px 6px 6px;
+  }
+
+  .book-strip,
+  .recent-finish-card {
+    border-radius: 16px / 12px;
+  }
+
+  .discovery-book-cover {
+    border-radius: 6px 12px 12px 6px / 5px 10px 10px 5px;
+  }
+}
+
+/* Squircle shapes use the same nonzero radius region as the fallback.
+   Keeping that region restrained avoids oversized corners on either path. */
+@supports (corner-shape: squircle) {
+  .reading-room-hero,
+  .signin-rail-card,
+  .current-book-card,
+  .profile-banner,
+  .profile-challenge,
+  .profile-shelf-card,
+  .discovery-featured-pick,
+  .discovery-pick-card,
+  .discovery-featured-pick::before,
+  .podium-step,
+  .book-strip,
+  .recent-finish-card,
+  .book-cover,
+  .recent-finish-cover,
+  .discovery-book-cover {
+    corner-shape: squircle;
+  }
+
+  /* Placeholders inherit radius already; their borders need the shape too. */
+  .book-cover > .book-cover-placeholder,
+  .recent-finish-cover > .book-cover-placeholder,
+  .discovery-book-cover > .book-cover-placeholder {
+    corner-shape: inherit;
+  }
+}
+
+/* The hero uses a broad, flatter superellipse transition rather than the
+   small radius region used by ordinary cards. The radius measures the entire
+   transition region, not a circular cutout. Keep this isolated enhancement
+   after the shared squircle rule; unsupported browsers retain the fallback. */
+@supports (corner-shape: superellipse(2.4)) {
+  .reading-room-hero.homepage-spotlight-carousel {
+    border-radius: clamp(44px, 8.4vw, 120px) / clamp(38px, 7.3vw, 104px);
+    corner-shape: superellipse(2.4);
+  }
+}
