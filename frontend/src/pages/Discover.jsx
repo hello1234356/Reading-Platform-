@@ -1,3 +1,4 @@
+import { seasonalTranslationKey } from "../config/season.js";
 import TalesCollectible from "../components/tales/TalesCollectible";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -611,7 +612,7 @@ async function submitMissingBook(event) {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("search.placeholder")}
+            placeholder={t(seasonalTranslationKey("search.placeholder"))}
           />
           <button type="submit" disabled={searchStatus === "loading"}>
             {searchStatus === "loading" ? t("common.searching") : t("common.search")}

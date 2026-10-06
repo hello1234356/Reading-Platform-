@@ -1,0 +1,339 @@
+/* October only. Disable in src/config/season.js (ACTIVE_SEASON = null).
+   Decorative layers and rating glyphs are seasonal; permanent corner geometry
+   lives in section-corners.css. Illustration layers are entirely static. */
+:root[data-season="october"] {
+  --ivory: #f5eddf;
+  --paper: #fcf6eb;
+  --stone: #e5d7c4;
+  --linen: #eee1ce;
+  --charcoal: #302724;
+  --soft-gray: #685b53;
+  --warm-ink: #574037;
+  --deep-mocha: #422e29;
+  --mocha: #7c5e50;
+  --terracotta: #a86254;
+  --coral: #ce9682;
+  --butter: #e8d18e;
+  --ochre: #bea260;
+  --border: rgba(105, 71, 63, 0.18);
+  --shadow: 0 18px 42px rgba(70, 43, 43, 0.16);
+  --pillow-shadow: 0 16px 36px rgba(70, 43, 43, 0.15), 0 2px 0 rgba(255, 250, 241, 0.75) inset;
+  --october-wine: #783f43;
+  --october-pumpkin: #b86635;
+  --october-gold: #c8a253;
+  --october-plum: #75536b;
+}
+
+[data-season="october"] body {
+  background:
+    radial-gradient(ellipse at 9% 3%, rgba(186, 148, 81, 0.12), transparent 28%),
+    radial-gradient(ellipse at 95% 0%, rgba(130, 75, 72, 0.055), transparent 28%),
+    linear-gradient(180deg, var(--paper), var(--ivory) 46%, var(--paper));
+}
+
+[data-season="october"] .reading-room-hero.homepage-spotlight-carousel {
+  box-shadow: 0 22px 44px rgba(66, 37, 38, 0.22), inset 0 0 0 1px rgba(164, 125, 71, 0.3);
+}
+
+/* The existing quote photograph stays in its original background stack.
+   A transparent autumn glaze keeps imagery and text readable. */
+[data-season="october"] .homepage-spotlight-carousel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(ellipse at 48% 42%, transparent 40%, rgba(69, 39, 36, 0.12)),
+    linear-gradient(rgba(166, 121, 68, 0.045), rgba(130, 75, 72, 0.035));
+  pointer-events: none;
+}
+
+[data-season="october"] .homepage-spotlight-image {
+  filter: saturate(0.72) contrast(0.94) brightness(1.04);
+}
+
+[data-season="october"] .daily-quote-panel blockquote > span:first-child,
+[data-season="october"] .daily-quote-panel blockquote > span:last-child {
+  color: rgba(120, 63, 67, 0.4);
+}
+
+[data-season="october"] .nav-link.active::after,
+[data-season="october"] .nav-link:hover::after {
+  background: rgba(186, 148, 81, 0.36);
+}
+
+/* Keep light action labels readable at both ends of the seasonal gradient. */
+[data-season="october"] .primary-button:not(:disabled),
+[data-season="october"] .comment-form button:not(.tales-egg):not(:disabled) {
+  background: linear-gradient(135deg, var(--mocha), var(--october-wine));
+}
+
+[data-season="october"] .primary-button:not(:disabled):hover,
+[data-season="october"] .comment-form button:not(.tales-egg):not(:disabled):hover {
+  background: linear-gradient(135deg, var(--deep-mocha), var(--october-wine));
+}
+
+/* Each grade keeps its own hue; a faint inset tint simply ages the pastel. */
+[data-season="october"] .podium-step {
+  box-shadow: 0 12px 24px rgba(70, 43, 43, 0.1),
+    inset 0 0 0 100vmax rgba(123, 84, 62, 0.025),
+    inset 0 -2px 0 rgba(105, 71, 63, 0.09);
+}
+
+@media (hover: hover) {
+  [data-season="october"] :is(.book-strip, .recent-finish-card,
+    .discovery-featured-pick, .discovery-pick-card, .profile-shelf-card):hover {
+    box-shadow: 0 18px 36px rgba(70, 43, 43, 0.19),
+      inset 0 0 0 1px rgba(130, 75, 72, 0.13);
+  }
+}
+
+@media (max-width: 640px) {
+  [data-season="october"] .homepage-spotlight-carousel::before {
+    opacity: 0.65;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-season="october"] :is(.book-strip, .recent-finish-card,
+    .discovery-featured-pick, .discovery-pick-card, .profile-shelf-card) {
+    transition: none;
+  }
+}
+
+/* Two composed hero illustrations; no floating icon placements or motion. */
+.october-decoration { display: none; }
+[data-season="october"] .october-hero {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Filaments originate beyond the surface and are naturally occluded by its
+   unchanged continuous corner. A fading stroke softens the inward threads. */
+[data-season="october"] .october-corner-web {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  width: 154px;
+  height: 146px;
+  opacity: 0.62;
+}
+
+/* One painted composition: overlap and ground line are inside the asset.
+   Crop its lower edge slightly so it belongs to the hero rather than floating. */
+[data-season="october"] .october-vignette {
+  position: absolute;
+  right: 18px;
+  bottom: -14px;
+  width: clamp(180px, 20vw, 282px);
+  height: auto;
+  opacity: 0.92;
+}
+
+[data-season="october"] .nav-link.active::after {
+  background: rgba(184, 102, 53, 0.4);
+}
+
+/* Hand-inked rating pumpkins retain the existing full/half clipping widths,
+   hit targets, spacing and labels. Fine irregular ribs echo the vignette. */
+[data-season="october"] .rating-pumpkin-svg path {
+  stroke: #664b3a;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+[data-season="october"] .rating-pumpkin-svg .pumpkin-stem {
+  fill: #705a3d;
+  fill-opacity: 0.9;
+}
+[data-season="october"] .rating-pumpkin-svg .pumpkin-body {
+  fill: #ead9be;
+  fill-opacity: 0.12;
+  stroke-opacity: 0.74;
+}
+[data-season="october"] .rating-pumpkin-svg .pumpkin-rib { opacity: 0.38; }
+[data-season="october"] .rating-pumpkin-svg .pumpkin-hatching {
+  stroke-width: 1.1;
+  opacity: 0.2;
+}
+[data-season="october"] .rating-star-fill .rating-pumpkin-svg .pumpkin-body {
+  fill: #b9764f;
+  fill-opacity: 0.92;
+  stroke-opacity: 0.9;
+}
+[data-season="october"] .rating-star-fill .rating-pumpkin-svg .pumpkin-rib { opacity: 0.58; }
+
+@media (max-width: 900px) {
+  [data-season="october"] .october-vignette { width: 184px; right: 10px; bottom: -10px; }
+  [data-season="october"] .october-corner-web { width: 110px; height: 104px; }
+}
+@media (max-width: 640px) {
+  [data-season="october"] .october-vignette { width: 102px; right: 6px; bottom: -7px; }
+  [data-season="october"] .october-corner-web { width: 72px; height: 68px; opacity: 0.5; }
+}
+
+/* Bottom-aligned custom banner captions take priority over the vignette. */
+[data-season="october"] .homepage-spotlight-carousel:has(.homepage-spotlight-slide[aria-hidden="false"].vertical-bottom) .october-vignette { display: none; }
+
+/* Secondary rhythm: the same ink filaments and pumpkin curves appear only
+   where they can attach to a corner or divider. All artwork remains silent,
+   noninteractive and outside the text/control area; no space is added. */
+[data-season="october"] :is(.podium-step.rank-1, .podium-step.rank-4,
+  .current-book-card, .signin-rail-card, .feed-column) {
+  position: relative;
+}
+[data-season="october"] :is(.podium-step.rank-1, .podium-step.rank-4,
+  .current-book-card, .signin-rail-card)::before {
+  content: "";
+  position: absolute;
+  right: 1px;
+  top: 1px;
+  width: 46px;
+  height: 43px;
+  background: url('../assets/seasonal/october-corner-thread.svg') right top / contain no-repeat;
+  opacity: 0.72;
+  pointer-events: none;
+}
+[data-season="october"] .podium-step.rank-4::before { width: 34px; height: 32px; opacity: 0.55; }
+[data-season="october"] .leaderboard-strip-heading::before {
+  content: "";
+  position: absolute;
+  top: -24px;
+  left: 0;
+  width: 106px;
+  height: 23px;
+  background: url('../assets/seasonal/october-pumpkin-vine.svg') left bottom / contain no-repeat;
+  pointer-events: none;
+}
+[data-season="october"] .feed-column::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 138px;
+  width: 22px;
+  height: 38px;
+  background: url('../assets/seasonal/october-divider-thread.svg') center top / contain no-repeat;
+  pointer-events: none;
+}
+
+[data-season="october"] :is(.feed-search-bar input, .comment-form textarea,
+  .progress-editor input[type="number"]) {
+  border-color: rgba(120, 63, 67, 0.27);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 241, 0.8), 0 8px 20px rgba(70, 43, 43, 0.085);
+}
+[data-season="october"] :is(.feed-search-bar input, .discovery-search-bar input,
+  .comment-form textarea, .progress-editor input[type="number"]):focus {
+  border-color: var(--october-wine);
+  box-shadow: 0 0 0 3px rgba(120, 63, 67, 0.13), 0 8px 20px rgba(70, 43, 43, 0.1);
+}
+[data-season="october"] .feed-search-bar input::placeholder { color: #796154; }
+[data-season="october"] :is(.progress-editor, .feed-list, .feed-card, .feed-pagination) {
+  border-color: rgba(120, 63, 67, 0.23);
+}
+[data-season="october"] .tracked-book-entry {
+  border-color: rgba(120, 63, 67, 0.2);
+  box-shadow: inset 0 -1px 0 rgba(185, 118, 79, 0.1);
+}
+
+/* One occasional corner, never an ornament underneath every post. */
+[data-season="october"] .feed-card:nth-of-type(7)::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 32px;
+  height: 30px;
+  background: url('../assets/seasonal/october-corner-thread.svg') right top / contain no-repeat;
+  opacity: 0.64;
+  pointer-events: none;
+}
+[data-season="october"] .feed-pagination { box-shadow: 0 -1px 0 rgba(185, 118, 79, 0.08); }
+[data-season="october"] .tales-dock { border-color: rgba(120, 63, 67, 0.3); }
+@media (max-width: 640px) {
+  [data-season="october"] .feed-column::before { right: 100px; width: 17px; height: 30px; }
+  [data-season="october"] .leaderboard-strip-heading::before { width: 78px; height: 18px; top: -18px; }
+  [data-season="october"] .podium-step.rank-1::before { width: 34px; height: 32px; }
+}
+
+/* Inner pages: at most three anchored illustrations on a page. Existing
+   padding contains the artwork; the shared seasonal palette does the rest. */
+[data-season="october"] :is(.profile-challenge, .profile-shelf-card:first-child,
+  .discovery-featured-pick, .event-card:first-child, .event-detail-header,
+  .club-card:first-child, .club-members-panel, .login-card-beautiful,
+  .blog-post-shell) {
+  position: relative;
+}
+[data-season="october"] :is(.profile-challenge, .profile-shelf-card:first-child,
+  .event-card:first-child, .event-detail-header, .club-card:first-child,
+  .club-members-panel, .login-card-beautiful)::before,
+[data-season="october"] :is(.discovery-featured-pick, .blog-post-shell)::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 58px;
+  height: 55px;
+  background: url('../assets/seasonal/october-corner-thread.svg') right top / contain no-repeat;
+  opacity: 0.78;
+  pointer-events: none;
+}
+[data-season="october"] :is(.profile-reading-tracker > .section-heading,
+  .profile-shelf-page-header, .recent-finishes-heading, .events-heading,
+  .clubs-hero) {
+  position: relative;
+}
+[data-season="october"] :is(.profile-reading-tracker > .section-heading,
+  .profile-shelf-page-header, .recent-finishes-heading, .events-heading,
+  .clubs-hero)::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 4px;
+  width: 22px;
+  height: 38px;
+  background: url('../assets/seasonal/october-divider-thread.svg') center top / contain no-repeat;
+  opacity: 0.85;
+  pointer-events: none;
+}
+[data-season="october"] .profile-banner {
+  background:
+    radial-gradient(ellipse at 86% 18%, rgba(185, 118, 79, 0.16), transparent 32%),
+    radial-gradient(ellipse at 8% 10%, rgba(120, 63, 67, 0.08), transparent 28%),
+    linear-gradient(135deg, rgba(255, 250, 241, 0.94), rgba(232, 223, 206, 0.74));
+}
+[data-season="october"] .profile-challenge {
+  background: linear-gradient(135deg, rgba(185, 118, 79, 0.15), rgba(255, 250, 241, 0.88)), var(--paper);
+}
+[data-season="october"] .profile-progress i {
+  background: linear-gradient(90deg, var(--october-wine), var(--october-pumpkin));
+}
+[data-season="october"] :is(.profile-tracker-book, .profile-review,
+  .profile-shelf-card, .recent-finish-card, .club-card, .reading-calendar,
+  .club-posts, .event-card, .event-form) {
+  border-color: rgba(120, 63, 67, 0.24);
+}
+[data-season="october"] :is(.profile-tracker-input input,
+  .club-search-control input, .event-search-row input, .pretty-input-wrap input):focus {
+  border-color: var(--october-wine);
+  box-shadow: 0 0 0 3px rgba(120, 63, 67, 0.13);
+}
+/* Empty shelf slots keep their existing book silhouettes and dimensions. */
+[data-season="october"] .profile-shelf-mini-books i {
+  border-color: rgba(120, 63, 67, 0.24);
+}
+@media (max-width: 640px) {
+  [data-season="october"] :is(.profile-challenge, .profile-shelf-card:first-child,
+    .event-card:first-child, .event-detail-header, .club-card:first-child,
+    .club-members-panel, .login-card-beautiful)::before,
+  [data-season="october"] :is(.discovery-featured-pick, .blog-post-shell)::after {
+    width: 42px;
+    height: 40px;
+  }
+  [data-season="october"] :is(.profile-reading-tracker > .section-heading,
+    .profile-shelf-page-header, .recent-finishes-heading, .events-heading,
+    .clubs-hero)::before { width: 17px; height: 30px; }
+}

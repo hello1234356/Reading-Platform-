@@ -1,3 +1,4 @@
+import { seasonalTranslationKey } from "../config/season.js";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -215,7 +216,7 @@ function Navbar() {
         <input
           name="site-search"
           type="search"
-          placeholder={t("nav.searchPlaceholder")}
+          placeholder={t(seasonalTranslationKey("nav.searchPlaceholder"))}
           aria-label={t("nav.searchBooks")}
         />
 

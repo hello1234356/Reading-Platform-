@@ -1,3 +1,4 @@
+import { seasonalTranslationKey } from "../config/season.js";
 import TalesCollectible from "../components/tales/TalesCollectible";
 import {
   useEffect,
@@ -2171,7 +2172,7 @@ function Home() {
             <p className="profile-empty">
               {feedSearchQuery
                 ? t("home.noBookPosts")
-                : t("home.noPublishedNotes")}
+                : t(seasonalTranslationKey("home.noPublishedNotes"))}
             </p>
           ) : (
             feedEntries.map((entry) => {

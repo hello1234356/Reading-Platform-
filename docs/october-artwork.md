@@ -1,0 +1,9 @@
+# October vignette provenance
+
+Generated with the built-in ImageGen tool for LitShelf. The transparent output
+was resized and encoded as a local 768 × 512 WebP (about 99 KiB), preserving alpha.
+Asset: `frontend/src/assets/seasonal/october-library-vignette.webp`.
+
+## Generation prompt
+
+Use case: illustration-story. Create a single transparent-background illustration asset for the bottom-right edge of LitShelf's warm cream literary website hero. A deliberately composed vintage children's-storybook ink-and-watercolor vignette: one sitting near-black espresso cat seen in three-quarter side view, slim pointed ears, no cartoon face, sitting slightly BEHIND and partially occluded by TWO overlapping pumpkins in the foreground, one muted burnt terracotta orange medium pumpkin and one smaller warm ivory pumpkin. Cat tail curls into the group along the bottom. A very small curling dry vine ties the forms together at their shared ground edge. Thin slightly irregular espresso pen linework, restrained crosshatching, soft watercolor washes, subtle paper-grain variation INSIDE the artwork only; dusty wine undertones. One illustrator, organic asymmetric shapes, gentle expressive ink contours. Wide compact composition approximately 3:2, ground aligned along the bottom; tallest cat on the left, pumpkins overlapping toward the right. Truly transparent outside the drawn forms, no background rectangle, no parchment paper backdrop, no border, no halo, no white matte, no typography, no additional objects or scattered stars/leaves/moon/web. Keep the scene legible when displayed at about 220px wide. Not an icon set, not corporate vectors, not sticker outlines, not emoji, not photorealistic, no glow. This is artwork to be naturally cropped a few pixels at the bottom by a large continuous-corner hero surface.

@@ -1,5 +1,9 @@
 import { eventsZh } from "./events.js";
 const zh = {
+  october: {
+    searchPlaceholder: "在书架间寻找……如果你敢的话。",
+    noPublishedNotes: "今夜书架静悄悄，还没有发布的阅读笔记。",
+  },
   events: eventsZh,
   hunt: {
     "solvePrompt": "七个字母已集齐！重新排列它们，猜出隐藏的英文单词。",

@@ -1,3 +1,24 @@
+import { ACTIVE_SEASON } from "../config/season.js";
+import OctoberIcon from "./seasonal/OctoberIcon";
+
+function RatingGlyph({ className }) {
+  if (ACTIVE_SEASON === "october") {
+    return <OctoberIcon motif="pumpkin" className={`${className} rating-pumpkin-svg`} />;
+  }
+  return (<svg
+        className={className}
+        viewBox="0 0 32 32"
+        focusable="false"
+      >
+        <path d="M16 8.6C12.9 5.9 8.7 5.2 4 6.7v17.6c4.7-1.5 8.9-.8 12 1.9 3.1-2.7 7.3-3.4 12-1.9V6.7c-4.7-1.5-8.9-.8-12 1.9Z" />
+        <path d="M16 8.6v17.6" />
+        <path d="M8 11.2c2.6-.4 4.7.1 6.2 1.3" />
+        <path d="M8 15c2.6-.4 4.7.1 6.2 1.3" />
+        <path d="M18 12.5c1.5-1.2 3.6-1.7 6.2-1.3" />
+        <path d="M18 16.3c1.5-1.2 3.6-1.7 6.2-1.3" />
+      </svg>);
+}
+
 function RatingBookIcon({ fill = "0%", size = 20 }) {
   return (
     <span
@@ -9,31 +30,9 @@ function RatingBookIcon({ fill = "0%", size = 20 }) {
       }}
       aria-hidden="true"
     >
-      <svg
-        className="rating-book-svg rating-star-base"
-        viewBox="0 0 32 32"
-        focusable="false"
-      >
-        <path d="M16 8.6C12.9 5.9 8.7 5.2 4 6.7v17.6c4.7-1.5 8.9-.8 12 1.9 3.1-2.7 7.3-3.4 12-1.9V6.7c-4.7-1.5-8.9-.8-12 1.9Z" />
-        <path d="M16 8.6v17.6" />
-        <path d="M8 11.2c2.6-.4 4.7.1 6.2 1.3" />
-        <path d="M8 15c2.6-.4 4.7.1 6.2 1.3" />
-        <path d="M18 12.5c1.5-1.2 3.6-1.7 6.2-1.3" />
-        <path d="M18 16.3c1.5-1.2 3.6-1.7 6.2-1.3" />
-      </svg>
+      <RatingGlyph className="rating-book-svg rating-star-base" />
       <span className="rating-star-fill" style={{ width: fill }}>
-        <svg
-          className="rating-book-svg"
-          viewBox="0 0 32 32"
-          focusable="false"
-        >
-          <path d="M16 8.6C12.9 5.9 8.7 5.2 4 6.7v17.6c4.7-1.5 8.9-.8 12 1.9 3.1-2.7 7.3-3.4 12-1.9V6.7c-4.7-1.5-8.9-.8-12 1.9Z" />
-          <path d="M16 8.6v17.6" />
-          <path d="M8 11.2c2.6-.4 4.7.1 6.2 1.3" />
-          <path d="M8 15c2.6-.4 4.7.1 6.2 1.3" />
-          <path d="M18 12.5c1.5-1.2 3.6-1.7 6.2-1.3" />
-          <path d="M18 16.3c1.5-1.2 3.6-1.7 6.2-1.3" />
-        </svg>
+        <RatingGlyph className="rating-book-svg" />
       </span>
     </span>
   );

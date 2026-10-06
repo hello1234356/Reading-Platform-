@@ -1,5 +1,9 @@
 import { eventsEn } from "./events.js";
 const en = {
+  october: {
+    searchPlaceholder: "Search the shelves... if you dare.",
+    noPublishedNotes: "The shelves are quiet tonight. No reading notes have been published yet.",
+  },
   events: eventsEn,
   hunt: {
     "solvePrompt": "You have all seven letters! Rearrange them to figure out the hidden word.",

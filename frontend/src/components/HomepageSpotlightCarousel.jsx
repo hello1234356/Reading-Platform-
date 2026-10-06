@@ -1,3 +1,4 @@
+import OctoberDecorations from "./seasonal/OctoberDecorations";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -323,6 +324,8 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
           return renderSlide(slide, logicalIndex, isLeadingClone ? "-leading-clone" : isTrailingClone ? "-trailing-clone" : "");
         })}
       </div>
+
+      <OctoberDecorations area="hero" />
 
       {hasCarouselNavigation(slides.length) ? (
         <>
