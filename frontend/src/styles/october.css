@@ -172,6 +172,9 @@
   [data-season="october"] .october-corner-web { width: 110px; height: 104px; }
 }
 @media (max-width: 640px) {
+  [data-season="october"] .reading-room-hero.homepage-spotlight-carousel { min-height: 440px; }
+  [data-season="october"] .homepage-quote-slide h1 { font-size: clamp(28px, 8vw, 34px); }
+  [data-season="october"] .daily-quote-credit small { max-width: 100%; overflow-wrap: anywhere; }
   [data-season="october"] .october-vignette { width: 102px; right: 6px; bottom: -7px; }
   [data-season="october"] .october-corner-web { width: 72px; height: 68px; opacity: 0.5; }
 }

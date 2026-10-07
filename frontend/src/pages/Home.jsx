@@ -1,4 +1,4 @@
-import { seasonalTranslationKey } from "../config/season.js";
+import { ACTIVE_SEASON, seasonalTranslationKey } from "../config/season.js";
 import TalesCollectible from "../components/tales/TalesCollectible";
 import {
   useEffect,
@@ -169,6 +169,39 @@ const dailyLiteraryQuotes = [
   },
 ];
 
+const octoberLiteraryQuotes = [
+  { quote: "Listen to them—the children of the night.", author: "Bram Stoker", source: "Dracula" },
+  { quote: "What music they make!", author: "Bram Stoker", source: "Dracula" },
+  { quote: "I am all in a sea of wonders.", author: "Bram Stoker", source: "Dracula" },
+  { quote: "Beware, for I am fearless and therefore powerful.", author: "Mary Shelley", source: "Frankenstein" },
+  { quote: "I shall be with you on your wedding-night.", author: "Mary Shelley", source: "Frankenstein" },
+  { quote: "My devil had been long caged, he came out roaring.", author: "Robert Louis Stevenson", source: "Strange Case of Dr Jekyll and Mr Hyde" },
+  { quote: "It still eluded me,—it was still behind.", author: "Richard Marsh", source: "The Beetle" },
+  { quote: "You—you were in the coffin; but you were not dead.", author: "Robert W. Chambers", source: "The King in Yellow" },
+  { quote: "It looked dead—it looked as if it had been dead a long time.", author: "Robert W. Chambers", source: "The King in Yellow" },
+  { quote: "He received no reply.", author: "Washington Irving", source: "The Legend of Sleepy Hollow" },
+  { quote: "Still there was no answer.", author: "Washington Irving", source: "The Legend of Sleepy Hollow" },
+  { quote: "The hair of the affrighted pedagogue rose upon his head with terror.", author: "Washington Irving", source: "The Legend of Sleepy Hollow" },
+  { quote: "There must be some explanation, some way out of the terror.", author: "Arthur Machen", source: "The Great God Pan" },
+  { quote: "I will not read it; I should never sleep again.", author: "Arthur Machen", source: "The Great God Pan" },
+  { quote: "The murdered do haunt their murderers, I believe.", author: "Emily Brontë", source: "Wuthering Heights" },
+  { quote: "I know that ghosts have wandered on earth.", author: "Emily Brontë", source: "Wuthering Heights" },
+  { quote: "There are things in that paper that nobody knows but me, or ever will.", author: "Charlotte Perkins Gilman", source: "The Yellow Wallpaper" },
+  { quote: "The woman behind shakes it!", author: "Charlotte Perkins Gilman", source: "The Yellow Wallpaper" },
+  { quote: "It creeps all over the house.", author: "Charlotte Perkins Gilman", source: "The Yellow Wallpaper" },
+  { quote: "We have put her living in the tomb!", author: "Edgar Allan Poe", source: "The Fall of the House of Usher" },
+  { quote: "I tell you that she now stands without the door!", author: "Edgar Allan Poe", source: "The Fall of the House of Usher" },
+  { quote: "And now was acknowledged the presence of the Red Death.", author: "Edgar Allan Poe", source: "The Masque of the Red Death" },
+  { quote: "He had come like a thief in the night.", author: "Edgar Allan Poe", source: "The Masque of the Red Death" },
+  { quote: "Shall we never, never get rid of this Past?", author: "Nathaniel Hawthorne", source: "The House of the Seven Gables" },
+  { quote: "It lies upon the Present like a giant’s dead body!", author: "Nathaniel Hawthorne", source: "The House of the Seven Gables" },
+  { quote: "Mr. Holmes, they were the footprints of a gigantic hound!", author: "Arthur Conan Doyle", source: "The Hound of the Baskervilles" },
+  { quote: "There came forth in reply only a jingling of the bells.", author: "Edgar Allan Poe", source: "The Cask of Amontillado" },
+  { quote: "For the half of a century no mortal has disturbed them.", author: "Edgar Allan Poe", source: "The Cask of Amontillado" },
+  { quote: "Also there was a dreadful odour of decay in the room, and I woke screaming.", author: "E. F. Benson", source: "The Room in the Tower" },
+  { quote: "Yet, mad am I not—and very surely do I not dream.", author: "Edgar Allan Poe", source: "The Black Cat" },
+];
+
 function saveProfileReview(review) {
   try {
     const savedReviews = JSON.parse(localStorage.getItem(PROFILE_REVIEWS_KEY));
@@ -248,6 +281,11 @@ function getBookCoverSource(book) {
 function getDailyLiteraryQuote(date = new Date()) {
   const startOfYear = new Date(date.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((date - startOfYear) / 86400000);
+
+  if (ACTIVE_SEASON === "october" && dayOfYear % 10 < 7) {
+    const octoberQuoteIndex = Math.floor(dayOfYear / 10) * 7 + dayOfYear % 10;
+    return octoberLiteraryQuotes[octoberQuoteIndex % octoberLiteraryQuotes.length];
+  }
 
   return dailyLiteraryQuotes[dayOfYear % dailyLiteraryQuotes.length];
 }
