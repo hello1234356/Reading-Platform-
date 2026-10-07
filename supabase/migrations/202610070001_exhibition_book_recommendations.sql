@@ -28,6 +28,16 @@ on public.exhibition_book_recommendations(status, created_at desc);
 create index if not exists exhibition_book_recommendations_exhibition_created_idx
 on public.exhibition_book_recommendations(exhibition_slug, created_at desc);
 
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
 drop trigger if exists exhibition_book_recommendations_set_updated_at
 on public.exhibition_book_recommendations;
 
