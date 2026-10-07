@@ -1,0 +1,213 @@
+/* Desktop hierarchy: keep the quote hero large, give ordinary content room to scan. */
+@media (min-width: 1101px) {
+  .discover-page {
+    gap: 28px;
+  }
+
+  .discovery-main {
+    gap: 20px;
+  }
+
+  .discovery-editor-picks,
+  .themed-lists-section {
+    gap: 18px;
+  }
+
+  .discover-page .section-heading {
+    margin-bottom: 0;
+  }
+
+  .discovery-pick-showcase {
+    gap: 20px;
+  }
+
+  .discovery-pick-grid {
+    gap: 14px;
+  }
+
+  .discovery-featured-pick {
+    min-height: 340px;
+    gap: 18px;
+    padding: 26px;
+  }
+
+  .discovery-book-cover.featured {
+    min-height: 270px;
+  }
+
+  .discovery-featured-pick h3 {
+    font-size: clamp(38px, 3.6vw, 54px);
+  }
+
+  .discovery-featured-pick blockquote {
+    margin-top: 9px;
+    font-size: 15px;
+  }
+
+  .editor-pick-cta {
+    min-height: 42px;
+    margin-top: 14px;
+    padding-inline: 20px;
+  }
+
+  .discovery-pick-card {
+    grid-template-columns: 96px minmax(0, 1fr);
+    min-height: 160px;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .discovery-pick-card .discovery-book-cover {
+    min-height: 136px;
+  }
+
+  .discovery-pick-card h3 {
+    margin-top: 5px;
+    font-size: 25px;
+  }
+
+  .discovery-pick-card blockquote {
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  .themed-lists-section {
+    padding-top: 18px;
+  }
+
+  .themed-list-grid {
+    gap: 26px 28px;
+  }
+
+  .themed-list-card {
+    grid-template-rows: 168px auto;
+    gap: 10px;
+  }
+
+  .themed-list-preview {
+    height: 168px;
+  }
+
+  .themed-list-card > div:last-child {
+    gap: 5px;
+  }
+
+  .themed-list-card h3 {
+    font-size: 26px;
+  }
+
+  .themed-list-title-card {
+    gap: 8px;
+    padding: 18px;
+  }
+
+  .themed-list-title-card strong {
+    font-size: 34px;
+  }
+
+  .zh-list-card .themed-list-title-card strong {
+    font-size: 32px;
+  }
+
+  .feed-card {
+    padding-block: 16px 18px;
+  }
+
+  .feed-note-bubble {
+    margin-top: 6px;
+    margin-bottom: 10px;
+  }
+
+  .feed-actions {
+    margin-top: 8px;
+  }
+
+  .club-grid {
+    gap: 20px;
+  }
+
+  .club-card {
+    min-height: 290px;
+    gap: 18px;
+    padding: 14px;
+  }
+
+  .club-card .club-cover {
+    min-height: 262px;
+  }
+
+  .club-card-copy {
+    gap: 9px;
+  }
+
+  .club-card h2 {
+    font-size: clamp(25px, 2vw, 29px);
+  }
+
+  .profile-page {
+    gap: 30px;
+  }
+
+  .profile-hero {
+    gap: 22px;
+    padding-top: 20px;
+  }
+
+  .profile-banner {
+    min-height: 270px;
+    gap: 20px;
+    padding: 26px;
+  }
+
+  .profile-identity {
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .profile-photo {
+    width: 108px;
+    height: 108px;
+    font-size: 52px;
+  }
+
+  .profile-identity h1 {
+    font-size: clamp(48px, 6vw, 76px);
+  }
+
+  .profile-challenge {
+    padding: 22px;
+  }
+
+  .profile-challenge h2 {
+    font-size: 56px;
+  }
+
+  .profile-shelf-page-header {
+    padding-top: 16px;
+  }
+
+  .profile-shelf-page-header h1 {
+    font-size: clamp(50px, 5vw, 72px);
+  }
+
+  .profile-shelf-grid {
+    gap: 18px;
+  }
+
+  .profile-shelf-card {
+    min-height: 184px;
+    padding: 22px;
+  }
+
+  .profile-shelf-card span {
+    font-size: 36px;
+  }
+
+  .profile-book-grid {
+    gap: 24px 18px;
+  }
+
+  .profile-review {
+    padding-block: 20px 24px;
+  }
+}

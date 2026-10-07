@@ -142,7 +142,6 @@
     position: static;
   }
 
-  .club-toolbar,
   .club-room-grid {
     grid-template-columns: 1fr;
   }
@@ -676,9 +675,7 @@
   }
 
   .blog-post-title,
-  .list-modal h2,
-  .discover-page-title h1,
-  .clubs-hero h1 {
+  .list-modal h2 {
     font-size: clamp(38px, 12vw, 58px);
     line-height: 0.98;
     white-space: normal;
@@ -1072,19 +1069,6 @@
 
   .teacher-leaderboard-list {
     grid-template-columns: 1fr;
-  }
-
-  .clubs-hero {
-    min-height: auto;
-  }
-
-  .clubs-hero h1 {
-    font-size: 52px;
-    white-space: normal;
-  }
-
-  .club-toolbar h2 {
-    white-space: normal;
   }
 
   .club-grid,
@@ -1514,8 +1498,6 @@
   }
 
   .reading-room-hero h1,
-  .discover-page-title h1,
-  .clubs-hero h1,
   .blog-post-title {
     font-size: clamp(36px, 11vw, 54px);
     line-height: 1;
@@ -1593,11 +1575,10 @@
     width: 100%;
   }
 
-  .club-toolbar h2 {
+  .club-toolbar h1 {
     max-width: 100%;
     font-size: clamp(28px, 8vw, 38px);
     line-height: 1;
-    white-space: nowrap;
   }
 
   .club-modal,

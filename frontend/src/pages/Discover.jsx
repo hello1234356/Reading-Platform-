@@ -600,11 +600,7 @@ async function submitMissingBook(event) {
   return (
     <section className="home-page discover-page" aria-label={t("search.discoverBooks")}>
       <header className="discover-search-hero" ref={searchHeroRef}>
-        <div className="discover-page-title">
-          <p className="eyebrow">{t("search.eyebrow")}</p>
-          <h1>{t("search.heading")}</h1>
-          <p className="school-motto">{t("search.motto")}</p>
-        </div>
+        <h1 className="eyebrow discover-search-heading">{t("search.eyebrow")}</h1>
         <form className="discovery-search-bar" onSubmit={searchBooks}>
           <label className="sr-only" htmlFor="book-search">{t("search.fieldLabel")}</label>
           <input

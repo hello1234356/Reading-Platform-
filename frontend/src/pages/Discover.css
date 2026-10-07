@@ -6,40 +6,20 @@
 
 .discover-page {
   display: grid;
-  gap: 54px;
+  gap: 36px;
 }
 
 .discover-search-hero {
   display: grid;
-  gap: 18px;
-  padding: 34px 0 14px;
+  gap: 14px;
+  padding: 12px 0 0;
 }
 
-.discover-page-title {
-  display: grid;
-  gap: 8px;
-}
-
-.discover-page-title h1 {
-  position: relative;
-  width: fit-content;
-  isolation: isolate;
-  color: var(--deep-mocha);
-  font-size: clamp(48px, 8vw, 96px);
-  line-height: 0.9;
-}
-
-.discover-page-title h1::after {
-  content: "";
-  position: absolute;
-  right: 0.02em;
-  bottom: 0.04em;
-  left: 0.02em;
-  height: 0.18em;
-  z-index: -1;
-  border-radius: 8px 12px 10px 9px;
-  background: linear-gradient(90deg, rgba(244, 220, 123, 0.24), rgba(244, 220, 123, 0.52), rgba(239, 183, 165, 0.28));
-  transform: rotate(-0.35deg) skewX(-3deg);
+.discover-search-heading {
+  color: var(--mocha);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
 }
 
 .school-motto {
@@ -118,8 +98,8 @@
 .recent-finishes {
   display: grid;
   gap: 14px;
-  margin-top: 8px;
-  padding: 22px 0 8px;
+  margin-top: 2px;
+  padding: 18px 0 8px;
   border-top: 1px solid rgba(138, 106, 88, 0.13);
   border-bottom: 1px solid rgba(138, 106, 88, 0.13);
 }

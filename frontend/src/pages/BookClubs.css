@@ -3,75 +3,19 @@
   margin: 0 auto;
   padding: 32px;
   display: grid;
-  gap: 18px;
+  gap: 14px;
   background: transparent;
-}
-
-.clubs-hero {
-  min-height: auto;
-  display: grid;
-  gap: 8px;
-  align-content: end;
-  padding: 34px 0 24px;
-  overflow: visible;
-  border-bottom: 1px solid rgba(138, 106, 88, 0.13);
-  border-radius: 0;
-  background: transparent;
-  color: var(--warm-ink);
-  box-shadow: none;
-}
-
-.clubs-hero .eyebrow,
-.clubs-hero p {
-  color: var(--soft-gray);
-}
-
-.clubs-hero h1 {
-  position: relative;
-  width: fit-content;
-  isolation: isolate;
-  max-width: none;
-  margin-top: 10px;
-  color: var(--deep-mocha);
-  font-size: clamp(48px, 8vw, 96px);
-  line-height: 0.9;
-  white-space: nowrap;
-}
-
-.clubs-hero h1::after {
-  content: "";
-  position: absolute;
-  right: 0.02em;
-  bottom: 0.04em;
-  left: 0.02em;
-  height: 0.18em;
-  z-index: -1;
-  border-radius: 8px 12px 10px 9px;
-  background: linear-gradient(90deg, rgba(244, 220, 123, 0.24), rgba(244, 220, 123, 0.52), rgba(239, 183, 165, 0.28));
-  transform: rotate(-0.35deg) skewX(-3deg);
-}
-
-.clubs-hero .school-motto {
-  width: fit-content;
-  max-width: none;
-  margin-top: 4px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: rgba(255, 250, 241, 0.72);
-  color: var(--mocha);
-  font-size: 13px;
-  font-weight: 900;
-  line-height: normal;
-  letter-spacing: 0.02em;
-  box-shadow: 0 10px 22px rgba(89, 67, 49, 0.07);
 }
 
 .club-toolbar {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "heading heading"
+    "search create";
   gap: 14px 18px;
-  align-items: end;
-  padding: 8px 0 8px;
+  align-items: center;
+  padding: 12px 0 8px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -79,9 +23,9 @@
 
 .club-toolbar > div:first-child {
   min-width: 0;
+  grid-area: heading;
 }
 
-.club-toolbar h2,
 .club-room-heading h2,
 .club-modal h2 {
   color: var(--mocha);
@@ -89,16 +33,16 @@
   line-height: 0.94;
 }
 
-.club-toolbar h2 {
-  white-space: nowrap;
+.club-toolbar h1 {
+  margin-top: 4px;
+  color: var(--mocha);
+  font-size: clamp(30px, 3.5vw, 42px);
+  line-height: 1;
 }
 
 .club-search-control {
-  grid-column: 1 / 3;
-  grid-row: 2;
-  align-self: end;
-  justify-self: start;
-  width: min(100%, 560px);
+  grid-area: search;
+  width: 100%;
   margin: 0;
 }
 
@@ -153,31 +97,6 @@
   min-height: 44px;
   padding: 0 12px;
 }
-.club-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "heading create"
-    "search search";
-  align-items: end;
-  gap: 1rem 1.5rem;
-  margin-top: 0;
-}
-
-.club-toolbar > div:first-child {
-  grid-area: heading;
-}
-
-.club-search-control {
-  grid-area: search;
-  width: 100%;
-  max-width: 42rem;
-}
-
-.club-search-control input {
-  width: 100%;
-}
-
 .club-toolbar > .primary-button {
   grid-area: create;
   width: auto;
@@ -205,7 +124,7 @@
 }
 .club-empty-state {
   max-width: 46rem;
-  margin: 3rem auto;
+  margin: 8px auto;
   padding: 2rem;
   text-align: center;
   font-size: 1rem;

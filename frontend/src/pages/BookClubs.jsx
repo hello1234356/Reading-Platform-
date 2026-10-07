@@ -1369,16 +1369,10 @@ const filteredClubs = clubs.filter((club) => {
     <section className="home-page clubs-page" aria-label={t("clubs.pageAria")}>
       {!activeClub && !lockedClub && (
         <>
-          <header className="clubs-hero">
-            <p className="eyebrow">{t("clubs.hero")}</p>
-            <h1>{t("clubs.title")}</h1>
-            <p className="school-motto">{t("clubs.motto")}</p>
-          </header>
-
           <section className="club-toolbar" aria-label={t("clubs.filters")}>
             <div>
               <p className="eyebrow">{t("clubs.readingCircles")}</p>
-              <h2>{t("clubs.joinFun")}</h2>
+              <h1>{t("clubs.joinFun")}</h1>
             </div>
             <label className="club-search-control">
               <span className="sr-only">{t("clubs.search")}</span>
