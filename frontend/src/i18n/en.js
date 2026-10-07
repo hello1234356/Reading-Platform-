@@ -40,7 +40,8 @@ const en = {
     adminNotifications: "Admin notifications", sharedQueue: "Shared Queue",
     openAdmin: "Open Admin", moderation: "Moderation", bookRequests: "Book Requests",
     aiReviewQueue: "AI Review Queue",
-    clubReports: "Club Chat Reports", queueHelp: "Resolving an item updates this queue for every admin.",
+    clubReports: "Club Chat Reports", formSubmissions: "Form Submissions",
+    queueHelp: "Resolving an item updates this queue for every admin.",
   },
   app: { 
     checkingAccount: "Checking account", openingRoom: "Opening your reading room...",

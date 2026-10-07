@@ -35,6 +35,7 @@ function Navbar() {
     bookSubmissionCount: 0,
     aiReviewCount: 0,
     clubMessageCount: 0,
+    formSubmissionCount: 0,
     total: 0,
   });
 
@@ -73,6 +74,7 @@ function Navbar() {
         bookSubmissionCount: 0,
         aiReviewCount: 0,
         clubMessageCount: 0,
+        formSubmissionCount: 0,
         total: 0,
       });
       return undefined;
@@ -124,6 +126,15 @@ function Navbar() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "book_moderation_assessments" },
+        loadAdminNotifications,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "exhibition_book_recommendations",
+        },
         loadAdminNotifications,
       )
       .subscribe();
@@ -297,6 +308,16 @@ function Navbar() {
                 <li>
                   <span>{t("nav.clubReports")}</span>
                   <strong>{adminNotifications.clubMessageCount}</strong>
+                </li>
+                <li>
+                  <NavLink
+                    className="admin-notification-queue-link"
+                    to="/admin?tab=form-submissions"
+                    onClick={() => setAdminNotificationsOpen(false)}
+                  >
+                    <span>{t("nav.formSubmissions")}</span>
+                    <strong>{adminNotifications.formSubmissionCount}</strong>
+                  </NavLink>
                 </li>
               </ul>
               <small>

@@ -5,16 +5,19 @@ import ProfileLink from "../components/ProfileLink";
 import {
   addAdmin,
   deleteBookSubmission,
+  deleteExhibitionFormSubmission,
   deleteModerationReport,
   getAdminRole,
   getBookSubmissions,
   getBookModerationAssessments,
+  getExhibitionFormSubmissions,
   getModerationReports,
   listAdmins,
   moderateBookSubmission,
   reviewBookModerationAssessment,
   removeAdmin,
   reviewModerationReport,
+  updateExhibitionFormSubmission,
   getPublicAnnouncementsForAdmin,
   savePublicAnnouncement,
   searchAdminClubs,
@@ -27,10 +30,12 @@ import HomepageBannerAdmin from "../components/HomepageBannerAdmin";
 import { requireSupabase } from "../lib/supabase";
 import BookCoverImage from "../components/BookCoverImage";
 import { safeNotificationTarget } from "../lib/notificationApi";
+import { getCurrentExhibition } from "../config/exhibitions";
 
 const moderationFilters = ["pending", "concerning", "dismissed", "resolved", "all"];
 const submissionFilters = ["pending", "approved", "rejected"];
 const bookAssessmentFilters = ["review_required", "approved", "blocked", "error", "all"];
+const exhibitionFormFilters = ["pending", "reviewed", "featured", "archived", "all"];
 
 function formatDate(value) {
   if (!value) return "Unknown";
@@ -74,7 +79,16 @@ function getModerationErrorMessage(error) {
 
 function AdminTabs({ activeTab, onChange, isOwner }) {
   const { t } = useTranslation();
-  const tabs = ["moderation", "books", "book-ai", "clubs", "banners", "announcements", "events"];
+  const tabs = [
+    "moderation",
+    "books",
+    "book-ai",
+    "form-submissions",
+    "clubs",
+    "banners",
+    "announcements",
+    "events",
+  ];
   if (isOwner) tabs.push("admins");
 
   return (
@@ -92,6 +106,8 @@ function AdminTabs({ activeTab, onChange, isOwner }) {
               ? t("admin.bookAi")
             : tab === "clubs"
               ? t("admin.clubs")
+            : tab === "form-submissions"
+              ? t("admin.formSubmissions", { defaultValue: "Form Submissions" })
               : tab === "banners"
                 ? t("admin.banners")
               : t(`admin.${tab}`, { defaultValue: titleCase(tab) })}
@@ -568,6 +584,181 @@ function BookVerificationTab({ isOwner }) {
             {isOwner ? (
               <OwnerDeleteButton
                 label="Delete book request"
+                disabled={savingId === submission.id}
+                onClick={() => deleteSubmission(submission.id)}
+              />
+            ) : null}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ExhibitionFormSubmissionsTab({ isOwner }) {
+  const currentExhibition = getCurrentExhibition();
+  const [filter, setFilter] = useState("pending");
+  const [submissions, setSubmissions] = useState([]);
+  const [status, setStatus] = useState("loading");
+  const [message, setMessage] = useState("");
+  const [savingId, setSavingId] = useState("");
+
+  async function loadSubmissions(nextFilter = filter) {
+    setStatus("loading");
+    setMessage("");
+
+    try {
+      setSubmissions(await getExhibitionFormSubmissions(nextFilter));
+      setStatus("ready");
+    } catch (error) {
+      console.error("Failed to load exhibition form submissions:", error);
+      setMessage(error.message || "Could not load form submissions.");
+      setStatus("error");
+    }
+  }
+
+  useEffect(() => {
+    // Follows the existing Admin async-load convention.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadSubmissions(filter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  useEffect(() => {
+    return subscribeToAdminTable("exhibition_book_recommendations", () => {
+      loadSubmissions(filter);
+    });
+  }, [filter]);
+
+  async function updateSubmission(submissionId, nextStatus) {
+    setSavingId(submissionId);
+    setMessage("");
+
+    try {
+      await updateExhibitionFormSubmission({ submissionId, status: nextStatus });
+      await loadSubmissions(filter);
+    } catch (error) {
+      console.error("Failed to update form submission:", error);
+      setMessage(error.message || "Could not update this form submission.");
+    } finally {
+      setSavingId("");
+    }
+  }
+
+  async function deleteSubmission(submissionId) {
+    const confirmed = window.confirm(
+      "Are you sure you want to permanently delete this form submission?",
+    );
+
+    if (!confirmed) return;
+
+    setSavingId(submissionId);
+    setMessage("");
+
+    try {
+      await deleteExhibitionFormSubmission(submissionId);
+      await loadSubmissions(filter);
+    } catch (error) {
+      console.error("Failed to delete form submission:", error);
+      setMessage(error.message || "Could not delete this form submission.");
+    } finally {
+      setSavingId("");
+    }
+  }
+
+  return (
+    <section className="admin-panel" aria-label="Form submissions">
+      <div className="admin-section-heading">
+        <div>
+          <p className="eyebrow">Offline Exhibitions</p>
+          <h2>Form Submissions</h2>
+        </div>
+        <Link className="ghost-button" to={`/exhibitions/${currentExhibition.slug}/recommend`}>
+          Open Student Form
+        </Link>
+      </div>
+      <FilterTabs filters={exhibitionFormFilters} activeFilter={filter} onChange={setFilter} />
+      {message ? <p className="admin-error" role="alert">{message}</p> : null}
+      {status === "loading" ? <p className="admin-empty">Loading form submissions...</p> : null}
+      {status === "ready" && submissions.length === 0 ? (
+        <p className="admin-empty">No form submissions in this queue yet.</p>
+      ) : null}
+      <div className="admin-card-list">
+        {submissions.map((submission) => (
+          <article
+            className={
+              isOwner
+                ? "admin-card admin-form-submission-card admin-owner-delete-card"
+                : "admin-card admin-form-submission-card"
+            }
+            key={submission.id}
+          >
+            <div className="admin-card-heading">
+              <div>
+                <p className="eyebrow">{submission.exhibitionSlug.replace(/-/g, " ")}</p>
+                <h2>{submission.bookTitle}</h2>
+                <p className="admin-muted">
+                  {submission.submitterName || "Anonymous reader"}
+                  {submission.submitterGrade ? ` · ${submission.submitterGrade}` : ""}
+                </p>
+              </div>
+              <span className={`admin-status ${submission.status}`}>
+                {titleCase(submission.status)}
+              </span>
+            </div>
+
+            <p className="admin-card-text admin-form-recommendation">
+              {submission.recommendation}
+            </p>
+
+            <div className="admin-meta-grid">
+              <span>Submitted: {formatDate(submission.createdAt)}</span>
+              {submission.submitterUserId ? <span>Signed-in account linked</span> : null}
+            </div>
+
+            {submission.submitterUserId ? (
+              <aside className="admin-book-submitter">
+                <p className="eyebrow">Account</p>
+                <ProfileLine profile={submission.submitter} fallback="Linked reader" />
+              </aside>
+            ) : null}
+
+            <div className="admin-actions">
+              {submission.status !== "reviewed" ? (
+                <button
+                  className="ghost-button"
+                  type="button"
+                  disabled={savingId === submission.id}
+                  onClick={() => updateSubmission(submission.id, "reviewed")}
+                >
+                  Mark Reviewed
+                </button>
+              ) : null}
+              {submission.status !== "featured" ? (
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={savingId === submission.id}
+                  onClick={() => updateSubmission(submission.id, "featured")}
+                >
+                  Feature
+                </button>
+              ) : null}
+              {submission.status !== "archived" ? (
+                <button
+                  className="ghost-button"
+                  type="button"
+                  disabled={savingId === submission.id}
+                  onClick={() => updateSubmission(submission.id, "archived")}
+                >
+                  Archive
+                </button>
+              ) : null}
+            </div>
+
+            {isOwner ? (
+              <OwnerDeleteButton
+                label="Delete form submission"
                 disabled={savingId === submission.id}
                 onClick={() => deleteSubmission(submission.id)}
               />
@@ -1264,7 +1455,17 @@ function Admin() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const activeTab = ["moderation", "books", "book-ai", "clubs", "banners", "announcements", "events", "admins"].includes(requestedTab)
+  const activeTab = [
+    "moderation",
+    "books",
+    "book-ai",
+    "form-submissions",
+    "clubs",
+    "banners",
+    "announcements",
+    "events",
+    "admins",
+  ].includes(requestedTab)
     ? requestedTab : "moderation";
   const setActiveTab = useCallback((tab) => {
     setSearchParams((params) => {
@@ -1351,6 +1552,9 @@ function Admin() {
       {activeTab === "moderation" ? <ModerationTab isOwner={isOwner} /> : null}
       {activeTab === "books" ? <BookVerificationTab isOwner={isOwner} /> : null}
       {activeTab === "book-ai" ? <BookAiModerationTab key={location.key} /> : null}
+      {activeTab === "form-submissions" ? (
+        <ExhibitionFormSubmissionsTab isOwner={isOwner} />
+      ) : null}
       {activeTab === "clubs" ? <ClubActivityTab /> : null}
       {activeTab === "events" ? <LibraryDisplayAdmin /> : null}
       {activeTab === "banners" ? <HomepageBannerAdmin /> : null}

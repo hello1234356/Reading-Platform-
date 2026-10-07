@@ -51,6 +51,23 @@ function mapSubmission(row, profilesById) {
   };
 }
 
+function mapExhibitionRecommendation(row, profilesById) {
+  return {
+    id: row.id,
+    exhibitionSlug: row.exhibition_slug || "",
+    submitterUserId: row.submitter_user_id || "",
+    submitter: mapProfile(profilesById.get(String(row.submitter_user_id))),
+    submitterName: row.submitter_name || "",
+    submitterGrade: row.submitter_grade || "",
+    bookTitle: row.book_title || "",
+    recommendation: row.recommendation || "",
+    status: row.status || "pending",
+    adminNote: row.admin_note || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function mapModerationReport(row, profilesById) {
   return {
     id: row.id,
@@ -186,6 +203,7 @@ export async function getAdminNotificationSummary() {
     bookSubmissionResult,
     aiReviewResult,
     clubMessageResult,
+    formSubmissionResult,
   ] = await Promise.allSettled([
     countRows("moderation_reports", (query) =>
       query.in("status", ["pending", "concerning"]),
@@ -197,6 +215,9 @@ export async function getAdminNotificationSummary() {
     countRows("club_message_moderation_reports", (query) =>
       query.eq("status", "open"),
     ),
+    countRows("exhibition_book_recommendations", (query) =>
+      query.eq("status", "pending"),
+    ),
   ]);
 
   const moderationCount =
@@ -207,17 +228,21 @@ export async function getAdminNotificationSummary() {
     aiReviewResult.status === "fulfilled" ? aiReviewResult.value : 0;
   const clubMessageCount =
     clubMessageResult.status === "fulfilled" ? clubMessageResult.value : 0;
+  const formSubmissionCount =
+    formSubmissionResult.status === "fulfilled" ? formSubmissionResult.value : 0;
 
   return {
     moderationCount,
     bookSubmissionCount,
     aiReviewCount,
     clubMessageCount,
+    formSubmissionCount,
     total:
       moderationCount +
       bookSubmissionCount +
       aiReviewCount +
-      clubMessageCount,
+      clubMessageCount +
+      formSubmissionCount,
   };
 }
 
@@ -322,6 +347,69 @@ export async function moderateBookSubmission({ submissionId, decision }) {
 
   if (error) throw error;
   return data;
+}
+
+export async function getExhibitionFormSubmissions(status = "pending") {
+  const supabase = requireSupabase();
+  let query = supabase
+    .from("exhibition_book_recommendations")
+    .select(`
+      id,
+      exhibition_slug,
+      submitter_user_id,
+      submitter_name,
+      submitter_grade,
+      book_title,
+      recommendation,
+      status,
+      admin_note,
+      created_at,
+      updated_at
+    `)
+    .order("created_at", { ascending: false });
+
+  if (status && status !== "all") {
+    query = query.eq("status", status);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const profilesById = await fetchProfilesByIds(
+    (data || []).map((row) => row.submitter_user_id),
+  );
+
+  return (data || []).map((row) => mapExhibitionRecommendation(row, profilesById));
+}
+
+export async function updateExhibitionFormSubmission({
+  submissionId,
+  status,
+  adminNote = null,
+}) {
+  const supabase = requireSupabase();
+  const update = { status };
+  if (adminNote !== null) update.admin_note = adminNote;
+
+  const { data, error } = await supabase
+    .from("exhibition_book_recommendations")
+    .update(update)
+    .eq("id", submissionId)
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteExhibitionFormSubmission(submissionId) {
+  const supabase = requireSupabase();
+  const { error } = await supabase
+    .from("exhibition_book_recommendations")
+    .delete()
+    .eq("id", submissionId);
+
+  if (error) throw error;
 }
 
 export async function getModerationReports(status = "pending") {

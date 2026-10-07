@@ -12,6 +12,7 @@ import Discover from "./pages/Discover";
 import BookClubs from "./pages/BookClubs";
 import Admin from "./pages/Admin";
 import RecommendationPost from "./pages/RecommendationPost";
+import ExhibitionRecommendation from "./pages/ExhibitionRecommendation";
 import { useAuth } from "./hooks/useAuth";
 import { PublicProfileProvider } from "./context/PublicProfileContext";
 import { useTranslation } from "react-i18next";
@@ -85,6 +86,8 @@ function App() {
                 <Route path="/post/:postId" element={<Home />} />
                 <Route path="/events" element={<Events />} />
                 <Route path="/events/:eventSlug" element={<Events />} />
+                <Route path="/exhibitions/recommend" element={<ExhibitionRecommendation />} />
+                <Route path="/exhibitions/:exhibitionSlug/recommend" element={<ExhibitionRecommendation />} />
                 <Route path="/login" element={<Login />} />
 
                 <Route

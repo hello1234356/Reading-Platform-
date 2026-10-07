@@ -75,6 +75,20 @@
   gap: 16px;
 }
 
+.admin-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: end;
+  justify-content: space-between;
+}
+
+.admin-section-heading h2 {
+  color: var(--mocha);
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 0.95;
+}
+
 .admin-card-list,
 .admin-card-grid {
   display: grid;
@@ -296,7 +310,8 @@
 }
 
 .admin-status.dismissed,
-.admin-status.resolved {
+.admin-status.resolved,
+.admin-status.reviewed {
   background: rgba(170, 182, 150, 0.32);
 }
 
@@ -311,6 +326,25 @@
 
 .admin-status.blocked {
   background: rgba(239, 183, 165, 0.48);
+}
+
+.admin-status.featured {
+  background: rgba(244, 220, 123, 0.52);
+}
+
+.admin-status.archived {
+  background: rgba(138, 106, 88, 0.14);
+}
+
+.admin-form-submission-card {
+  gap: 16px;
+}
+
+.admin-form-recommendation {
+  padding: 16px 18px;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(255, 253, 249, 0.78), rgba(244, 220, 123, 0.13));
 }
 
 .admin-risk-grid {

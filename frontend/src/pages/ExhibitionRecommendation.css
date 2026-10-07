@@ -1,0 +1,86 @@
+.exhibition-page { color: #3e302b; background: #faf4e9; padding: 40px 24px 64px; min-height: calc(100vh - 110px); }
+.exhibition-page *, .exhibition-page *::before, .exhibition-page *::after { box-sizing: border-box; }
+.exhibition-hero { position: relative; isolation: isolate; width: min(100%, 1100px); margin: 0 auto; padding: 48px 220px 46px; text-align: center; background: transparent; }
+.exhibition-hero .eyebrow { margin: 0 0 16px; color: #8c4e36; font-size: 12px; line-height: 1.6; font-weight: 700; }
+.exhibition-hero h1 { margin: 0; color: #652f32; font-family: var(--quote, Georgia, serif); font-size: 46px; font-weight: 600; line-height: 1.12; letter-spacing: 0; text-wrap: balance; }
+.exhibition-hero > p:last-child { margin: 20px auto 0; max-width: 580px; color: #665044; font-size: 16px; font-weight: 400; line-height: 1.7; }
+.exhibition-hero-art { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+/* Feather the paper perimeter, leaving the illustrations' centers crisp. */
+.exhibition-hero-art img {
+  position: absolute;
+  bottom: 0;
+  width: 220px;
+  height: 260px;
+  object-fit: contain;
+  object-position: center;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: radial-gradient(ellipse 53% 49% at 50% 53%, #000 57%, #000c 72%, transparent 100%);
+  mask-image: radial-gradient(ellipse 53% 49% at 50% 53%, #000 57%, #000c 72%, transparent 100%);
+}
+.exhibition-pumpkin-art { left: -10px; transform: rotate(-5deg); border-radius: 46% 54% 42% 58%; }
+.exhibition-ghost-art { right: -10px; transform: rotate(4deg); border-radius: 54% 46% 58% 42%; }
+.exhibition-web { position: absolute; top: 0; right: 0; width: 70px; height: 70px; pointer-events: none; opacity: .3; background: repeating-radial-gradient(circle at 100% 0, transparent 0 14px, #876750 15px 16px, transparent 17px 24px), conic-gradient(from 180deg at 100% 0, transparent 0deg 28deg, #876750 29deg 30deg, transparent 31deg 58deg, #876750 59deg 60deg, transparent 61deg); border-radius: 0 0 0 100%; }
+.exhibition-layout { width: min(100%, 880px); margin: 36px auto 0; }
+.exhibition-form { display: grid; gap: 24px; min-width: 0; }
+.exhibition-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.exhibition-form label { display: grid; gap: 10px; min-width: 0; }
+.exhibition-form label > span { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; color: #513f34; font-family: var(--button); font-size: 15px; line-height: 1.5; font-weight: 600; }
+.exhibition-form small { color: #826f60; font-size: 12px; font-weight: 400; }
+.exhibition-form input, .exhibition-form textarea { width: 100%; min-width: 0; border: 1px solid #d8c8b5; border-radius: 8px; background: #fffcf6; color: #3e302b; font: inherit; font-size: 16px; line-height: 1.6; padding: 12px 16px; }
+.exhibition-form input { min-height: 50px; }
+.exhibition-form textarea { min-height: 156px; resize: vertical; }
+.exhibition-form input:focus, .exhibition-form textarea:focus { outline: 2px solid #a56542; outline-offset: 3px; }
+.exhibition-book-picker { display: grid; gap: 12px; min-width: 0; }
+.exhibition-selected-book, .exhibition-book-results button { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px; text-align: left; }
+.exhibition-selected-book { background: #eee6d6; border-radius: 8px; }
+.exhibition-selected-book img, .exhibition-book-results img, .exhibition-selected-book .book-cover-placeholder, .exhibition-book-results .book-cover-placeholder { width: 44px; height: 66px; object-fit: contain; border-radius: 3px; }
+.exhibition-selected-book span, .exhibition-book-results span { display: grid; gap: 4px; min-width: 0; }
+.exhibition-selected-book strong, .exhibition-book-results strong { overflow-wrap: anywhere; font-size: 15px; }
+.exhibition-book-results { max-height: 270px; overflow-y: auto; border: 1px solid #d8c8b5; border-radius: 8px; background: #fffcf6; }
+.exhibition-book-results button { width: 100%; border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; }
+.exhibition-book-results button:hover { background: #f2e7d8; }
+.exhibition-selected-book button { border: 0; background: transparent; color: #793e34; font: inherit; cursor: pointer; }
+.exhibition-search-note { margin: 0; color: #826f60; font-size: 13px; }
+.exhibition-form-footer { display: grid; grid-template-columns: 54px minmax(0, auto); justify-content: center; align-items: center; column-gap: 18px; row-gap: 10px; padding-top: 24px; border-top: 1px dashed #c8af90; }
+.exhibition-moon-seal {
+  grid-column: 1;
+  grid-row: 1;
+  width: 54px;
+  height: 66px;
+  object-fit: contain;
+  border-radius: 48% 52% 44% 56%;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 52%, transparent 73%);
+  mask-image: radial-gradient(ellipse at center, #000 52%, transparent 73%);
+  transform: none;
+  pointer-events: none;
+}
+.exhibition-submit { max-width: 100%; padding: 14px 26px; min-height: 48px; border: 0; border-radius: 24px; background: #733b39; color: #fff8ea; font-family: var(--button); font-size: 16px; font-weight: 600; line-height: 1.5; cursor: pointer; }
+.exhibition-submit:hover { background: #5f2e30; }
+.exhibition-submit:disabled { opacity: .6; cursor: wait; }
+.exhibition-events-link { color: #795343; font-size: 13px; text-underline-offset: 4px; }
+.exhibition-form-footer .exhibition-submit { grid-column: 2; grid-row: 1; }
+.exhibition-form-footer .exhibition-events-link { grid-column: 1 / -1; justify-self: center; }
+.exhibition-error { color: #922f2f; }
+.exhibition-confirmation { width: min(100%, 880px); margin: 24px auto 0; padding: 18px; background: #ede7d6; color: #534632; border-radius: 8px; }
+@media (max-width: 900px) {
+  .exhibition-hero { padding: 32px 150px; }
+  .exhibition-hero h1 { font-size: 38px; }
+  .exhibition-hero-art img { width: 155px; height: 210px; }
+}
+@media (max-width: 600px) {
+  .exhibition-page { padding: 20px 16px 40px; }
+  .exhibition-hero { padding: 28px 18px 142px; }
+  .exhibition-hero h1 { font-size: 34px; }
+  .exhibition-hero > p:last-child { font-size: 15px; margin-top: 14px; }
+  .exhibition-hero-art img { width: 130px; height: 134px; }
+  .exhibition-pumpkin-art { left: 12px; }
+  .exhibition-ghost-art { right: 12px; }
+  .exhibition-layout { margin-top: 26px; }
+  .exhibition-form-grid { grid-template-columns: 1fr; gap: 20px; }
+  .exhibition-form-footer { grid-template-columns: 44px minmax(0, auto); column-gap: 10px; padding: 24px 0 0; }
+  .exhibition-moon-seal { width: 44px; height: 58px; }
+  .exhibition-submit { padding: 12px 18px; font-size: 14px; }
+  .exhibition-selected-book { grid-template-columns: 44px minmax(0, 1fr); }
+  .exhibition-selected-book button { grid-column: 2; justify-self: start; }
+}
