@@ -11,7 +11,6 @@ import './Events.css';
 import { useEventsAccess } from '../context/eventsAccess';
 import EventsPublicationSwitch from '../components/EventsPublicationSwitch';
 import { getExhibitionEvents } from '../config/exhibitions';
-import bookCatArt from '../assets/seasonal/halloween-book-cat.jpg';
 import hauntedHouseArt from '../assets/seasonal/halloween-haunted-house.jpg';
 
 const weekdayLabels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -287,22 +286,7 @@ function EventsLanding({ events: exhibitionEvents }) {
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   return (
-    <section className="events-page literary-events-page">
-      <header className="events-heading literary-events-heading">
-        <h1>Events</h1>
-        <p>What's happening in the reading world</p>
-      </header>
-      {featuredEvent ? (
-        <Link className={`event-announcement-banner ${featuredEvent.accentClass}`} to={featuredEvent.formPath}>
-          <img className="event-announcement-art" src={bookCatArt} alt="" />
-          <div>
-            <h2>{featuredEvent.bannerTitle}</h2>
-            <p>{featuredEvent.bannerText}</p>
-            <span>{formatEventRange(featuredEvent.startDate, featuredEvent.endDate)}</span>
-          </div>
-          <strong>Recommend a Book <span aria-hidden="true">→</span></strong>
-        </Link>
-      ) : null}
+    <section className="events-page literary-events-page" aria-label="Events">
       <EventCalendar events={exhibitionEvents} leadEvent={featuredEvent} onSelect={setSelectedEvent} />
       {selectedEvent && <EventPopup event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
     </section>

@@ -106,3 +106,4 @@ begin
 exception
   when duplicate_object or undefined_object then null;
 end $$;
+en

@@ -44,6 +44,7 @@ import ModerationBlockedCard from "../components/ModerationBlockedCard";
 import { resolveSocialTarget } from "../lib/socialTargets";
 import RecoveringBookCoverImage from "../components/RecoveringBookCoverImage";
 import HomepageSpotlightCarousel from "../components/HomepageSpotlightCarousel";
+import HomeEventAnnouncement from "../components/HomeEventAnnouncement";
 import BookCoverImage from "../components/BookCoverImage";
 import BookCoverPlaceholder from "../components/BookCoverPlaceholder";
 import { formatFeedRelativeTime } from "../lib/feedPresentation.js";
@@ -2003,6 +2004,7 @@ function Home() {
         dailyQuote={dailyQuote}
         onFallbackAction={() => openComposer()}
       />
+      <HomeEventAnnouncement />
 
       <section
         className="grade-leaderboard-strip"
