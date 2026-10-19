@@ -465,7 +465,13 @@ async function openBookDetails(book) {
 
   try {
     const result = await loadBookDetailsSafely(book, loadProviderBookDetails);
-    setSelectedBook(result.details);
+    setSelectedBook(book.editorialDescription ? {
+      ...result.details,
+      title: book.title,
+      author: book.author,
+      coverUrl: book.coverUrl,
+      description: book.editorialDescription,
+    } : result.details);
     setBookDetailError(result.error);
   } finally {
     setBookDetailLoading(false);

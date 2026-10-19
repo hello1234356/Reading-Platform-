@@ -43,14 +43,19 @@ export const bookDatabasePreview = [
   },
 ];
 
+const fruitFlyDescription = "A best-selling author who hasn’t published a new book in seven years is desperate to get over her writer’s block—but can’t seem to find the right topic and state of mind. One night, she finds her worries answered on Reddit: “Go sad. Go dark. Go gay.” The secret formula to every successful piece of media in the past 5 years. And so, she signs up for Grindr and begins her journey…does she get her life back? Or does she destroy even more?";
+
 export const editorPicks = [
   {
-    title: "The Goldfinch",
-    author: "Donna Tartt",
-    isbn: "9780316055444",
-    readers: 42,
-    blurb:
-      "A stolen painting, a lonely boy, and the long shadow of beauty, grief, and obsession.",
+    title: "Fruit Fly",
+    author: "Josh Silver",
+    isbn: "9781836431480",
+    source: "google_books",
+    googleBooksId: "WW5lEQAAQBAJ",
+    coverUrl: "/recommendation-covers/fruit-fly.jpg",
+    blurb: fruitFlyDescription,
+    description: fruitFlyDescription,
+    editorialDescription: fruitFlyDescription,
     tone: "gold",
   },
   {

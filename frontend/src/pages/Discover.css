@@ -593,6 +593,69 @@
   background: rgba(170, 182, 150, 0.18);
 }
 
+/* Keep the accent within the card and size the featured cover by its real ratio. */
+.discovery-editor-picks .discovery-featured-pick::before {
+  inset: 0;
+  border-radius: inherit;
+}
+
+.discovery-editor-picks .discovery-featured-pick {
+  isolation: isolate;
+  padding: 20px;
+  min-height: 0;
+  gap: 20px;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+}
+
+.discovery-editor-picks .discovery-featured-pick h3 {
+  font-size: 38px;
+  line-height: 1.1;
+}
+
+.discovery-editor-picks .discovery-featured-pick blockquote {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.discovery-featured-pick .discovery-book-cover.featured {
+  width: 100%;
+  max-width: 190px;
+  min-height: 0;
+  justify-self: center;
+  align-content: center;
+  overflow: visible;
+  border-radius: 0;
+}
+
+.discovery-featured-pick .discovery-book-cover.featured img {
+  position: static;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 290px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 14px rgba(89, 67, 49, 0.16));
+}
+
+@media (max-width: 600px) {
+  .discovery-editor-picks .discovery-featured-pick {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .discovery-featured-pick .discovery-book-cover.featured {
+    max-width: 118px;
+  }
+
+  .discovery-featured-pick .discovery-book-cover.featured img {
+    max-height: 180px;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick h3 {
+    font-size: 30px;
+  }
+}
+
 .discovery-pick-card {
   grid-template-columns: 118px minmax(0, 1fr);
   min-height: 190px;
