@@ -124,7 +124,7 @@ function Relay({ room, act, busy, notice, projecting, setProjecting }) {
     if (await act('submit', { sentence, token: room.writeToken }, 'Passed on.')) { setSentence(''); setValidation(''); }
   }
   if (room.phase === 'revealed' || projecting) return <StoryReveal room={room} projecting={projecting} setProjecting={setProjecting} />;
-  const waiting = room.phase === 'draft' ? 'The relay hasn’t started.' : room.phase === 'closed' ? 'Submissions are closed.' : 'Sealed until your turn.';
+  const waiting = room.phase === 'closed' ? 'Submissions are closed.' : 'Sealed until your turn.';
   return <>
     <header className="relay-workspace-header">
       <h1>Story <em>Relay</em></h1><span className="relay-count" aria-label={`${completed} of ${scheduledTotal} scheduled sentences`}>{completed} / {scheduledTotal}</span>
