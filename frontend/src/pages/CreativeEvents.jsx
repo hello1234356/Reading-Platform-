@@ -127,6 +127,7 @@ function Relay({ room, act, busy, notice, projecting, setProjecting }) {
   const waiting = room.phase === 'closed' ? 'Submissions are closed.' : 'Sealed until your turn.';
   return <>
     <header className="relay-workspace-header">
+      <Link className="relay-back" to="/events" aria-label="Back to Events" title="Back to Events"><span aria-hidden="true">←</span></Link>
       <h1>Story <em>Relay</em></h1><span className="relay-count" aria-label={`${completed} of ${scheduledTotal} scheduled sentences`}>{completed} / {scheduledTotal}</span>
       {room.organizer && <button className="relay-manage" aria-label="Organizer controls" onClick={() => organizerDialog.current.showModal()}>⚙</button>}
     </header>

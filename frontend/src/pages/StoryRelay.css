@@ -5,6 +5,7 @@
   padding: 12px 24px 20px;
 }
 .relay-workspace-header { display:flex; align-items:center; justify-content:space-between; min-height:44px; margin-bottom:16px; }
+.relay-back { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:28px; height:32px; color:inherit; font-size:22px; line-height:1; }
 .up-relay-workspace .relay-workspace-header h1 { font-size:28px; line-height:1; }
 .relay-workspace-header h1 em { color:#70568c; }
 .relay-manage { width:44px; height:44px; border:0; background:transparent; font-size:20px !important; }
