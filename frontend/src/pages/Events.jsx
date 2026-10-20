@@ -8,6 +8,8 @@ import { searchCatalogBooks } from '../lib/communityBooks';
 import { getMyDisplaySubmission, submitDisplayRecommendation, validDisplayPhoto } from '../lib/eventsApi';
 import BookCoverImage from '../components/BookCoverImage';
 import './Events.css';
+import CreativeEvents, { CreativeEventLinks } from './CreativeEvents';
+import { CREATIVE_SLUGS } from '../lib/creativeEventsModel';
 import { useEventsAccess } from '../context/eventsAccess';
 import EventsPublicationSwitch from '../components/EventsPublicationSwitch';
 import { getExhibitionEvents } from '../config/exhibitions';
@@ -282,12 +284,14 @@ function EventPopup({ event, onClose }) {
 }
 
 function EventsLanding({ events: exhibitionEvents }) {
+  const { isLive, isAdmin } = useEventsAccess();
   const featuredEvent = getLeadEvent(exhibitionEvents);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   return (
     <section className="events-page literary-events-page" aria-label="Events">
-      <EventCalendar events={exhibitionEvents} leadEvent={featuredEvent} onSelect={setSelectedEvent} />
+      <CreativeEventLinks />
+      {(isLive || isAdmin) && <EventCalendar events={exhibitionEvents} leadEvent={featuredEvent} onSelect={setSelectedEvent} />}
       {selectedEvent && <EventPopup event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
     </section>
   );
@@ -314,10 +318,13 @@ function EventsContent() {
 }
 
 export default function Events() {
-  const { canView, loading, error, refresh } = useEventsAccess();
+  const { canView, isLive, isAdmin, loading, error, refresh } = useEventsAccess();
+  const { eventSlug } = useParams();
+  const creative = CREATIVE_SLUGS.includes(eventSlug);
   const { t } = useTranslation();
   if (loading) return <section className="events-page" role="status">{t('common.loading')}</section>;
   if (error) return <section className="events-page"><p role="alert">{t('events.accessError')}</p><button onClick={refresh}>{t('common.retry')}</button></section>;
-  if (!canView) return <Navigate to="/" replace />;
+  if (creative) return <CreativeEvents />;
+  if (!canView || (eventSlug && !isLive && !isAdmin)) return <Navigate to="/" replace />;
   return <><div className="events-publication-wrap"><EventsPublicationSwitch /></div><EventsContent /></>;
 }

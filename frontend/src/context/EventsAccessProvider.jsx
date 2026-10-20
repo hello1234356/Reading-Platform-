@@ -37,5 +37,5 @@ export default function EventsAccessProvider({ children }) {
     if (error) throw error;
     await refresh();
   }
-  return <EventsAccessContext.Provider value={{ ...access, canView: access.isLive || access.isAdmin, loading: !ready, error: ready && state.error, refresh, setLive }}>{children}</EventsAccessContext.Provider>;
+  return <EventsAccessContext.Provider value={{ ...access, canView: access.isLive || access.isAdmin || access.hasCreativeInvite, loading: !ready, error: ready && state.error, refresh, setLive }}>{children}</EventsAccessContext.Provider>;
 }
