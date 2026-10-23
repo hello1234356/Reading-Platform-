@@ -290,4 +290,54 @@ await db.exec('reset role');
 assert.equal(await scalar('select activated_at::text from public.relay_turns where id=$1',[currentBeforeSave.id]),windowBeforeSave,'linking another writer preserves the current deadline');
 assert.equal(await scalar('select count(*)::integer from public.notifications'),notificationCountBefore,'confirmation sends no duplicate notification');
 console.log('PASS: safe-update roster scope, unchanged confirmations preserve queue/deadline, late account linking preserves two turns and current writer, no duplicate notifications');
+
+await db.exec(await readFile(new URL('../migrations/202610230001_relay_dialogue_queue.sql',import.meta.url),'utf8'));
+const sentenceCases=JSON.parse(await readFile(new URL('../../frontend/test/fixtures/relaySentences.json',import.meta.url),'utf8'));
+for(const {text,valid} of sentenceCases) assert.equal(await scalar('select public.creative_sentence_valid($1)',[text]),valid,text);
+assert.equal(await scalar('select public.creative_sentence_valid($1)',['😀'.repeat(999)+'.']),true);
+assert.equal(await scalar('select public.creative_sentence_valid($1)',['x'.repeat(1000)+'.']),false);
+// Planning dates in the future must not block an already-activated queue.
+await db.exec("update public.creative_events set starts_at='2099-10-20T00:00:00+08:00',round_two_at='2099-11-04T00:00:00+08:00',free_at='2099-11-19T00:00:00+08:00',reveal_at='2099-11-26T00:00:00+08:00' where slug='story-relay'");
+for(const n of [5,3,4]) {
+ await as(n);s=await state();assert.equal(s.canWrite,true,'future planning dates do not gate the next writer');
+ assert.equal(s.queue.find(turn=>turn.current).userId,uid(n));
+ await act(relay,'submit',{sentence:'The next writer continued immediately.',token:s.writeToken});
+}
+await as(1);s=await state();
+assert.equal(s.canWrite,true);assert.equal(s.queue.filter(turn=>turn.done).length,4);
+assert.equal(s.queue.find(turn=>turn.current).name,'Carrie Wang');
+await fixture('relay-carrie-before',s);
+const carrieTurn=s.queue.find(turn=>turn.current);
+assert.equal(new Date(s.turnExpiresAt)-new Date(carrieTurn.activatedAt),24*60*60*1000);
+const selinaOldEstimate=s.queue.find(turn=>turn.userId===uid(6) && turn.round===1).estimatedAt;
+const liveSentence=sentenceCases[0].text;
+await db.exec('reset role');
+const storyBefore=await scalar("select jsonb_agg(to_jsonb(s) order by id) from public.relay_sentences s where event_slug='story-relay'");
+const beforeSubmit=await scalar('select now()::text');
+await as(4);await denied(()=>act(relay,'submit',{sentence:liveSentence,token:carrieTurn.id}),/turn has changed/);
+await as(16);await denied(()=>act(relay,'submit',{sentence:liveSentence,token:carrieTurn.id}),/invitation only/);
+await as(1);s=await state();await act(relay,'submit',{sentence:liveSentence,token:s.writeToken});
+await denied(()=>act(relay,'submit',{sentence:liveSentence,token:carrieTurn.id}),/turn has changed/);
+await as(6);s=await state();
+assert.equal(s.canWrite,true);assert.equal(s.previous,liveSentence);assert.equal(s.story,null);
+assert.equal(s.queue.filter(turn=>turn.done).length,5);assert.equal(s.queue.length,30);
+const selinaTurn=s.queue.find(turn=>turn.current);assert.equal(selinaTurn.name,'Selina Xu');
+assert.ok(new Date(selinaTurn.activatedAt)>=new Date(beforeSubmit));
+assert.equal(new Date(s.turnExpiresAt)-new Date(selinaTurn.activatedAt),24*60*60*1000);
+assert.ok(new Date(selinaTurn.estimatedAt)<new Date(selinaOldEstimate),'remaining estimates move earlier immediately');
+await fixture('relay-selina-after',s);
+await state();await state();await db.exec('reset role');
+assert.deepEqual(await scalar("select jsonb_agg(to_jsonb(s) order by id) from public.relay_sentences s where event_slug='story-relay' and author_id<>$1",[uid(1)]),storyBefore,'existing text, authors, IDs and timestamps are preserved');
+assert.equal(await scalar('select count(*)::integer from public.notifications where dedupe_key=$1',[`relay_turn:${selinaTurn.id}:${uid(6)}`]),1);
+assert.equal(await scalar('select notified_at=activated_at from public.relay_turns where id=$1',[selinaTurn.id]),true);
+await db.query("update public.relay_turns set activated_at=now()-interval '23 hours 59 minutes' where id=$1",[selinaTurn.id]);
+await as(6);assert.equal((await state()).canWrite,true,'early progress never counts as missing a window');
+await db.exec('reset role');await db.query("update public.relay_turns set activated_at=now()-interval '25 hours' where id=$1",[selinaTurn.id]);
+await as(7);s=await state();assert.equal(s.canWrite,true);
+assert.equal(s.queue.filter(turn=>!turn.done)[5].id,selinaTurn.id,'actual 24-hour expiry defers five places');
+await db.exec('reset role');
+// Explicitly starting with a future target date also activates immediately.
+await db.exec("delete from public.relay_sentences where event_slug='story-relay'; delete from public.relay_turns where event_slug='story-relay'; update public.creative_events set phase='draft' where slug='story-relay'");
+await as(900);await act(relay,'start');await as(2);assert.equal((await state()).canWrite,true);
+console.log('PASS: JS/PostgreSQL dialogue cases, future dates never gate activation, same-day Carrie→Selina submission, fresh 24-hour window and one notification, moving estimates, preserved history, stale/unauthorized denial and five-place expiry');
 await db.close();

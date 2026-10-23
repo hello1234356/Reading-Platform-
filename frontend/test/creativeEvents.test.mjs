@@ -1,6 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { availableVotes, isSingleSentence, relayProgress, shanghaiDateInput, shanghaiMidnight, orderedWriterSlots, compiledRelayStory } from '../src/lib/creativeEventsModel.js';
+import { readFile } from 'node:fs/promises';
+import { availableVotes, isSingleSentence, sentenceValidationError, relaySubmissionError, relayProgress, shanghaiDateInput, shanghaiMidnight, orderedWriterSlots, compiledRelayStory } from '../src/lib/creativeEventsModel.js';
+
+const sentenceCases=JSON.parse(await readFile(new URL('./fixtures/relaySentences.json',import.meta.url),'utf8'));
+test('dialogue punctuation does not end the surrounding sentence',()=>{
+  for(const {text,valid} of sentenceCases) assert.equal(isSingleSentence(text),valid,text);
+  assert.equal(isSingleSentence('😀'.repeat(999)+'.'),true,'Unicode code points match PostgreSQL character limits');
+  assert.match(sentenceValidationError('x'.repeat(1000)+'.'),/2–1000/);
+  assert.match(sentenceValidationError('No ending'),/End your sentence/);
+});
+test('submission failures identify stale turns, account permissions, login and connection errors',()=>{
+  assert.match(relaySubmissionError({message:'The writing turn has changed. Refresh and try again.'}),/turn has changed or expired/);
+  assert.match(relaySubmissionError({code:'42501',message:'This room is invitation only.'}),/invited writer/);
+  assert.match(relaySubmissionError({message:'JWT expired'}),/login session has expired/);
+  assert.match(relaySubmissionError({message:'Failed to fetch'}),/connection failed/);
+  assert.equal(relaySubmissionError({message:'Submissions are paused.'}),'Submissions are paused.');
+});
 
 test('relay validation handles dialogue, abbreviations and Chinese', () => {
   for (const value of ['One sentence.', 'Dr. Li opened the door.', '“Really?!”', '门开了。', 'He paused… then ran!']) assert.equal(isSingleSentence(value), true, value);

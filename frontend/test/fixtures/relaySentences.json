@@ -1,0 +1,23 @@
+[
+  {"text":"“Var—WHAT?!” I choked, suddenly regretting how much I'd already eaten.","valid":true},
+  {"text":"\"Var—WHAT?!\" I choked, suddenly regretting how much I'd already eaten.","valid":true},
+  {"text":"‘Var—WHAT?!’ I choked, suddenly regretting how much I’d already eaten.","valid":true},
+  {"text":"'What?!' she asked.","valid":true},
+  {"text":"He whispered, \"Don't move!\"","valid":true},
+  {"text":"She asked, ‘What did he mean by “go now?!”?’","valid":true},
+  {"text":"“你在干什么？！”她问。","valid":true},
+  {"text":"「跑！」他喊道。","valid":true},
+  {"text":"Dr. Li said, “Go!”","valid":true},
+  {"text":"I didn’t understand the writers’ joke.","valid":true},
+  {"text":"“Really?!”","valid":true},
+  {"text":"He paused… then ran!","valid":true},
+  {"text":"Don't go. I'm leaving.","valid":false},
+  {"text":"“First. Second.”","valid":false},
+  {"text":"First. “Second?!”","valid":false},
+  {"text":"First. Second.","valid":false},
+  {"text":"\"First.\" he said. Then she left.","valid":false},
+  {"text":"“Go!” she said. “Stop!” he shouted.","valid":false},
+  {"text":"一句。第二句。","valid":false},
+  {"text":"No ending","valid":false},
+  {"text":"","valid":false}
+]

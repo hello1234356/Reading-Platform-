@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useEventsAccess } from '../context/eventsAccess';
 import { actOnCreativeEvent, findCreativeUsers, listCreativeEvents, readCreativeEvent } from '../lib/creativeEventsApi';
-import { availableVotes, isSingleSentence, relayProgress, shanghaiDateInput, shanghaiMidnight } from '../lib/creativeEventsModel';
+import { availableVotes, sentenceValidationError, relaySubmissionError, relayProgress, shanghaiDateInput, shanghaiMidnight } from '../lib/creativeEventsModel';
 import relayArt from '../assets/creative/story-relay.webp';
 import marketArt from '../assets/creative/theme-marketplace.webp';
 import CreativeRosterManager from '../components/CreativeRosterManager';
@@ -50,6 +50,7 @@ function ConnectedRoom({ slug }) {
   const [room, setRoom] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [noticeIsError, setNoticeIsError] = useState(false);
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
   const version = useRef({ request: 0, disposed: false });
@@ -61,8 +62,9 @@ function ConnectedRoom({ slug }) {
       if (!tracker.disposed && request === tracker.request) { setRoom(result); setError(''); }
     } catch (err) {
       if (!tracker.disposed && request === tracker.request) {
-        // Fail closed, including when an invitation was revoked in another tab.
-        setRoom(null);
+        // Keep an unsent draft visible through a temporary connection failure.
+        // Authorization failures still close the room immediately.
+        if (!/failed to fetch|fetch failed|networkerror|load failed/i.test(err.message || '')) setRoom(null);
         setError(err.code === '42501' ? 'This room is invitation only.' : 'The room could not be loaded. Please try again.');
       }
     }
@@ -77,26 +79,26 @@ function ConnectedRoom({ slug }) {
   }, [refresh]);
   async function act(action, payload, success = '') {
     if (pending.current) return false;
-    pending.current = true; setBusy(true); setNotice('');
+    pending.current = true; setBusy(true); setNotice(''); setNoticeIsError(false);
     try {
       await actOnCreativeEvent(slug, action, payload);
       await refresh(); setNotice(success); return true;
     } catch (err) {
-      await refresh(); setNotice(err.message || 'Please try again.'); return false;
+      await refresh(); setNotice(action==='submit' ? relaySubmissionError(err) : err.message || 'Please try again.'); setNoticeIsError(true); return false;
     } finally { pending.current = false; setBusy(false); }
   }
   if (!room) return <section className="up-loading"><p role={error ? 'alert' : 'status'}>{error || 'Opening the room…'}</p>{error && <button onClick={refresh}>Try again</button>}<Link to="/events">← Events</Link></section>;
-  return <CreativeEventRoom room={room} act={act} busy={busy} notice={notice} />;
+  return <CreativeEventRoom room={room} act={act} busy={busy} notice={notice} noticeIsError={noticeIsError} />;
 }
 
-export function CreativeEventRoom({ room, act, busy = false, notice = '' }) {
+export function CreativeEventRoom({ room, act, busy = false, notice = '', noticeIsError = false }) {
   const [projecting, setProjecting] = useState(false);
   const marketDialog = useRef(null);
   const marketWorkspace = room.kind === 'market' && room.phase === 'collecting';
   const relayWorkspace = room.kind === 'relay' && room.phase !== 'revealed' && !projecting;
   return <section className={`up-room up-${room.kind}${relayWorkspace ? ' up-relay-workspace' : ''}${marketWorkspace ? ' up-market-workspace' : ''}${projecting ? ' up-projecting' : ''}`}>
     {room.kind !== 'relay' && <div className="up-room-nav"><Link to="/events">← Events</Link><span>TSINGLAN UP <i>Writing Department</i></span><span className="up-market-actions">{room.organizer ? <button className="relay-manage" aria-label="Organizer controls" onClick={() => marketDialog.current.showModal()}>⚙</button> : 'INVITATION ONLY'}</span></div>}
-    {room.kind === 'relay' ? <Relay room={room} act={act} busy={busy} notice={notice} projecting={projecting} setProjecting={setProjecting} /> : <>
+    {room.kind === 'relay' ? <Relay room={room} act={act} busy={busy} notice={notice} noticeIsError={noticeIsError} projecting={projecting} setProjecting={setProjecting} /> : <>
       <Marketplace room={room} act={act} busy={busy} notice={notice} />
       {room.organizer && <dialog ref={marketDialog} className="up-organizer-dialog" aria-labelledby="market-organizer-title" onClick={e => { if (e.target === e.currentTarget) marketDialog.current.close(); }}>
         <div className="up-organizer-heading"><h2 id="market-organizer-title">Organizer’s desk</h2><button aria-label="Close organizer controls" onClick={() => marketDialog.current.close()}>×</button></div>
@@ -107,7 +109,7 @@ export function CreativeEventRoom({ room, act, busy = false, notice = '' }) {
   </section>;
 }
 
-function Relay({ room, act, busy, notice, projecting, setProjecting }) {
+function Relay({ room, act, busy, notice, noticeIsError, projecting, setProjecting }) {
   const { current, completed, total } = relayProgress(room.queue);
   const [sentence, setSentence] = useState('');
   const [validation, setValidation] = useState('');
@@ -119,8 +121,10 @@ function Relay({ room, act, busy, notice, projecting, setProjecting }) {
   const scheduledTotal = room.phase === 'draft' ? (room.scheduledTotal ?? roster.length * (room.turnsPerWriter || 2)) : total;
   async function submit(event) {
     event.preventDefault();
-    if (!room.canWrite) return;
-    if (!isSingleSentence(sentence)) { setValidation('Write one sentence, ending with punctuation.'); return; }
+    if (!room.canWrite) { setValidation('It is not your turn. Check who is marked “Now.” Your text has been kept.'); return; }
+    const problem=sentenceValidationError(sentence);
+    if (problem) { setValidation(problem); return; }
+    setValidation('');
     if (await act('submit', { sentence, token: room.writeToken }, 'Passed on.')) { setSentence(''); setValidation(''); }
   }
   if (room.phase === 'revealed' || projecting) return <StoryReveal room={room} projecting={projecting} setProjecting={setProjecting} />;
@@ -136,10 +140,10 @@ function Relay({ room, act, busy, notice, projecting, setProjecting }) {
         <div className="relay-previous"><h2>Previous sentence</h2><blockquote>{room.canWrite ? room.previous : waiting}</blockquote></div>
         <form className="relay-compose" onSubmit={submit}>
           <label htmlFor="relay-sentence">Your sentence</label>
-          <textarea id="relay-sentence" value={sentence} onChange={e => { setSentence(e.target.value); setValidation(''); }} required maxLength={1000} placeholder={room.canWrite ? 'And then…' : 'Waiting for your turn…'} disabled={busy || !room.canWrite} />
+          <textarea id="relay-sentence" value={sentence} onChange={e => { setSentence(e.target.value); setValidation(''); }} required aria-describedby="relay-feedback" aria-invalid={Boolean(validation || noticeIsError)} placeholder={room.canWrite ? 'And then…' : 'Waiting for your turn…'} disabled={busy || !room.canWrite} />
           <div className="relay-compose-footer">
-            <div className="relay-feedback">
-              {validation ? <p role="alert">{validation}</p> : notice ? <p role="status">{notice}</p> : room.canWrite && room.claimUntil ? <p role="status">Until {new Intl.DateTimeFormat('en', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' }).format(new Date(room.claimUntil))} Shanghai time</p> : null}
+            <div className="relay-feedback" id="relay-feedback">
+              {validation ? <p role="alert">{validation}</p> : notice ? <p role={noticeIsError ? 'alert' : 'status'}>{notice}</p> : room.canWrite && (room.turnExpiresAt || room.claimUntil) ? <p role="status">Until {new Intl.DateTimeFormat('en', { timeZone: 'Asia/Shanghai', month:'short', day:'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(room.turnExpiresAt || room.claimUntil))} Shanghai time</p> : null}
             </div>
             {room.canClaim ? <button type="button" className="up-action" disabled={busy} onClick={() => act('claim')}>Take the pen ↗</button> : <button className="up-action" disabled={busy || !room.canWrite}>Pass it on ↗</button>}
           </div>
@@ -158,7 +162,7 @@ function Relay({ room, act, busy, notice, projecting, setProjecting }) {
     </div>
     <dialog ref={queueDialog} className="up-organizer-dialog relay-queue-dialog" aria-labelledby="relay-queue-title" onClick={e=>{if(e.target===e.currentTarget)queueDialog.current.close();}}>
       <div className="up-organizer-heading"><h2 id="relay-queue-title">Writing order</h2><button aria-label="Close writing queue" onClick={()=>queueDialog.current.close()}>×</button></div>
-      <ol>{room.queue.map(turn=><li key={turn.id}><span>{turn.done ? '✓ ' : ''}{turn.name}{turn.pendingAccount ? ' · Account pending' : ''}</span><small>Round {turn.round}</small></li>)}</ol>
+      <ol>{room.queue.map(turn=><li key={turn.id}><span>{turn.done ? '✓ ' : ''}{turn.name}{turn.pendingAccount ? ' · Account pending' : ''}</span><small>Round {turn.round}{turn.estimatedAt ? ` · Est. ${new Intl.DateTimeFormat('en',{timeZone:'Asia/Shanghai',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(turn.estimatedAt))}` : ''}</small></li>)}</ol>
     </dialog>
     {room.organizer && <dialog ref={organizerDialog} className="up-organizer-dialog" aria-labelledby="relay-organizer-title" onClick={e => { if (e.target === e.currentTarget) organizerDialog.current.close(); }}>
       <div className="up-organizer-heading"><h2 id="relay-organizer-title">Organizer’s desk</h2><button aria-label="Close organizer controls" onClick={() => organizerDialog.current.close()}>×</button></div>
@@ -260,7 +264,7 @@ function Organizer({ room,act,busy,expanded = false }) {
     {tab==='queue' && <QueueEditor key={room.queue.map(t=>t.id).join(':')} room={room} busy={busy} act={act} />}
     {tab==='story' && <CreativeStoryAdmin room={room} />}
     {tab==='controls' && <div className="up-organizer-controls">
-      {room.phase==='draft' && <button disabled={busy} onClick={()=>act('start',{},'The relay is ready. The first turn opens on the start date.')}>Start relay</button>}
+      {room.phase==='draft' && <button disabled={busy} onClick={()=>act('start',{},'The relay is active. The first writer has been notified.')}>Start relay</button>}
       {room.phase==='scheduled' && <button disabled={busy || room.queue.some(turn=>!turn.done)} onClick={()=>act('open-free')}>Open free writing</button>}
       {['scheduled','free'].includes(room.phase) && <button disabled={busy} onClick={()=>act('pause')}>Pause submissions</button>}
       {room.phase==='paused' && <button disabled={busy} onClick={()=>act('resume')}>Resume submissions</button>}
@@ -278,7 +282,7 @@ function RelaySettings({room,busy,act}) {
   const [opening,setOpening]=useState(room.openingSentence || '');
   const [turns,setTurns]=useState(room.turnsPerWriter || 2);
   return <form className="up-settings" onSubmit={e=>{e.preventDefault();void act('settings',{...Object.fromEntries(Object.entries(values).map(([k,v])=>[k,shanghaiMidnight(v)])),openingSentence:opening,turnsPerWriter:Number(turns)},'Dates and opening saved.');}}>
-    {[['startsAt','Round one'],['roundTwoAt','Round two target'],['freeAt','Free writing target'],['revealAt','Party / reveal']].map(([key,label])=><label key={key}>{label}<input type="date" required value={values[key]} onChange={e=>setValues({...values,[key]:e.target.value})}/></label>)}
+    {[['startsAt','Round one target'],['roundTwoAt','Round two target'],['freeAt','Free writing target'],['revealAt','Party / reveal']].map(([key,label])=><label key={key}>{label}<input type="date" required value={values[key]} onChange={e=>setValues({...values,[key]:e.target.value})}/></label>)}
     <label>Turns per writer<input type="number" required min={1} max={8} value={turns} disabled={room.phase!=='draft'} onChange={e=>setTurns(e.target.value)}/></label>
     <label htmlFor="up-opening-sentence">Opening sentence</label><textarea id="up-opening-sentence" required maxLength={1000} value={opening} disabled={room.phase!=='draft'} onChange={e=>setOpening(e.target.value)}/><button disabled={busy}>Save settings</button>
   </form>;
