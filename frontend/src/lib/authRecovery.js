@@ -53,9 +53,14 @@ export function recoveryErrorKey(error,step) {
   if (error?.code==="password_mismatch") return "auth.passwordMismatch";
   if (error?.code==="same_password") return "auth.passwordUnchanged";
   if (error?.code==="weak_password") return "auth.passwordStronger";
-  if (error?.status===429 || /rate|too many/.test(message)) return "auth.resetRateLimited";
-  if (/fetch|network|failed to connect|load failed/.test(message)) return "auth.resetNetworkError";
+  if (error?.status===429 || ["over_request_rate_limit","over_email_send_rate_limit"].includes(error?.code) || /rate limit|too many/.test(message)) return "auth.resetRateLimited";
   if (/supabase url|anon key|\.env/.test(message)) return "auth.resetUnavailable";
+  if (error?.code==="email_address_not_authorized" || /error sending.*email|smtp|mail.*delivery/.test(message)) return "auth.resetEmailServiceError";
+  if (error?.code==="request_timeout" || error?.status===504) return "auth.resetTimeout";
+  // An HTTP response means the service was reached. Classify server failures
+  // before browser transport errors, even if the server mentions "fetch".
+  if (error?.status>=500 || error?.code==="unexpected_failure") return "auth.resetServiceError";
+  if ((error?.name==="AuthRetryableFetchError" && error?.status===0) || /^(failed to fetch|fetch failed|networkerror|load failed)|network request failed|failed to connect/i.test(message)) return "auth.resetNetworkError";
   if (error?.code==="recovery_session_invalid" || /session|jwt|reauthenticat/.test(message)) return "auth.resetSessionExpired";
   if (step==="verify") return "auth.resetCodeInvalid";
   return step==="password" ? "auth.resetUpdateError" : "auth.resetRequestError";

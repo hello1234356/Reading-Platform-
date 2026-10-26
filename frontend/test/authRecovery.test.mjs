@@ -78,6 +78,22 @@ test("recovery errors have English and Chinese copy without exposing raw backend
   const key=recoveryErrorKey(error,step).split(".")[1];assert.ok(en.auth[key]);assert.ok(zh.auth[key]);
  }
 });
+test("server, email delivery and timeout failures are not blamed on the user's connection",()=>{
+ const cases=[
+  [{name:"AuthRetryableFetchError",status:0,message:"Load failed"},"auth.resetNetworkError"],
+  [new TypeError("Failed to fetch"),"auth.resetNetworkError"],
+  [{status:503,message:"Failed to fetch upstream response"},"auth.resetServiceError"],
+  [{code:"unexpected_failure",status:500,message:"Internal server error"},"auth.resetServiceError"],
+  [{status:500,message:"Error sending recovery email"},"auth.resetEmailServiceError"],
+  [{code:"email_address_not_authorized",status:403},"auth.resetEmailServiceError"],
+  [{code:"request_timeout",status:500},"auth.resetTimeout"],
+  [{code:"over_email_send_rate_limit"},"auth.resetRateLimited"],
+ ];
+ for(const [error,key] of cases) {
+  assert.equal(recoveryErrorKey(error,"request"),key);
+  assert.ok(en.auth[key.split(".")[1]]);assert.ok(zh.auth[key.split(".")[1]]);
+ }
+});
 test("recovery email contains a one-time code instead of a hash-router login link",async()=>{
  const template=await readFile(new URL("../../supabase/templates/recovery.html",import.meta.url),"utf8");
  assert.match(template,/\{\{ \.Token \}\}/);assert.doesNotMatch(template,/ConfirmationURL|TokenHash/);
