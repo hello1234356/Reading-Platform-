@@ -14,6 +14,8 @@ import {
 } from "../lib/authOtp";
 import loginBackground from "../assets/login-background.png";
 import loginBackgroundPortrait from "../assets/login-background-portrait.png";
+import PasswordRecovery from "../components/PasswordRecovery";
+import { clearPendingRecoveryEmail, readPendingRecoveryEmail } from "../lib/authRecovery";
 
 const RESEND_COOLDOWN_MS = 30_000;
 
@@ -22,8 +24,9 @@ export default function Login() {
   const location = useLocation();
   const returnTo = typeof location.state?.from === "string" && location.state.from.startsWith("/") && !location.state.from.startsWith("//") ? location.state.from : "/";
   const { t } = useTranslation();
-  const restoredEmail = readPendingSignupEmail(window.sessionStorage);
-  const [mode, setMode] = useState(restoredEmail ? "verify" : "login");
+  const restoredRecoveryEmail = readPendingRecoveryEmail(window.sessionStorage);
+  const restoredEmail = restoredRecoveryEmail || readPendingSignupEmail(window.sessionStorage);
+  const [mode, setMode] = useState(restoredRecoveryEmail ? "recovery" : restoredEmail ? "verify" : "login");
   const [email, setEmail] = useState(restoredEmail);
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -43,6 +46,7 @@ export default function Login() {
     setPassword("");
     setCode("");
     if (nextMode !== "verify") clearPendingSignupEmail(window.sessionStorage);
+    if (nextMode !== "recovery") clearPendingRecoveryEmail(window.sessionStorage);
     setMode(nextMode);
   }
 
@@ -120,6 +124,7 @@ export default function Login() {
   }
 
   const isVerify = mode === "verify";
+  const isRecovery = mode === "recovery";
 
   return (
     <main className="login-showcase-page" style={{
@@ -128,9 +133,9 @@ export default function Login() {
     }}>
       <section className="login-illustration-panel">
         <div className="login-left-copy">
-          <h1>{isVerify ? t("auth.almostThere") : t("auth.welcomeBack")}</h1>
+          <h1>{isRecovery ? t("auth.resetWelcome") : isVerify ? t("auth.almostThere") : t("auth.welcomeBack")}</h1>
           <span className="login-squiggle" />
-          <p>{isVerify
+          <p>{isRecovery ? t("auth.resetIntro") : isVerify
             ? t("auth.verifyIntro")
             : t("auth.loginIntro")}</p>
         </div>
@@ -140,11 +145,11 @@ export default function Login() {
         <div className="login-card-header">
           <div className="book-stack-icon" aria-hidden="true"><span /><span /><span /></div>
           <div className="leaf-icon" aria-hidden="true">⌁</div>
-          <h2>{isVerify ? t("auth.checkEmail") : mode === "login" ? t("auth.loginTitle") : t("auth.signupTitle")}</h2>
-          <p>{isVerify ? t("auth.sentTo", { email }) : t("auth.tagline")}</p>
+          <h2>{isRecovery ? t("auth.resetTitle") : isVerify ? t("auth.checkEmail") : mode === "login" ? t("auth.loginTitle") : t("auth.signupTitle")}</h2>
+          <p>{isRecovery ? t("auth.resetSubtitle") : isVerify ? t("auth.sentTo", { email }) : t("auth.tagline")}</p>
         </div>
 
-        {isVerify ? (
+        {isRecovery ? <PasswordRecovery initialEmail={email} onBack={()=>goTo("login")} onComplete={()=>navigate(returnTo, { replace: true })}/> : isVerify ? (
           <form className="beautiful-login-form" onSubmit={handleVerify}>
             <label>
               <span>{t("auth.code")}</span>
@@ -183,6 +188,7 @@ export default function Login() {
                 <em aria-hidden="true">⌕</em>
               </div>
             </label>
+            {mode === "login" && <button className="login-forgot-password" type="button" disabled={loading} onClick={()=>goTo("recovery")}>{t("auth.forgot")}</button>}
             <button className="beautiful-login-button" disabled={loading}>
               {loading ? t("auth.pleaseWait") : mode === "login" ? t("auth.login") : t("auth.signup")}
             </button>
@@ -191,7 +197,7 @@ export default function Login() {
 
         {message && <p className="login-message beautiful-message" role="status">{message}</p>}
 
-        {isVerify ? (
+        {isRecovery ? null : isVerify ? (
           <div className="login-verification-actions">
             <button type="button" onClick={handleResend} disabled={resending || resendCoolingDown}>
               {resending ? t("auth.sending") : resendCoolingDown ? t("auth.codeSent") : t("auth.resend")}

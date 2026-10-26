@@ -216,6 +216,11 @@
   font-weight: 900;
 }
 
+.login-forgot-password { justify-self:end; border:0; background:transparent; padding:4px 0; color:#a85443; font-size:14px; text-decoration:underline; }
+.password-recovery { display:grid; gap:22px; }
+.password-recovery > .beautiful-login-button { width:100%; }
+.login-recovery-help { color:#735f52; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+
 .login-verification-actions {
   display: flex;
   justify-content: center;
