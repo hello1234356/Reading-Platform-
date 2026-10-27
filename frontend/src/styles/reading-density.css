@@ -289,3 +289,173 @@
     padding: 12px 14px;
   }
 }
+
+/* Shelf summaries stay together; reviews use a cover-and-copy row on small screens. */
+@media (max-width: 1100px) {
+  .profile-page .profile-shelf-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    overflow: visible;
+  }
+
+  .profile-page .profile-shelf-card {
+    min-height: 164px;
+    grid-template-rows: auto auto auto auto;
+    align-content: center;
+    gap: 6px;
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .profile-page .profile-shelf-card > span {
+    min-height: 2.3em;
+    font-size: clamp(20px, 3vw, 24px);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-page .profile-shelf-card > strong {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .profile-page .profile-shelf-card > small {
+    max-width: 100%;
+    min-height: 2.8em;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .profile-page .profile-shelf-mini-books {
+    min-height: 30px;
+    gap: 4px;
+    margin-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .profile-page .profile-shelf-mini-books:empty {
+    visibility: hidden;
+  }
+
+  .profile-page .profile-shelf-mini-books i {
+    flex-basis: 9px;
+    width: 9px;
+    height: 22px;
+  }
+
+  .profile-page .profile-shelf-mini-books i:nth-child(2n) {
+    height: 26px;
+  }
+
+  .profile-page .profile-shelf-mini-books i:nth-child(3n) {
+    height: 18px;
+  }
+
+  .profile-page .profile-shelf-mini-books i:nth-child(4n) {
+    height: 24px;
+  }
+
+  .profile-page .profile-shelf-overview,
+  .profile-page .profile-reviews {
+    gap: 12px;
+  }
+
+  .profile-page :is(.profile-shelf-overview, .profile-reviews) .section-heading {
+    margin-bottom: 0;
+  }
+
+  .profile-page :is(.profile-shelf-overview, .profile-reviews) .section-heading h2 {
+    font-size: clamp(24px, 3.5vw, 30px);
+  }
+
+  .profile-page .profile-review-list {
+    gap: 0;
+  }
+
+  .profile-page .profile-review {
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-page .profile-review:last-child {
+    border-bottom: 0;
+  }
+
+  .profile-page .profile-review-media {
+    min-width: 0;
+    align-self: center;
+    gap: 6px;
+  }
+
+  .profile-page .profile-review-media img,
+  .profile-page .profile-review-media > .book-cover-placeholder {
+    width: 64px;
+    height: 96px;
+    max-width: 100%;
+    border-radius: 6px 12px 12px 6px;
+  }
+
+  .profile-page .profile-review > section {
+    min-width: 0;
+  }
+
+  .profile-page .profile-review h3 {
+    font-size: clamp(20px, 3.2vw, 26px);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-page .profile-review p {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .profile-page .profile-review small {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+}
+
+@media (max-width: 760px) {
+  .profile-page .profile-shelf-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .profile-page .profile-shelf-card {
+    padding: 16px 14px;
+  }
+
+  .profile-page .profile-shelf-card:last-child {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    min-height: 96px;
+    column-gap: 12px;
+  }
+
+  .profile-page .profile-shelf-card:last-child > span {
+    min-height: 0;
+  }
+
+  .profile-page .profile-shelf-card:last-child > strong {
+    align-self: center;
+  }
+
+  .profile-page .profile-shelf-card:last-child > small {
+    min-height: 0;
+  }
+
+  .profile-page .profile-shelf-card:last-child .profile-shelf-mini-books:empty {
+    display: none;
+  }
+}

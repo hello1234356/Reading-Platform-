@@ -1297,7 +1297,7 @@ function Profile() {
                       className="profile-review-stars"
                       aria-label={`${review.rating} out of 5 open books`}
                     >
-                      <StarRating rating={review.rating} />
+                      <StarRating rating={review.rating} size={16} />
                     </div>
                   )}
                 </div>
