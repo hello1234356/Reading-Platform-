@@ -157,6 +157,7 @@ const zh = {
     noDescription: "暂时没有简介。", moveTo: "移动至", removeLibrary: "从书库移除",
     removing: "移除中…", editReview: "查看 / 编辑书评", addReview: "添加书评",
     addFavorite: "再添加一本你喜欢的书", addFavorites: "添加四本最喜欢的书",
+    removeFavorite: "从挚爱中移除《{{title}}》",
     favoritesHelp: "搜索你的书库，把最能代表你的书固定在这里。", readingChallenge: "{{year}} 阅读挑战",
     booksCompleted: "已读完书籍", goalProgress: "已完成年度目标的 {{progress}}%", tracker: "阅读进度",
     openNow: "正在阅读", pageAbbr: "页", personalShelves: "个人书架", yourShelves: "你的书架",

@@ -157,6 +157,7 @@ const en = {
     noDescription: "No description available yet.", moveTo: "Move to", removeLibrary: "Remove from Library",
     removing: "Removing...", editReview: "View / Edit Review", addReview: "Add Review",
     addFavorite: "Add another favorite book", addFavorites: "Add your four favorite books",
+    removeFavorite: "Remove {{title}} from favorites",
     favoritesHelp: "Search your library and pin the books that feel most like you.", readingChallenge: "{{year}} Reading Challenge",
     booksCompleted: "Books Completed", goalProgress: "{{progress}}% Of This Year's Goal", tracker: "Reading Tracker",
     openNow: "Open Right Now", pageAbbr: "pg", personalShelves: "Personal bookshelves", yourShelves: "Your Shelves",

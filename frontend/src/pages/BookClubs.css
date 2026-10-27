@@ -123,9 +123,12 @@
   }
 }
 .club-empty-state {
+  grid-column: 1 / -1;
+  width: 100%;
   max-width: 46rem;
   margin: 8px auto;
-  padding: 2rem;
+  padding: clamp(24px, 4vw, 40px) clamp(24px, 5vw, 56px);
+  color: var(--soft-gray);
   text-align: center;
   font-size: 1rem;
   line-height: 1.6;
@@ -694,14 +697,6 @@
 .create-club-preview p {
   color: var(--soft-gray);
   font-size: 13px;
-}
-
-.club-empty-state {
-  grid-column: 1 / -1;
-  padding: 28px 0;
-  color: var(--soft-gray);
-  font-family: var(--heading);
-  font-size: 28px;
 }
 
 .club-locked-room {

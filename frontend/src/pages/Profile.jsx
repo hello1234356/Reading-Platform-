@@ -1084,6 +1084,7 @@ function Profile() {
                     <button
                       className="profile-favorite-remove"
                       type="button"
+                      aria-label={t("profile.removeFavorite", { title: book.title })}
                       onClick={(event) => {
                         event.stopPropagation();
                         removeFavoriteBook(book.isbn);

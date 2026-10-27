@@ -104,13 +104,37 @@
 
 .profile-favorites > div {
   display: grid;
-  grid-template-columns: repeat(4, minmax(74px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 124px));
   gap: 14px;
   align-items: end;
 }
 
+.profile-favorite-wrapper {
+  position: relative;
+  min-width: 0;
+  display: grid;
+}
+
+.profile-favorite-remove {
+  position: absolute;
+  z-index: 1;
+  top: -8px;
+  right: -8px;
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--deep-mocha);
+  font-size: 18px;
+  line-height: 1;
+  box-shadow: 0 4px 10px rgba(89, 67, 49, 0.12);
+}
+
 .profile-favorite-book {
   position: relative;
+  width: 100%;
   aspect-ratio: 2 / 3;
   overflow: hidden;
   padding: 0;
@@ -186,6 +210,7 @@
   aspect-ratio: 2 / 3;
   border-radius: 14px 24px 24px 14px;
   font-size: 44px;
+  animation: none;
 }
 
 @keyframes favoritePulse {

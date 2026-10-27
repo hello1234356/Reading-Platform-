@@ -144,17 +144,19 @@
     font-size: clamp(25px, 2vw, 29px);
   }
 
-  .profile-page {
+  .home-page.profile-page {
     gap: 30px;
+    padding-top: 18px;
   }
 
   .profile-hero {
     gap: 22px;
-    padding-top: 20px;
+    padding-top: 0;
   }
 
   .profile-banner {
     min-height: 270px;
+    grid-template-rows: auto auto;
     gap: 20px;
     padding: 26px;
   }
@@ -168,6 +170,10 @@
     width: 108px;
     height: 108px;
     font-size: 52px;
+  }
+
+  .profile-favorites > div {
+    grid-template-columns: repeat(4, minmax(0, clamp(88px, 14vh, 124px)));
   }
 
   .profile-identity h1 {
