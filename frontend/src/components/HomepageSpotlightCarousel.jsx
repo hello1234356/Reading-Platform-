@@ -1,5 +1,5 @@
 import OctoberDecorations from "./seasonal/OctoberDecorations";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -164,7 +164,29 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
   const [autoplayResetKey, setAutoplayResetKey] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const touchStart = useRef(null);
+  const carouselRef = useRef(null);
   const slides = createHomepageSlides(banners);
+  const quoteActive = slides[activeIndex]?.type === "quote";
+
+  // Let the quote determine its height, including translated copy and loaded fonts.
+  useLayoutEffect(() => {
+    const carousel = carouselRef.current;
+    const panel = carousel?.querySelector('.homepage-quote-slide[aria-hidden="false"] .daily-quote-panel');
+    if (!quoteActive || !panel) return undefined;
+
+    const measure = () => {
+      const slideStyle = getComputedStyle(panel.parentElement);
+      const navigationSpace = carousel.querySelector(".homepage-spotlight-pagination") ? 36 : 0;
+      const height = Math.ceil(panel.getBoundingClientRect().height
+        + parseFloat(slideStyle.paddingTop) + parseFloat(slideStyle.paddingBottom)
+        + navigationSpace);
+      carousel.style.setProperty("--quote-slide-height", `${height}px`);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(panel);
+    measure();
+    return () => observer.disconnect();
+  }, [quoteActive, dailyQuote, slides.length]);
 
   const goToSlide = useCallback((index, manual = true) => {
     const nextIndex = wrapCarouselIndex(index, slides.length);
@@ -268,7 +290,8 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
 
   return (
     <section
-      className={`reading-room-hero homepage-spotlight-carousel${reducedMotion ? " reduced-motion" : ""}`}
+      ref={carouselRef}
+      className={`reading-room-hero homepage-spotlight-carousel${quoteActive ? " is-quote-active" : ""}${reducedMotion ? " reduced-motion" : ""}`}
       aria-roledescription="carousel"
       aria-label={t("banners.spotlights")}
       onMouseEnter={() => setHovered(true)}

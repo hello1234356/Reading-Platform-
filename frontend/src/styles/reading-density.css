@@ -1,0 +1,291 @@
+/* Content-sized quotes and compact book previews at every viewport. */
+.reading-room-hero.homepage-spotlight-carousel.is-quote-active {
+  min-height: 0;
+  height: max(380px, var(--quote-slide-height, 380px));
+  aspect-ratio: auto;
+}
+
+.homepage-spotlight-slide.homepage-quote-slide {
+  align-items: center;
+  padding: 28px 48px;
+}
+
+.homepage-quote-slide .daily-quote-meta span {
+  padding: 5px 10px;
+}
+
+.homepage-quote-slide .daily-quote-panel blockquote {
+  margin-top: 12px;
+}
+
+.homepage-quote-slide .daily-quote-panel h1 {
+  font-size: clamp(36px, 4.2vw, 58px);
+  line-height: 1.12;
+}
+
+.homepage-quote-slide .daily-quote-credit {
+  margin-top: 12px;
+}
+
+.homepage-quote-slide .daily-quote-credit p {
+  font-size: 24px;
+}
+
+.homepage-quote-slide .daily-quote-actions {
+  margin-top: 16px;
+}
+
+.homepage-quote-slide .daily-quote-actions .hero-action {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 9px 18px;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.discovery-editor-picks .section-heading {
+  margin-bottom: 0;
+}
+
+.discovery-editor-picks .discovery-book-cover {
+  align-content: stretch;
+}
+
+.discovery-editor-picks .discovery-book-cover.featured {
+  aspect-ratio: 2 / 3;
+}
+
+.discovery-editor-picks .discovery-book-cover.featured img {
+  height: 100%;
+  max-height: 100%;
+}
+
+.discovery-editor-picks .discovery-featured-pick > div:last-child,
+.discovery-editor-picks .discovery-pick-card > div:last-child {
+  min-width: 0;
+}
+
+.discovery-editor-picks :is(.discovery-featured-pick, .discovery-pick-card) h3 {
+  overflow-wrap: anywhere;
+}
+
+.discovery-editor-picks :is(.discovery-featured-pick, .discovery-pick-card) blockquote {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.discovery-editor-picks .editor-pick-cta {
+  min-height: 34px;
+  margin-top: 12px;
+  padding-inline: 14px;
+  font-size: 13px;
+}
+
+@media (min-width: 1101px) {
+  .discovery-editor-picks .discovery-pick-showcase {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick {
+    grid-template-columns: 130px minmax(0, 1fr);
+    min-height: 0;
+    gap: 20px;
+    padding: 22px;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick h3 {
+    font-size: 32px;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick blockquote {
+    -webkit-line-clamp: 4;
+  }
+
+  .discovery-editor-picks .discovery-book-cover.featured {
+    min-height: 0;
+  }
+
+  .discovery-editor-picks .discovery-pick-card {
+    grid-template-columns: 72px minmax(0, 1fr);
+    min-height: 132px;
+    gap: 14px;
+    padding: 12px 16px;
+  }
+
+  .discovery-editor-picks .discovery-pick-card .discovery-book-cover {
+    min-height: 0;
+    aspect-ratio: 2 / 3;
+  }
+
+  .discovery-editor-picks .discovery-pick-card h3 {
+    margin-top: 4px;
+    font-size: 24px;
+    line-height: 1.1;
+  }
+}
+
+/* Tablets and thin windows: one horizontal feature, then two compact picks. */
+@media (max-width: 1100px) {
+  .reading-room-hero.homepage-spotlight-carousel {
+    min-height: 0;
+  }
+
+  .reading-room-hero.homepage-spotlight-carousel.is-quote-active {
+    height: max(320px, var(--quote-slide-height, 320px));
+  }
+
+  .homepage-spotlight-slide.homepage-quote-slide {
+    padding: 22px 28px;
+  }
+
+  .homepage-quote-slide .daily-quote-panel h1 {
+    font-size: clamp(28px, 4.5vw, 40px);
+  }
+
+  .homepage-quote-slide .daily-quote-credit {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+
+  .homepage-quote-slide .daily-quote-credit p {
+    font-size: 22px;
+  }
+
+  .discovery-editor-picks {
+    gap: 14px;
+  }
+
+  .discovery-editor-picks .section-heading h2 {
+    font-size: clamp(24px, 3.5vw, 30px);
+    line-height: 1.12;
+  }
+
+  .discovery-editor-picks .discovery-pick-showcase {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .discovery-editor-picks .discovery-pick-grid {
+    display: contents;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick {
+    grid-column: 1 / -1;
+    grid-template-columns: 104px minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+    min-height: 0;
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .discovery-editor-picks .discovery-book-cover.featured {
+    width: 100%;
+    min-height: 0;
+    align-self: center;
+  }
+
+  .discovery-editor-picks .discovery-book-cover.featured img {
+    max-height: 156px;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick h3 {
+    margin-top: 4px;
+    font-size: 26px;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick blockquote {
+    max-width: 100%;
+    margin-top: 8px;
+    font-size: 14px;
+  }
+
+  .discovery-editor-picks .discovery-pick-card {
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    min-height: 0;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .discovery-editor-picks .discovery-pick-card .discovery-book-cover {
+    width: 100%;
+    min-height: 0;
+    aspect-ratio: 2 / 3;
+    border-radius: 5px;
+  }
+
+  .discovery-editor-picks .discovery-pick-card h3 {
+    margin-top: 4px;
+    font-size: 20px;
+    line-height: 1.1;
+  }
+
+  .discovery-editor-picks .discovery-pick-card blockquote {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .discovery-editor-picks :is(.discovery-featured-pick, .discovery-pick-card) p {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+}
+
+/* Phones: book-sized covers alongside readable summaries, never poster cards. */
+@media (max-width: 560px) {
+  .homepage-spotlight-slide.homepage-quote-slide {
+    padding: 20px 18px;
+  }
+
+  .homepage-quote-slide .daily-quote-panel blockquote,
+  .homepage-quote-slide .daily-quote-credit,
+  .homepage-quote-slide .daily-quote-actions {
+    padding-left: 0;
+  }
+
+  .homepage-quote-slide .daily-quote-panel h1 {
+    font-size: clamp(26px, 7vw, 32px);
+  }
+
+  .homepage-quote-slide .daily-quote-credit small {
+    font-size: 10px;
+  }
+
+  .homepage-quote-slide .daily-quote-actions .hero-action {
+    font-size: 13px;
+  }
+
+  .discovery-editor-picks .discovery-pick-showcase {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick h3 {
+    font-size: 23px;
+  }
+
+  .discovery-editor-picks .discovery-featured-pick blockquote {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .discovery-editor-picks .discovery-pick-card {
+    padding: 12px 14px;
+  }
+}

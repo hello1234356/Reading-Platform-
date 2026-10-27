@@ -1027,7 +1027,6 @@
 
   .discovery-pick-card {
     grid-template-columns: 1fr;
-    grid-template-rows: 250px minmax(0, 1fr);
   }
 
   .discovery-book-cover {
