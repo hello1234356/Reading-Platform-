@@ -44,7 +44,7 @@ const en = {
     queueHelp: "Resolving an item updates this queue for every admin.",
   },
   app: { 
-    checkingAccount: "Checking account", openingRoom: "Opening your reading room...",
+    checkingAccount: "Checking account", openingRoom: "Opening your reading room…",
     previewInterrupted: "Preview interrupted", loadFailed: "The Reading Room could not load.",
     refreshHelp: "Refresh the preview. If it stays here, check the browser console for the first React error.",
   },

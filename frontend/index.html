@@ -24,30 +24,83 @@
       content="width=device-width, initial-scale=1.0"
     />
 
-    <meta name="theme-color" content="#f8f6f1" />
+    <meta name="theme-color" content="#fffaf1" />
 
     <title>LitShelf</title>
+
+    <script>
+      try {
+        if (localStorage.getItem("litshelf-language") === "zh-CN") {
+          document.documentElement.lang = "zh-CN";
+        }
+      } catch { /* Loading also works without browser storage. */ }
+    </script>
+
+    <style>
+      body { margin: 0; background: #fffaf1; }
+      .app-loading-screen {
+        min-height: 100vh;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        box-sizing: border-box;
+        padding: 32px 24px;
+        background: radial-gradient(ellipse at center, #fbf4e8, #fffaf1 70%);
+        color: #746a62;
+      }
+      .app-loading-content {
+        display: grid;
+        justify-items: center;
+        gap: 20px;
+        max-width: 320px;
+        text-align: center;
+      }
+      .app-loading-logo { display: block; width: 180px; max-width: 100%; height: auto; }
+      .app-loading-message { margin: 0; font: 14px/1.5 "Helvetica Neue", Arial, sans-serif; }
+      .app-loading-zh { display: none; }
+      html[lang="zh-CN"] .app-loading-en { display: none; }
+      html[lang="zh-CN"] .app-loading-zh { display: inline; }
+      .app-loading-indicator {
+        display: block;
+        position: relative;
+        width: 88px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #eadfce;
+      }
+      .app-loading-indicator::after {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 32px;
+        border-radius: inherit;
+        background: #8a6a58;
+        animation: loading-drift 1.8s ease-in-out infinite alternate;
+      }
+      @keyframes loading-drift { to { transform: translateX(56px); } }
+      @media (prefers-reduced-motion: reduce) {
+        .app-loading-indicator::after { animation: none; left: 28px; }
+      }
+    </style>
   </head>
 
   <body>
     <div id="root">
-      <main style="min-height: 100vh; padding: 40px; background: #f8f6f1; color: #2c2c2c; font-family: Georgia, serif;">
-        <p style="margin: 0 0 8px; color: #666666; font: 600 12px Arial, sans-serif;">
-          LitShelf / Tsinglan Reading Social
-        </p>
-
-        <h1 style="margin: 0 0 12px; color: #24364a; font-size: 48px; font-weight: 500;">
-          The Reading Room
-        </h1>
-
-        <p style="max-width: 560px; margin: 0; color: #666666; font: 16px/1.7 Arial, sans-serif;">
-          If this message stays on screen, the React preview has not loaded yet. Start the Vite dev server from the frontend folder.
-        </p>
+      <main class="app-loading-screen">
+        <div class="app-loading-content">
+          <img class="app-loading-logo" src="/branding/litshelf-logo9.svg" alt="LitShelf" width="180" height="49" />
+          <span class="app-loading-indicator" aria-hidden="true"></span>
+          <p class="app-loading-message" role="status">
+            <span class="app-loading-en">Opening your reading room…</span>
+            <span class="app-loading-zh">正在进入你的阅读空间…</span>
+          </p>
+        </div>
       </main>
     </div>
 
     <noscript>
-      This reading platform needs JavaScript enabled to load the interactive feed.
+      Enable JavaScript to open LitShelf.
     </noscript>
 
     <script type="module" src="/src/main.jsx"></script>

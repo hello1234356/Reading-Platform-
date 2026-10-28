@@ -31,10 +31,10 @@ function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <main className="error-panel">
-        <p className="eyebrow">{t("app.checkingAccount")}</p>
-        <h1>{t("app.openingRoom")}</h1>
-      </main>
+      <div className="account-loading-state" role="status">
+        <span className="app-loading-indicator" aria-hidden="true" />
+        <p>{t("app.openingRoom")}</p>
+      </div>
     );
   }
 
