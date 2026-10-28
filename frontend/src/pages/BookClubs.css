@@ -315,8 +315,8 @@
   filter: saturate(0.96) contrast(1) drop-shadow(0 5px 9px rgba(var(--shadow-rgb), 0.09));
 }
 
-.club-cover span,
-.club-detail-cover span {
+.club-cover > span,
+.club-detail-cover > span {
   position: relative;
   z-index: 1;
   width: fit-content;
@@ -684,6 +684,50 @@
 
 .create-club-preview .club-detail-cover {
   min-height: 300px;
+}
+
+.create-club-preview .club-detail-cover:has(> .book-cover-placeholder) {
+  width: 100%;
+  min-height: 220px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.create-club-preview .club-detail-cover:has(> .book-cover-placeholder)::after {
+  content: none;
+}
+
+.create-club-preview .book-cover-placeholder {
+  min-height: 220px;
+  gap: 12px;
+  padding: 24px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.create-club-preview .book-cover-placeholder-mark {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 54px;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  background: url("../assets/book-open-placeholder.svg") center / contain no-repeat;
+  opacity: 1;
+}
+
+.create-club-preview .book-cover-placeholder-mark::after {
+  content: none;
+}
+
+.create-club-preview .book-cover-placeholder-label {
+  color: var(--soft-gray);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .create-club-preview strong {
