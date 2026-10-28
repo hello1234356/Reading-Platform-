@@ -32,7 +32,7 @@
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.02em;
-  box-shadow: 0 10px 22px rgba(89, 67, 49, 0.07);
+  box-shadow: 0 4px 10px rgba(var(--shadow-rgb), 0.04);
 }
 
 .discovery-search-bar {
@@ -146,7 +146,7 @@
   color: var(--charcoal);
   text-align: left;
   scroll-snap-align: start;
-  box-shadow: 0 10px 24px rgba(89, 67, 49, 0.07);
+  box-shadow: 0 4px 11px rgba(var(--shadow-rgb), 0.04);
 }
 
 .recent-finish-card:hover {
@@ -268,7 +268,7 @@
   padding: 10px;
   border-radius: 22px;
   background: rgba(255, 250, 241, 0.84);
-  box-shadow: 0 16px 42px rgba(89, 67, 49, 0.16);
+  box-shadow: 0 6px 19px rgba(var(--shadow-rgb), 0.09);
   backdrop-filter: blur(10px);
 }
 
@@ -634,7 +634,7 @@
   height: auto;
   max-height: 290px;
   object-fit: contain;
-  filter: drop-shadow(0 10px 14px rgba(89, 67, 49, 0.16));
+  filter: drop-shadow(0 4px 6px rgba(var(--shadow-rgb), 0.09));
 }
 
 @media (max-width: 600px) {
@@ -662,7 +662,7 @@
   padding: 18px;
   border-radius: 28px;
   background: rgba(255, 250, 241, 0.58);
-  box-shadow: 0 14px 30px rgba(89, 67, 49, 0.08);
+  box-shadow: 0 5px 14px rgba(var(--shadow-rgb), 0.04);
 }
 
 .discovery-pick-card.sea {
@@ -703,7 +703,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 24px 28px rgba(89, 67, 49, 0.24));
+  filter: drop-shadow(0 8px 13px rgba(var(--shadow-rgb), 0.13));
 }
 
 .discovery-book-cover > span {
@@ -787,7 +787,7 @@
   background: var(--deep-mocha);
   color: var(--paper);
   font-weight: 900;
-  box-shadow: 0 14px 26px rgba(74, 56, 47, 0.2);
+  box-shadow: 0 5px 12px rgba(var(--shadow-rgb), 0.11);
 }
 
 .themed-lists-section {
@@ -851,7 +851,7 @@
   border-radius: 36px 36px 18px 36px;
   background: var(--linen);
   box-shadow:
-    0 24px 44px rgba(89, 67, 49, 0.18),
+    0 8px 20px rgba(var(--shadow-rgb), 0.10),
     0 2px 0 rgba(255, 250, 241, 0.7) inset;
   transform: rotate(-0.5deg);
   transition:
@@ -883,7 +883,7 @@
 
 .themed-list-card:hover .themed-list-preview {
   box-shadow:
-    0 30px 54px rgba(89, 67, 49, 0.22),
+    0 10px 24px rgba(var(--shadow-rgb), 0.12),
     0 2px 0 rgba(255, 250, 241, 0.72) inset;
   transform: translateY(-3px) rotate(0deg);
 }
@@ -1065,7 +1065,7 @@
   background: transparent;
   filter: saturate(0.86) contrast(0.98);
   box-shadow:
-    0 28px 58px rgba(89, 67, 49, 0.2);
+    0 10px 26px rgba(var(--shadow-rgb), 0.11);
 }
 
 .chinese-post .blog-post-hero img {
@@ -1087,7 +1087,7 @@
     radial-gradient(circle at 18% 16%, rgba(255, 250, 241, 0.64), transparent 30%),
     linear-gradient(145deg, rgba(170, 182, 150, 0.82), rgba(244, 220, 123, 0.52));
   color: var(--deep-mocha);
-  box-shadow: 0 28px 58px rgba(89, 67, 49, 0.2);
+  box-shadow: 0 10px 26px rgba(var(--shadow-rgb), 0.11);
 }
 
 .blog-post-title-card strong {
@@ -1255,7 +1255,7 @@
   display: block;
   border-radius: 10px 24px 24px 10px;
   object-fit: cover;
-  box-shadow: 0 24px 44px rgba(89, 67, 49, 0.22);
+  box-shadow: 0 8px 20px rgba(var(--shadow-rgb), 0.12);
   transform: rotate(-2deg);
 }
 
@@ -1271,7 +1271,7 @@
     linear-gradient(90deg, rgba(89, 67, 49, 0.18), transparent 22px),
     linear-gradient(145deg, rgba(255, 250, 241, 0.96), rgba(242, 231, 215, 0.92));
   color: var(--deep-mocha);
-  box-shadow: 0 24px 44px rgba(89, 67, 49, 0.18);
+  box-shadow: 0 8px 20px rgba(var(--shadow-rgb), 0.10);
   transform: rotate(-2deg);
 }
 
@@ -1319,7 +1319,7 @@
   font-family: var(--heading);
   font-size: 20px;
   font-weight: 900;
-  box-shadow: 0 12px 26px rgba(89, 67, 49, 0.12);
+  box-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.07);
 }
 
 .era-title-row p {
@@ -1412,7 +1412,7 @@
   background:
     radial-gradient(circle at 12% 10%, rgba(244, 220, 123, 0.22), transparent 26%),
     linear-gradient(135deg, rgba(255, 250, 241, 0.98), rgba(239, 231, 212, 0.94));
-  box-shadow: 0 32px 86px rgba(89, 67, 49, 0.32);
+  box-shadow: 0 11px 39px rgba(var(--shadow-rgb), 0.18);
 }
 
 .list-modal-hero {
@@ -1430,7 +1430,7 @@
   object-fit: cover;
   object-position: center;
   filter: saturate(0.86) contrast(0.98);
-  box-shadow: 0 22px 42px rgba(89, 67, 49, 0.18);
+  box-shadow: 0 8px 19px rgba(var(--shadow-rgb), 0.10);
 }
 
 .list-modal-hero p,

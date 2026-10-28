@@ -242,7 +242,7 @@
   cursor: pointer;
   opacity: 0;
   transform: translateY(-50%);
-  box-shadow: 0 10px 22px rgba(89, 67, 49, 0.12);
+  box-shadow: 0 4px 10px rgba(var(--shadow-rgb), 0.07);
   transition:
     opacity 180ms ease,
     background-color 180ms ease,

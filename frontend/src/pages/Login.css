@@ -65,7 +65,7 @@
     linear-gradient(145deg, rgba(255, 252, 246, 0.9), rgba(250, 240, 228, 0.76)),
     var(--paper);
   box-shadow:
-    0 30px 80px rgba(89, 67, 49, 0.11),
+    0 10px 36px rgba(var(--shadow-rgb), 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
   transform: translateY(-45px);
 }
@@ -90,7 +90,7 @@
   height: 15px;
   border-radius: 6px;
   background: #f4df95;
-  box-shadow: 0 8px 18px rgba(89, 67, 49, 0.1);
+  box-shadow: 0 3px 8px rgba(var(--shadow-rgb), 0.06);
 }
 
 .book-stack-icon span:nth-child(1) {
@@ -171,14 +171,14 @@
   outline: none;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    0 12px 28px rgba(89, 67, 49, 0.06);
+    0 4px 13px rgba(var(--shadow-rgb), 0.03);
 }
 
 .pretty-input-wrap input:focus {
   border-color: rgba(185, 195, 166, 0.92);
   box-shadow:
     0 0 0 4px rgba(244, 220, 123, 0.18),
-    0 14px 28px rgba(89, 67, 49, 0.08);
+    0 5px 13px rgba(var(--shadow-rgb), 0.04);
 }
 
 .pretty-input-wrap em {
@@ -200,7 +200,7 @@
   font-size: 17px;
   font-weight: 900;
   text-shadow: 0 1px 0 rgba(89, 67, 49, 0.16);
-  box-shadow: 0 16px 32px rgba(137, 113, 92, 0.18);
+  box-shadow: 0 6px 14px rgba(var(--shadow-rgb), 0.10);
 }
 
 .login-switch-line {

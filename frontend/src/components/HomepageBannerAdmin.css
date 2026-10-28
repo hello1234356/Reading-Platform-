@@ -46,7 +46,7 @@
   border: 1px solid rgba(138, 106, 88, 0.13);
   border-radius: 22px;
   background: rgba(255, 250, 241, 0.8);
-  box-shadow: 0 10px 26px rgba(89, 67, 49, 0.08);
+  box-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.04);
 }
 
 .homepage-banner-thumbnail {

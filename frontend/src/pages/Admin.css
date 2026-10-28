@@ -287,7 +287,7 @@
   background: rgba(255, 253, 249, 0.88);
   color: var(--soft-gray);
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(88, 61, 48, 0.08);
+  box-shadow: 0 4px 11px rgba(var(--shadow-rgb), 0.04);
 }
 
 .admin-trash-button:hover {

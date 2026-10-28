@@ -87,7 +87,7 @@
   color: var(--paper);
   font-size: 13px;
   font-weight: 900;
-  box-shadow: 0 12px 24px rgba(74, 56, 47, 0.18);
+  box-shadow: 0 4px 11px rgba(var(--shadow-rgb), 0.10);
 }
 
 .profile-favorites {
@@ -129,7 +129,7 @@
   color: var(--deep-mocha);
   font-size: 18px;
   line-height: 1;
-  box-shadow: 0 4px 10px rgba(89, 67, 49, 0.12);
+  box-shadow: 0 1px 4px rgba(var(--shadow-rgb), 0.07);
 }
 
 .profile-favorite-book {
@@ -141,7 +141,7 @@
   border: 0;
   border-radius: 10px 24px 24px 10px;
   background: var(--linen);
-  box-shadow: 0 18px 34px rgba(89, 67, 49, 0.18);
+  box-shadow: 0 6px 15px rgba(var(--shadow-rgb), 0.10);
   cursor: pointer;
   transition:
     transform 180ms ease,
@@ -150,7 +150,7 @@
 
 .profile-favorite-book:hover {
   transform: translateY(-4px) rotate(-1deg);
-  box-shadow: 0 24px 46px rgba(89, 67, 49, 0.22);
+  box-shadow: 0 8px 21px rgba(var(--shadow-rgb), 0.12);
 }
 
 .profile-favorite-book img {
@@ -200,7 +200,7 @@
   font-size: 38px;
   font-weight: 900;
   line-height: 1;
-  box-shadow: 0 14px 28px rgba(89, 67, 49, 0.14);
+  box-shadow: 0 5px 13px rgba(var(--shadow-rgb), 0.08);
   animation: favoritePulse 1800ms ease-in-out infinite;
 }
 
@@ -236,7 +236,7 @@
   background:
     radial-gradient(circle at 12% 10%, rgba(244, 220, 123, 0.24), transparent 26%),
     linear-gradient(135deg, rgba(255, 250, 241, 0.98), rgba(239, 231, 212, 0.94));
-  box-shadow: 0 30px 80px rgba(89, 67, 49, 0.28);
+  box-shadow: 0 10px 36px rgba(var(--shadow-rgb), 0.15);
 }
 
 .favorite-picker-modal h2 {
@@ -326,7 +326,7 @@
   border-radius: 44% 56% 48% 52%;
   background: rgba(255, 250, 241, 0.72);
   color: var(--mocha);
-  box-shadow: 0 12px 24px rgba(89, 67, 49, 0.1);
+  box-shadow: 0 4px 11px rgba(var(--shadow-rgb), 0.06);
 }
 
 .profile-challenge-icon {
@@ -425,7 +425,7 @@
   font-size: 11px;
   font-weight: 800;
   text-align: center;
-  box-shadow: 0 12px 22px rgba(89, 67, 49, 0.12);
+  box-shadow: 0 4px 10px rgba(var(--shadow-rgb), 0.07);
 }
 
 .profile-tracker-copy {
@@ -517,7 +517,7 @@
   border: 1px solid rgba(138, 106, 88, 0.12);
   border-radius: 26px;
   background: rgba(255, 250, 241, 0.78);
-  box-shadow: 0 14px 30px rgba(89, 67, 49, 0.08);
+  box-shadow: 0 5px 14px rgba(var(--shadow-rgb), 0.04);
 }
 
 .profile-reading-list-book-button {
@@ -583,7 +583,7 @@
     rgba(255, 250, 241, 0.78);
   color: var(--charcoal);
   text-decoration: none;
-  box-shadow: 0 20px 44px rgba(89, 67, 49, 0.1);
+  box-shadow: 0 7px 20px rgba(var(--shadow-rgb), 0.06);
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
@@ -596,7 +596,7 @@
 
 .profile-shelf-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 22px 44px rgba(89, 67, 49, 0.12);
+  box-shadow: 0 8px 20px rgba(var(--shadow-rgb), 0.07);
 }
 
 .profile-shelf-card.sage {
@@ -670,7 +670,7 @@
   height: 42px;
   border-radius: 5px 10px 10px 5px;
   background: var(--mocha);
-  box-shadow: 0 8px 16px rgba(89, 67, 49, 0.12);
+  box-shadow: 0 3px 7px rgba(var(--shadow-rgb), 0.07);
 }
 
 .profile-shelf-mini-books i:nth-child(2n) {
@@ -719,7 +719,7 @@
   display: block;
   border-radius: 8px 18px 18px 8px;
   object-fit: cover;
-  box-shadow: 0 16px 30px rgba(89, 67, 49, 0.16);
+  box-shadow: 0 6px 14px rgba(var(--shadow-rgb), 0.09);
 }
 
 .profile-review-stars {
@@ -884,7 +884,7 @@
   display: block;
   border-radius: 10px 24px 24px 10px;
   object-fit: cover;
-  box-shadow: 0 22px 42px rgba(89, 67, 49, 0.18);
+  box-shadow: 0 8px 19px rgba(var(--shadow-rgb), 0.10);
   transition:
     transform 180ms ease,
     box-shadow 180ms ease;
@@ -893,7 +893,7 @@
 .profile-book-card:hover > a > img,
 .profile-book-card:hover .profile-book-detail-button > img {
   transform: translateY(-5px) rotate(-1deg);
-  box-shadow: 0 30px 54px rgba(89, 67, 49, 0.23);
+  box-shadow: 0 10px 24px rgba(var(--shadow-rgb), 0.13);
 }
 
 .profile-book-popover {
@@ -910,7 +910,7 @@
   color: var(--charcoal);
   opacity: 0;
   pointer-events: none;
-  box-shadow: 0 22px 44px rgba(89, 67, 49, 0.2);
+  box-shadow: 0 8px 20px rgba(var(--shadow-rgb), 0.11);
   transform: translateY(10px);
   transition:
     opacity 180ms ease,
@@ -981,7 +981,7 @@
   font-size: 12px;
   font-weight: 900;
   cursor: pointer;
-  box-shadow: 0 12px 24px rgba(74, 56, 47, 0.16);
+  box-shadow: 0 4px 11px rgba(var(--shadow-rgb), 0.09);
 }
 
 .profile-book-actions {
@@ -1183,7 +1183,7 @@
     linear-gradient(90deg, rgba(89, 67, 49, 0.24), transparent 18px),
     linear-gradient(145deg, var(--warm-ink), var(--olive));
   color: var(--paper);
-  box-shadow: 8px 12px 22px rgba(89, 67, 49, 0.14);
+  box-shadow: 3px 4px 10px rgba(var(--shadow-rgb), 0.08);
 }
 
 .tracked-cover span {
@@ -1265,7 +1265,7 @@
   background:
     linear-gradient(135deg, rgba(252, 251, 248, 0.96), rgba(239, 234, 226, 0.9)),
     var(--paper);
-  box-shadow: 0 30px 80px rgba(89, 67, 49, 0.28);
+  box-shadow: 0 10px 36px rgba(var(--shadow-rgb), 0.15);
 }
 
 .composer-modal h2 {

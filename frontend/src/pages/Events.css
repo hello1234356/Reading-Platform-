@@ -127,7 +127,7 @@
 .seasonal-event-dialog {
   width: min(560px, calc(100% - 32px)); max-height: calc(100dvh - 40px);
   padding: 0; margin: auto; border: 1px solid #e2cfb9; border-radius: 16px;
-  background: #faf4e9; color: #634c3e; box-shadow: 0 20px 80px #38231526;
+  background: #faf4e9; color: #634c3e; box-shadow: 0 7px 36px rgba(var(--shadow-rgb), 0.08);
 }
 .seasonal-event-dialog::backdrop { background: #30251f66; }
 .seasonal-event-content { position: relative; padding: 32px; }

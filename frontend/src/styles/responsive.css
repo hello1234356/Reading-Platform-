@@ -1621,7 +1621,7 @@
     background:
       linear-gradient(135deg, rgba(255, 250, 241, 0.98), rgba(242, 231, 215, 0.95)),
       var(--paper);
-    box-shadow: 0 16px 34px rgba(89, 67, 49, 0.18);
+    box-shadow: 0 6px 15px rgba(var(--shadow-rgb), 0.10);
   }
 
   .club-message-form textarea {
