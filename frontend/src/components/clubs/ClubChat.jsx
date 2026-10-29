@@ -188,7 +188,12 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
         const name = getClubMemberName(member, message.authorName);
         const previous = messages[index - 1];
         const sameGroup = previous && previous.userId === message.userId && new Date(message.createdAt) - new Date(previous.createdAt) <= 5 * 60 * 1000;
-        return <article className={`cr-message${previous && !sameGroup ? ' cr-message-group-start' : ''}${sameGroup ? ' cr-message-continuation' : ''}`} key={message.id}>
+        
+        return <article
+          className={`cr-message${index > 0 ? ' cr-message-group-start' : ''}`}
+          key={message.id}
+        >
+
           {member ? <button type="button" className="cr-avatar-link" aria-label={t('clubRoom.openMemberProfile', { name })} onClick={() => onOpenProfile(member.userId)}><UserAvatar avatarUrl={member.avatarUrl} name={name} size="small" /></button> : <UserAvatar avatarUrl={message.authorAvatarUrl} name={name} size="small" />}
           <div>
             <header className="cr-message-header">
