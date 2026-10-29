@@ -1,4 +1,5 @@
 export const clubRoomEn = {
+  mentionMembers: 'Mention a member', mentionedNotification: '{{actor}} mentioned you in a club',
   editTags: 'Edit tags', addTags: 'Add tags', tagSelectionCount: '{{count}} / 3 selected',
   memberProfile: 'Club profile', memberRole: 'Member', clubNickname: 'Club nickname', memberTags: 'Member tags', editProfile: 'Edit profile', noSelectedTags: 'No tags selected.',
   nicknameHelp: 'Optional, up to 30 characters. Your account username stays the same.', nicknameInvalid: 'Use up to 30 characters, without line breaks or hidden characters.', nicknameReserved: 'Choose a nickname that is not a role or system name.', openMemberProfile: 'Open {{name}}’s club profile', 
@@ -19,6 +20,7 @@ export const clubRoomEn = {
   search_loading: 'Searching…', search_empty: 'No books found. Try a title or author.', search_error: 'Book search is unavailable. Please try again.', chooseBook: 'Choose an approved book from the search results.',
 };
 export const clubRoomZh = {
+  mentionMembers: '提及成员', mentionedNotification: '{{actor}} 在读书会中提及了你',
   editTags: '编辑标签', addTags: '添加标签', tagSelectionCount: '已选 {{count}} / 3',
   memberProfile: '读书会名片', memberRole: '成员', clubNickname: '群昵称', memberTags: '成员标签', editProfile: '编辑名片', noSelectedTags: '未选择标签。',
   nicknameHelp: '选填，最多 30 字。不会更改账号用户名。', nicknameInvalid: '昵称最多 30 字，不能包含换行或隐藏字符。', nicknameReserved: '昵称不能使用角色或系统名称。', openMemberProfile: '查看 {{name}} 的读书会名片', 

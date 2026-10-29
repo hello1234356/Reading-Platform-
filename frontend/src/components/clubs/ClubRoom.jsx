@@ -36,7 +36,10 @@ export default function ClubRoom({ initialClub, user, onClubUpdated }) {
   const [profileId, setProfileId] = useState(null);
   const owner = club.creatorId === user.id;
   const spoilerKey = `club-spoilers-${user.id}-${club.id}`;
-  const channel = channels.find(item => item.slug === selected && (item.slug !== 'spoiler-zone' || acknowledged)) || channels.find(item => item.slug === 'general');
+  const linkedChannelId = new URLSearchParams(window.location.hash.split('?')[1] || '').get('channel');
+  const linkedSpoiler = !acknowledged && channels.some(item => String(item.id) === linkedChannelId && item.slug === 'spoiler-zone');
+  const channel = channels.find(item => (linkedChannelId ? String(item.id) === linkedChannelId : item.slug === selected) && (item.slug !== 'spoiler-zone' || acknowledged)) || channels.find(item => item.slug === 'general');
+
   async function refreshCommunity() { setCommunity(await getClubCommunity(club.id)); }
   async function refreshProfile() {
     const [next, social] = await Promise.all([getBookClubById({ clubId: club.id, currentUserId: user.id }), getClubCommunity(club.id)]);
@@ -113,6 +116,7 @@ export default function ClubRoom({ initialClub, user, onClubUpdated }) {
     if (side === 'left') { persist('club-left-open', !left); setLeft(!left); } else { persist('club-right-open', !right); setRight(!right); }
   }
   function selectChannel(item) {
+    if (linkedChannelId) navigate(`/clubs/${club.id}`, { replace: true });
     if (item.slug === 'spoiler-zone' && !acknowledged) { setSpoiler(true); return; }
     setSelected(item.slug); persist(`club-channel-${user.id}-${club.id}`, item.slug); setDrawer(null);
   }
@@ -143,7 +147,7 @@ export default function ClubRoom({ initialClub, user, onClubUpdated }) {
     {error && <p className="cr-error" role="alert">{error}</p>}{notice && <p className="cr-notice" role="status">{notice}<button aria-label={t('clubRoom.close')} onClick={() => setNotice('')}>×</button></p>}
     <div className="cr-layout"><aside className="cr-sidebar cr-left" aria-label={t('clubRoom.readingPanel')}>{leftPanel}</aside>{channel ? <ClubChat key={channel.id} club={club} channel={channel} user={user} community={community} onOpenProfile={openProfile} /> : <p className="cr-empty">{t(loading ? 'clubRoom.loading' : 'clubRoom.loadFailed')}</p>}<aside className="cr-sidebar cr-right" aria-label={t('clubRoom.communityPanel')}>{rightPanel}</aside></div>
     {drawer && <ClubDialog title={t(drawer === 'left' ? 'clubRoom.readingPanel' : 'clubRoom.communityPanel')} onClose={() => setDrawer(null)} className={`cr-drawer cr-drawer-${drawer}`}><div className="cr-sidebar">{drawer === 'left' ? leftPanel : rightPanel}</div></ClubDialog>}
-    {spoiler && <ClubDialog title={t('clubRoom.spoilerTitle')} onClose={() => setSpoiler(false)}><p>{t('clubRoom.spoilerWarning')}</p><footer><button onClick={() => setSpoiler(false)}>{t('clubRoom.cancel')}</button><button className="primary-button" onClick={() => { persist(spoilerKey, true); setAcknowledged(true); setSpoiler(false); setSelected('spoiler-zone'); persist(`club-channel-${user.id}-${club.id}`, 'spoiler-zone'); setDrawer(null); }}>{t('clubRoom.enterSpoilers')}</button></footer></ClubDialog>}
+    {(spoiler || linkedSpoiler) && <ClubDialog title={t('clubRoom.spoilerTitle')} onClose={() => { setSpoiler(false); if (linkedSpoiler) navigate(`/clubs/${club.id}`, { replace: true }); }}><p>{t('clubRoom.spoilerWarning')}</p><footer><button onClick={() => { setSpoiler(false); if (linkedSpoiler) navigate(`/clubs/${club.id}`, { replace: true }); }}>{t('clubRoom.cancel')}</button><button className="primary-button" onClick={() => { persist(spoilerKey, true); setAcknowledged(true); setSpoiler(false); setSelected('spoiler-zone'); persist(`club-channel-${user.id}-${club.id}`, 'spoiler-zone'); setDrawer(null); }}>{t('clubRoom.enterSpoilers')}</button></footer></ClubDialog>}
     {profileMember && <ClubMemberProfile key={profileMember.userId} club={club} member={profileMember} user={user} community={community} onSaved={refreshProfile} onClose={() => setProfileId(null)} />}
     {settings && owner && <ClubSettings club={club} user={user} schedule={schedule} community={community} onRefresh={refreshCommunity} onClose={() => setSettings(false)} onDeleted={() => navigate('/clubs')} onSaved={async next => { setClub(next); onClubUpdated(next); setSchedule(await getClubSchedule(club.id)); setNotice(t('clubRoom.saved')); }} />}
   </section>;

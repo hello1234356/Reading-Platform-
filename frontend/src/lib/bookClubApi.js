@@ -146,6 +146,7 @@ function mapClubPost(row) {
     channelId: row.channel_id,
     userId: row.user_id,
     message: row.message || "",
+    mentions: row.mentions || [],
     authorName: getPublicDisplayName(row.profiles),
     authorAvatarUrl: row.profiles?.avatar_url || "",
     createdAt: row.created_at,
@@ -209,6 +210,7 @@ const SCHEDULE_SELECT = `
 `;
 
 const CLUB_POST_SELECT = `
+  mentions,
   id,
   channel_id,
   club_id,

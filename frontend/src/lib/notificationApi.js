@@ -38,6 +38,7 @@ export function getLocalizedNotificationTitle(notification, t) {
     case "comment":
       return t("notifications.commented", { actor });
     case "mention":
+      if (notification.targetType === "club_message") return t("clubRoom.mentionedNotification", { actor });
       return t(notification.replyId
         ? "notifications.mentionedReply"
         : "notifications.mentionedComment", { actor });

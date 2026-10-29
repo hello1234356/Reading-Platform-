@@ -109,7 +109,7 @@ button.cr-pill[aria-pressed=true] { background: var(--linen); border-color: var(
 .cr-composer form { display: flex; align-items: flex-end; gap: 10px; }
 .cr-composer textarea { flex: 1; min-width: 0; resize: vertical; min-height: 44px; max-height: min(140px, calc(var(--club-viewport-height, 100dvh) * .2)); overflow-y: auto; overscroll-behavior-y: contain; border: 1px solid var(--border); border-radius: 20px; padding: 12px 16px; background: color-mix(in srgb, var(--paper) 72%, transparent); font: 400 16px/1.55 var(--sans); color: var(--charcoal); outline: none; }
 .cr-composer small { font-size: 12px; color: var(--soft-gray); display: block; margin-top: 8px; }
-.cr-composer .primary-button { padding: 12px 15px; }
+.cr-composer .primary-button { min-height: 40px; height: 40px; padding: 0 18px; flex-shrink: 0; }
 .cr-jump { position: absolute; bottom: 140px; align-self: center; border: 1px solid var(--cr-line); padding: 8px 14px; background: var(--paper); border-radius: 999px; box-shadow: var(--shadow); }
 .cr-load-older { display: block; margin: 0 auto 16px; border: 0; background: transparent; font-size: 13px; text-decoration: underline; }
 .cr-announcement { padding: 4px 0; font-size: 14px; }
@@ -233,7 +233,7 @@ button.cr-pill[aria-pressed=true] { background: var(--linen); border-color: var(
 .cr-member-row strong { font-weight: 700; }
 .cr-message header .cr-member-name { margin: 0; padding: 0; border: 0; background: transparent; font: 700 15px/1.55 var(--sans); text-align: left; overflow-wrap: anywhere; }
 .cr-avatar-link { flex: none; border: 0; padding: 0; background: transparent; border-radius: 50%; }
-.cr-member-profile { width: min(420px, calc(100vw - 32px)); }
+.cr-member-profile { width: min(720px, calc(100vw - 32px)); }
 .cr-profile-heading { display: flex; gap: 14px; align-items: center; margin: 24px 0; }
 .cr-profile-heading > div:last-child { min-width: 0; overflow-wrap: anywhere; }
 .cr-profile-heading h3 { margin: 0 0 4px; }
@@ -270,3 +270,16 @@ button.cr-pill[aria-pressed=true] { background: var(--linen); border-color: var(
 .cr-message-group-start { position: relative; margin-top: 6px; padding-top: 18px; }
 .cr-message-group-start::before { content: ''; position: absolute; top: 0; left: 44px; right: 0; height: 1px; background: var(--border); }
 .cr-message-continuation { padding-top: 4px; }
+
+/* Comfortable control targets and wider profile panels. */
+.cr-message-meta > button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; width: 36px; height: 36px; padding: 0; border-radius: 50%; font: 400 23px/1 var(--sans); }
+.cr-message-meta > button:hover { background: var(--linen); color: var(--deep-mocha); }
+.cr-dialog > header > button:not(.primary-button) { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; font: 400 28px/1 var(--sans); }
+.cr-dialog > header > button:hover { background: var(--linen); }
+@media (min-width: 700px) { .cr-member-profile { padding: 28px 36px; } }
+.cr-composer { position: relative; }
+.cr-mention-options { position: absolute; bottom: 100%; left: 28px; right: 28px; max-height: min(240px, 35dvh); overflow-y: auto; overscroll-behavior: contain; z-index: 5; padding: 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--paper); box-shadow: var(--shadow); }
+.cr-mention-options button { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; text-align: left; overflow-wrap: anywhere; font: inherit; }
+.cr-mention-options button[aria-selected=true], .cr-mention-options button:hover { background: var(--linen); }
+.cr-mention-options small { margin: 0; }
+.cr-message p .cr-posted-mention { display: inline; padding: 0; border: 0; background: transparent; color: var(--mocha); font: inherit; font-style: italic; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }

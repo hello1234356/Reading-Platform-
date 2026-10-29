@@ -4,6 +4,7 @@ import { requireSupabase } from '../../lib/supabase';
 import { createClubPost, deleteClubPost, getChannelPosts } from '../../lib/bookClubApi';
 import { mergeClubMessages } from '../../lib/clubValidation';
 import ClubMemberTags from './ClubMemberTags';
+import { findClubMentionQuery, clubMentionSuggestions, splitClubMentions } from '../../lib/clubMentions';
 import { getClubMemberName, getClubMemberTags } from '../../lib/clubMemberProfile';
 import UserAvatar from '../UserAvatar';
 import ProfileLink from '../ProfileLink';
@@ -16,6 +17,10 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
   const [older, setOlder] = useState(false);
   const [hasOlder, setHasOlder] = useState(false);
   const [draft, setDraft] = useState('');
+  const [mentionQuery, setMentionQuery] = useState(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const composer = useRef(null);
+  const suggestions = mentionQuery ? clubMentionSuggestions(club.members, mentionQuery.query) : [];
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [warning, setWarning] = useState(null);
@@ -104,6 +109,22 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
     } catch { setError(t('clubRoom.loadFailed')); }
     finally { setOlder(false); }
   }
+  function updateMention(text, caret) { setMentionQuery(findClubMentionQuery(text, caret)); setMentionIndex(0); }
+  function chooseMention(member) {
+    const next = draft.slice(0, mentionQuery.start) + `@${member.username} ` + draft.slice(mentionQuery.end);
+    const caret = mentionQuery.start + member.username.length + 2;
+    draftChange(next); setMentionQuery(null);
+    requestAnimationFrame(() => { composer.current?.focus(); composer.current?.setSelectionRange(caret, caret); });
+  }
+  function composerKeyDown(event) {
+    if (event.nativeEvent.isComposing) return;
+    if (mentionQuery && suggestions.length) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setMentionIndex(index => (index + (event.key === 'ArrowDown' ? 1 : -1) + suggestions.length) % suggestions.length); return; }
+      if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Tab') { event.preventDefault(); chooseMention(suggestions[Math.min(mentionIndex, suggestions.length - 1)]); return; }
+      if (event.key === 'Escape') { event.preventDefault(); setMentionQuery(null); return; }
+    }
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(); }
+  }
   function broadcastTyping(active) {
     void typingChannel.current?.send({ type: 'broadcast', event: 'typing', payload: { userId: user.id, active } }).catch(() => {});
   }
@@ -113,7 +134,9 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
   function draftChange(text) {
     setDraft(text); setWarning(null); clearTimeout(typingStop.current);
     if (!text.trim()) { stopTyping(); return; }
+    // eslint-disable-next-line react-hooks/purity -- Input and mention-selection event handler, never called during render.
     if (!lastTyping.current || Date.now() - lastTyping.current > 1500) {
+      // eslint-disable-next-line react-hooks/purity -- Event-time throttling.
       lastTyping.current = Date.now(); broadcastTyping(true);
     }
     typingStop.current = setTimeout(stopTyping, 1800);
@@ -126,7 +149,7 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
     try {
       const message = await createClubPost({ clubId: club.id, userId: user.id, channelId: channel.id, message: draft.trim(), allowModerationWarning: allowWarning });
       if (!mounted.current) return;
-      nearBottom.current = true; setUnseen(false); setDraft('');
+      nearBottom.current = true; setUnseen(false); setDraft(''); setMentionQuery(null);
       setMessages(current => mergeClubMessages(current, [message]));
     } catch (failure) {
       if (failure.code === 'MODERATION_WARNING') setWarning(failure.message);
@@ -163,7 +186,7 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
                 {message.userId === user.id && <button onClick={() => remove(message)} aria-label={t('clubRoom.deleteMessage')}>×</button>}
               </div>
             </header>
-            <p>{message.message}</p>
+            <p>{splitClubMentions(message.message, message.mentions).map((part, index) => typeof part === 'string' ? part : club.members.some(item => item.userId === part.userId) ? <button type="button" className="cr-posted-mention" key={index} onClick={() => onOpenProfile(part.userId)}>@{getClubMemberName(club.members.find(item => item.userId === part.userId), part.username)}</button> : <span key={index}>{part.text}</span>)}</p>
           </div>
         </article>;
       })}
@@ -172,7 +195,8 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
     {unseen && <button className="cr-jump" onClick={() => { nearBottom.current = true; list.current.scrollTop = list.current.scrollHeight; setUnseen(false); }}>{t('clubRoom.latest')} ↓</button>}
     <div className="cr-typing-slot" role="status" aria-live="polite">{typingNames && <div className="club-typing-indicator"><span className="club-typing-dots" aria-hidden="true"><i /><i /><i /></span><span>{t('clubRoom.typing', { names: typingNames })}</span></div>}</div>
     <div className="cr-composer"><div aria-live="polite">{error && <p className="cr-error" role="alert">{error}</p>}{warning && <ModerationWarningCard message={warning} onEdit={() => setWarning(null)} onConfirm={() => send(true)} confirming={sending} contentLabel={t('clubRoom.message')} />}</div>
-      <form onSubmit={e => { e.preventDefault(); void send(); }}><textarea aria-label={t('clubRoom.message')} placeholder={t('clubRoom.messagePlaceholder', { channel: channel.slug })} rows={2} maxLength={2000} value={draft} disabled={sending} onBlur={stopTyping} onChange={e => draftChange(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} /><button className="primary-button" disabled={sending || !draft.trim()}>{t(sending ? 'clubRoom.sending' : 'home.send')}</button></form><small>{t('clubRoom.composerHelp')} · {draft.length}/2000</small>
+      {suggestions.length > 0 && <div className="cr-mention-options" role="listbox" id="club-mention-options" aria-label={t('clubRoom.mentionMembers')}>{suggestions.map((member, index) => <button type="button" role="option" id={`club-mention-${index}`} aria-selected={index === mentionIndex} key={member.userId} onMouseDown={event => event.preventDefault()} onClick={() => chooseMention(member)}><strong>{getClubMemberName(member)}</strong><small>@{member.username}</small></button>)}</div>}
+      <form onSubmit={e => { e.preventDefault(); void send(); }}><textarea ref={composer} aria-autocomplete="list" aria-controls={suggestions.length ? "club-mention-options" : undefined} aria-activedescendant={suggestions.length ? `club-mention-${Math.min(mentionIndex, suggestions.length - 1)}` : undefined} aria-label={t('clubRoom.message')} placeholder={t('clubRoom.messagePlaceholder', { channel: channel.slug })} rows={2} maxLength={2000} value={draft} disabled={sending} onBlur={() => { stopTyping(); setMentionQuery(null); }} onChange={event => { draftChange(event.target.value); updateMention(event.target.value, event.target.selectionStart); }} onClick={event => updateMention(event.currentTarget.value, event.currentTarget.selectionStart)} onKeyDown={composerKeyDown} /><button className="primary-button" disabled={sending || !draft.trim()}>{t(sending ? 'clubRoom.sending' : 'home.send')}</button></form><small>{t('clubRoom.composerHelp')} · {draft.length}/2000</small>
     </div>
   </section>;
 }
