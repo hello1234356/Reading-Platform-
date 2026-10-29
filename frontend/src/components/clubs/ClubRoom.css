@@ -283,3 +283,72 @@ button.cr-pill[aria-pressed=true] { background: var(--linen); border-color: var(
 .cr-mention-options button[aria-selected=true], .cr-mention-options button:hover { background: var(--linen); }
 .cr-mention-options small { margin: 0; }
 .cr-message p .cr-posted-mention { display: inline; padding: 0; border: 0; background: transparent; color: var(--mocha); font: inherit; font-style: italic; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+
+/* Compact club chat header */
+.cr-chat .cr-channel-heading {
+  min-height: 40px;
+  padding-top: 5px;
+  padding-bottom: 7px;
+}
+
+.cr-chat .cr-channel-heading h2 {
+  margin: 0;
+  line-height: 1.25;
+}
+
+/* Compact message composer */
+.cr-chat .cr-composer {
+  padding-top: 8px;
+  padding-bottom: 6px;
+}
+
+.cr-chat .cr-composer form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cr-chat .cr-composer textarea {
+  min-height: 46px;
+  max-height: 112px;
+  padding: 11px 16px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  resize: none;
+  overflow-y: hidden;
+}
+
+.cr-chat .cr-composer form .primary-button {
+  height: 42px;
+  min-height: 42px;
+  padding: 0 18px;
+  flex-shrink: 0;
+}
+
+/* Reduce unnecessary message spacing */
+.cr-chat .cr-message {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.cr-chat .cr-message-group-start {
+  padding-top: 12px;
+}
+
+.cr-chat .cr-message-header {
+  margin-bottom: 4px;
+}
+
+.cr-chat .cr-message p {
+  margin-top: 4px;
+  margin-bottom: 0;
+  line-height: 1.45;
+}
+
+/* Don't reserve space for inactive typing indicators */
+.cr-chat .cr-typing-slot:empty {
+  min-height: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}

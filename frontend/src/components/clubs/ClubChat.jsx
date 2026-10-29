@@ -20,6 +20,22 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
   const [mentionQuery, setMentionQuery] = useState(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const composer = useRef(null);
+  
+  
+  useLayoutEffect(() => {
+    const input = composer.current;
+    if (!input) return;
+
+    input.style.height = 'auto';
+
+    const maxHeight = 112;
+    const contentHeight = input.scrollHeight;
+
+    input.style.height = `${Math.min(contentHeight, maxHeight)}px`;
+    input.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
+  }, [draft]);
+
+
   const suggestions = mentionQuery ? clubMentionSuggestions(club.members, mentionQuery.query) : [];
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -196,7 +212,13 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
     <div className="cr-typing-slot" role="status" aria-live="polite">{typingNames && <div className="club-typing-indicator"><span className="club-typing-dots" aria-hidden="true"><i /><i /><i /></span><span>{t('clubRoom.typing', { names: typingNames })}</span></div>}</div>
     <div className="cr-composer"><div aria-live="polite">{error && <p className="cr-error" role="alert">{error}</p>}{warning && <ModerationWarningCard message={warning} onEdit={() => setWarning(null)} onConfirm={() => send(true)} confirming={sending} contentLabel={t('clubRoom.message')} />}</div>
       {suggestions.length > 0 && <div className="cr-mention-options" role="listbox" id="club-mention-options" aria-label={t('clubRoom.mentionMembers')}>{suggestions.map((member, index) => <button type="button" role="option" id={`club-mention-${index}`} aria-selected={index === mentionIndex} key={member.userId} onMouseDown={event => event.preventDefault()} onClick={() => chooseMention(member)}><strong>{getClubMemberName(member)}</strong><small>@{member.username}</small></button>)}</div>}
-      <form onSubmit={e => { e.preventDefault(); void send(); }}><textarea ref={composer} aria-autocomplete="list" aria-controls={suggestions.length ? "club-mention-options" : undefined} aria-activedescendant={suggestions.length ? `club-mention-${Math.min(mentionIndex, suggestions.length - 1)}` : undefined} aria-label={t('clubRoom.message')} placeholder={t('clubRoom.messagePlaceholder', { channel: channel.slug })} rows={2} maxLength={2000} value={draft} disabled={sending} onBlur={() => { stopTyping(); setMentionQuery(null); }} onChange={event => { draftChange(event.target.value); updateMention(event.target.value, event.target.selectionStart); }} onClick={event => updateMention(event.currentTarget.value, event.currentTarget.selectionStart)} onKeyDown={composerKeyDown} /><button className="primary-button" disabled={sending || !draft.trim()}>{t(sending ? 'clubRoom.sending' : 'home.send')}</button></form><small>{t('clubRoom.composerHelp')} · {draft.length}/2000</small>
+      <form onSubmit={e => { e.preventDefault(); void send(); }}><textarea ref={composer} aria-autocomplete="list" aria-controls={suggestions.length ? "club-mention-options" : undefined} aria-activedescendant={suggestions.length ? `club-mention-${Math.min(mentionIndex, suggestions.length - 1)}` : undefined} aria-label={t('clubRoom.message')} placeholder={t('clubRoom.messagePlaceholder', { channel: channel.slug })} rows={1} maxLength={2000} value={draft} disabled={sending} onBlur={() => { stopTyping(); setMentionQuery(null); }} onChange={event => { draftChange(event.target.value); updateMention(event.target.value, event.target.selectionStart); }} onClick={event => updateMention(event.currentTarget.value, event.currentTarget.selectionStart)} onKeyDown={composerKeyDown} /><button className="primary-button" disabled={sending || !draft.trim()}>{t(sending ? 'clubRoom.sending' : 'home.send')}</button></form>
+      {draft.length >= 1800 && (
+        <small className="cr-character-count">
+          {draft.length}/2000
+        </small>
+      )}
+
     </div>
   </section>;
 }
