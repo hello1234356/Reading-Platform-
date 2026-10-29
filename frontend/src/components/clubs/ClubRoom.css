@@ -279,12 +279,45 @@ body:has(.cr-room) .tales-mini {
 }
 
 .cr-channels button {
+  position: relative;
   text-align: left;
   padding: 9px 12px;
   border: 0;
   border-radius: 8px;
   background: transparent;
   font: 500 15px var(--sans);
+}
+
+.cr-channels button .cr-channel-unread {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #af6267;
+  opacity: 1;
+}
+
+.cr-channels button .cr-channel-mention {
+  width: 15px;
+  height: 15px;
+  color: #fff;
+  font: 700 11px/15px var(--sans);
+  text-align: center;
+}
+
+.cr-link-status {
+  margin: 0;
+  padding: 8px 24px;
+  color: var(--soft-gray);
+  font-size: 13px;
+}
+
+.cr-message-target {
+  background: color-mix(in srgb, var(--linen) 60%, transparent);
+  border-radius: 8px;
 }
 
 .cr-channels button span {
@@ -644,12 +677,12 @@ button.cr-pill[aria-pressed='true'] {
   --tag-background: var(--linen);
   display: inline-block;
   max-width: 100%;
-  padding: 2px 7px;
+  padding: 1px 6px;
   border: 0;
   border-radius: 999px;
   background: var(--tag-background);
   color: var(--tag-ink, var(--warm-ink));
-  font: 600 12px/1.4 var(--sans);
+  font: 600 11px/1.4 var(--sans);
   white-space: normal;
   overflow-wrap: anywhere;
   text-align: left;
@@ -1215,7 +1248,11 @@ button.cr-pill[aria-pressed='true'] {
   gap: 8px;
 }
 
-.cr-profile-tags .cr-identity-tag,
+.cr-profile-tags .cr-identity-tag {
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
 .cr-tag-options .cr-identity-tag {
   padding: 2px 7px;
   font-size: 12px;

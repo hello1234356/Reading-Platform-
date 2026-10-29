@@ -848,6 +848,12 @@ export async function getChannelPosts({ clubId, channelId, before, after }) {
   if (error) throw error;
   return (after ? data : data.reverse()).map(mapClubPost);
 }
+export async function getChannelPost({ clubId, channelId, postId }) {
+  const { data, error } = await requireSupabase().from('club_posts').select(CLUB_POST_SELECT)
+    .eq('club_id', clubId).eq('channel_id', channelId).eq('id', postId).maybeSingle();
+  if (error) throw error;
+  return data ? mapClubPost(data) : null;
+}
 export async function getClubCommunity(clubId) {
   const results = await Promise.all([
     requireSupabase().from("club_announcements").select("*").eq("club_id", clubId).order("pinned", { ascending: false }).order("created_at", { ascending: false }),

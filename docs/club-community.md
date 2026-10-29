@@ -51,8 +51,8 @@ inspection timed out in this environment and the browser automation host was
 unavailable, so hosted-schema validation, visual browser QA, and two-session
 realtime verification remain outstanding. The migration has not been applied.
 
-Unread channel badges and threaded conversations are not included. There are no
-mock messages or users in the application.
+Threaded conversations are not included. There are no mock messages or users in
+the application.
 
 ## Club profiles and moderated publishing
 
@@ -101,3 +101,64 @@ memberships, and service-only publishing. These tests do not call the deployed
 moderation provider. Two authenticated browser sessions, live provider behavior,
 animated typing, and viewport/scroll behavior still require live verification.
 Neither new migration nor Edge deployment has been applied by this task.
+
+## Channel unread indicators and mention notifications
+
+Apply `202610290004_club_channel_reads.sql` after the three existing club
+migrations (`...0001_club_community`, `...0002_club_member_profiles`, and
+`...0003_club_mentions`), then deploy the frontend. No new Edge Function deployment
+is required. This change has not applied migrations or deployed functions.
+The migration adds `club_channel_reads`, two authenticated RPCs, ownership RLS,
+indexes, and realtime publication membership. It retains existing messages,
+memberships, mentions, and notification IDs/read flags. Review it against the
+hosted schema before applying; verification here uses an isolated schema fixture.
+
+Each user/channel has one `(created_at, post_id)` read cursor, validated against
+the server's message record. Atomic upserts reject older positions, including
+timestamp ties. Cursors survive message deletion and are removed on membership
+or channel deletion. Only the authenticated member can advance their own cursor;
+direct client writes are denied. Channels with no cursor treat existing messages
+from other members as unread until the member reaches the latest history.
+
+The sidebar derives dots and priority mention indicators from existing posts and
+stable mention IDs, independently for each channel. Realtime inserts, deletions,
+and read-position changes refresh indicators; reconnection, focus, and a 15-second
+poll recover missed events. The focused, visible chat acknowledges its last
+rendered message only at the latest edge, without a dialog covering it. Failed
+read writes retry while visible and do not optimistically clear indicators.
+
+The existing INSERT-only mention trigger and dedupe keys are reused. Ordinary
+messages and club notices do not create inbox notifications. Inbox context is
+`#channel · Club title`, with no message body, including for spoiler-zone. Existing
+mention records receive the same context and a `?channel=ID&message=ID` destination.
+Links load at most 50 messages on either side of the mentioned message, scroll to
+and highlight it, and retain unread state when that window is older than the
+latest history. Jump to latest returns to the current conversation. Deleted
+targets show a status and fall back to the correct channel. Spoiler acknowledgement
+still gates entry. Reading a channel also acknowledges its existing mention
+notifications through that cursor. Closing/clearing the inbox retains its existing
+behavior and does not claim that a channel has been read.
+
+Displayed member tags in chat and profiles use 11px text and 1px/6px padding.
+Selection controls keep their previous size, colors, order, and behavior.
+
+Verification commands:
+
+```sh
+PGLITE_MODULE=/path/to/@electric-sql/pglite/dist/index.js node supabase/tests/club_channel_reads.mjs
+node --test frontend/test/clubReadBehavior.test.mjs frontend/test/clubReadVisibility.test.mjs frontend/test/clubCommunity.test.mjs frontend/test/clubMentions.test.mjs frontend/test/clubMemberProfile.test.mjs frontend/test/clubContentEndpoint.test.mjs frontend/test/notifications.test.mjs frontend/test/notificationBehavior.test.mjs frontend/test/i18n.test.mjs
+npm --prefix frontend run build
+```
+
+The new PostgreSQL integration test executes the actual migrations plus existing
+inbox/count/read RPCs. It covers dot/mention priority, own messages, per-channel
+isolation, durable and stale cursors, timestamp ties, ownership/write denial,
+nickname identity, notification actors/deep links/counts, duplicate trigger
+invocation, safe spoiler previews, notice exclusion, and deleted targets.
+Frontend harnesses execute the actual read hook and linked-history loader with
+isolated DOM/network adapters, including focus/visibility, older history, read
+retries, bounded target loading, and missing targets. A local static preview using
+the actual stylesheet was visually inspected for indicator placement and compact
+chat/profile tags. Hosted-schema compatibility, two authenticated sessions,
+cross-device realtime delivery, and full browser scroll/routing behavior remain
+unverified.

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { requireSupabase } from '../../lib/supabase';
-import { createClubPost, deleteClubPost, getChannelPosts } from '../../lib/bookClubApi';
+import { createClubPost, deleteClubPost, getChannelPosts, getChannelPost } from '../../lib/bookClubApi';
 import { mergeClubMessages } from '../../lib/clubValidation';
 import ClubMemberTags from './ClubMemberTags';
 import { findClubMentionQuery, clubMentionSuggestions, splitClubMentions } from '../../lib/clubMentions';
@@ -9,8 +9,10 @@ import { getClubMemberName, getClubMemberTags } from '../../lib/clubMemberProfil
 import UserAvatar from '../UserAvatar';
 import ProfileLink from '../ProfileLink';
 import ModerationWarningCard from '../ModerationWarningCard';
+import useClubReadPosition from './useClubReadPosition';
+import { isClubChatAtLatest } from '../../lib/clubReadVisibility';
 
-export default function ClubChat({ club, channel, user, community, onOpenProfile }) {
+export default function ClubChat({ club, channel, user, community, onOpenProfile, onRead, readingEnabled, targetMessageId }) {
   const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,8 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
   const [warning, setWarning] = useState(null);
   const [connected, setConnected] = useState(false);
   const [unseen, setUnseen] = useState(false);
+  const [targetMissing, setTargetMissing] = useState(false);
+  const [hasLatest, setHasLatest] = useState(true);
   const [typing, setTyping] = useState({});
   const typingChannel = useRef(null);
   const lastTyping = useRef(0);
@@ -53,13 +57,41 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
   const newest = useRef(null);
   const prepend = useRef(null);
   const mounted = useRef(true);
+  const latestLoaded = useRef(true);
+  const targetPending = useRef(Boolean(targetMessageId));
+  const acknowledge = useClubReadPosition({ clubId: club.id, channelId: channel.id,
+    postId: messages.at(-1)?.id, ready: !loading && hasLatest && readingEnabled,
+    list, onRead });
   useEffect(() => {
     mounted.current = true;
-    let cancelled = false, fetching = false, queued = false;
+    let cancelled = false, fetching = false, queued = false, initialized = false;
     async function refresh() {
       if (fetching) { queued = true; return; }
       fetching = true;
       try {
+        if (!initialized && targetMessageId) {
+          const target = await getChannelPost({ clubId: club.id, channelId: channel.id, postId: targetMessageId });
+          if (cancelled) return;
+          if (target) {
+            // A bounded window around an older mention, with an explicit jump
+            // to latest instead of downloading the entire intervening history.
+            const [before, after] = await Promise.all([
+              getChannelPosts({ clubId: club.id, channelId: channel.id, before: target }),
+              getChannelPosts({ clubId: club.id, channelId: channel.id, after: target }),
+            ]);
+            if (cancelled) return;
+            initialized = true;
+            nearBottom.current = false;
+            latestLoaded.current = after.length < 50;
+            setHasLatest(latestLoaded.current); setHasOlder(before.length === 50);
+            newest.current = after.at(-1) || target;
+            setMessages([...before, target, ...after]);
+            return;
+          }
+          setTargetMissing(true); targetPending.current = false;
+        }
+        initialized = true;
+        if (!latestLoaded.current) { setUnseen(true); return; }
         // Catch up in bounded pages, including after a disconnected period.
         let cursor = newest.current;
         do {
@@ -93,7 +125,10 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'club_posts', filter: `channel_id=eq.${channel.id}` }, refresh)
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'club_posts' }, payload => {
-        if (!cancelled) setMessages(current => current.filter(row => String(row.id) !== String(payload.old.id)));
+        if (!cancelled) {
+          setMessages(current => current.filter(row => String(row.id) !== String(payload.old.id)));
+          if (String(payload.old.id) === targetMessageId) setTargetMissing(true);
+        }
       })
       .subscribe(status => { if (!cancelled) { setConnected(status === 'SUBSCRIBED'); if (status === 'SUBSCRIBED') { void subscription.track({ userId: user.id }); void refresh(); } } });
     typingChannel.current = subscription;
@@ -101,12 +136,17 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
     void refresh();
     const timer = setInterval(refresh, 15000);
     return () => { cancelled = true; mounted.current = false; clearInterval(timer); clearInterval(typingTimer); clearTimeout(typingStop.current); void subscription.send({ type: 'broadcast', event: 'typing', payload: { userId: user.id, active: false } }).catch(() => {}); typingChannel.current = null; void client.removeChannel(subscription); };
-  }, [club.id, channel.id, user.id, t]);
+  }, [club.id, channel.id, user.id, targetMessageId, t]);
   useLayoutEffect(() => {
     if (!list.current) return;
-    if (prepend.current) { list.current.scrollTop += list.current.scrollHeight - prepend.current.height; prepend.current = null; }
+    const target = targetPending.current && [...list.current.querySelectorAll('[data-message-id]')].find(el => el.dataset.messageId === targetMessageId);
+    if (target) {
+      target.scrollIntoView({ block: 'center' }); targetPending.current = false;
+      nearBottom.current = isClubChatAtLatest(list.current);
+    }
+    else if (prepend.current) { list.current.scrollTop += list.current.scrollHeight - prepend.current.height; prepend.current = null; }
     else if (nearBottom.current) list.current.scrollTop = list.current.scrollHeight;
-  }, [messages]);
+  }, [messages, targetMessageId]);
   useLayoutEffect(() => {
     const element = list.current;
     const observer = new ResizeObserver(() => {
@@ -116,6 +156,7 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
     return () => observer.disconnect();
   }, []);
   async function loadOlder() {
+    nearBottom.current = false;
     setOlder(true);
     try {
       const page = await getChannelPosts({ clubId: club.id, channelId: channel.id, before: messages[0] });
@@ -124,6 +165,18 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
       setMessages(current => mergeClubMessages(page, current)); setHasOlder(page.length === 50);
     } catch { setError(t('clubRoom.loadFailed')); }
     finally { setOlder(false); }
+  }
+  async function jumpLatest() {
+    try {
+      if (!latestLoaded.current) {
+        const page = await getChannelPosts({ clubId: club.id, channelId: channel.id });
+        if (!mounted.current) return;
+        newest.current = page.at(-1); latestLoaded.current = true;
+        setHasLatest(true); setHasOlder(page.length === 50); setMessages(page);
+      }
+      nearBottom.current = true; list.current.scrollTop = list.current.scrollHeight; setUnseen(false);
+      acknowledge();
+    } catch { setError(t('clubRoom.loadFailed')); }
   }
   function updateMention(text, caret) { setMentionQuery(findClubMentionQuery(text, caret)); setMentionIndex(0); }
   function chooseMention(member) {
@@ -165,8 +218,12 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
     try {
       const message = await createClubPost({ clubId: club.id, userId: user.id, channelId: channel.id, message: draft.trim(), allowModerationWarning: allowWarning });
       if (!mounted.current) return;
-      nearBottom.current = true; setUnseen(false); setDraft(''); setMentionQuery(null);
-      setMessages(current => mergeClubMessages(current, [message]));
+      setDraft(''); setMentionQuery(null);
+      if (!latestLoaded.current) await jumpLatest();
+      else {
+        nearBottom.current = true; setUnseen(false);
+        setMessages(current => mergeClubMessages(current, [message]));
+      }
     } catch (failure) {
       if (failure.code === 'MODERATION_WARNING') setWarning(failure.message);
       else setError(failure.code?.startsWith('MODERATION') ? t('clubRoom.moderationFailed') : t('clubRoom.sendFailed'));
@@ -179,18 +236,17 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
   }
   return <section className="cr-chat" aria-label={t('clubRoom.chat')}>
     <header className="cr-channel-heading"><div><h2><span>#</span> {channel.slug}</h2>{channel.slug === 'spoiler-zone' && <p>{t('clubRoom.spoilerDescription')}</p>}</div><span className={`cr-connection ${connected ? 'online' : ''}`} role="status">{t(connected ? 'clubRoom.live' : 'clubRoom.reconnecting')}</span></header>
-    <div className="cr-messages" ref={list} aria-busy={loading} onScroll={() => { const el = list.current; nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90; if (nearBottom.current) setUnseen(false); }}>
+    {targetMissing && <p className="cr-link-status" role="status">{t('clubRoom.messageUnavailable')}</p>}
+    <div className="cr-messages" ref={list} aria-busy={loading} onScroll={() => { nearBottom.current = isClubChatAtLatest(list.current); if (nearBottom.current && hasLatest) { setUnseen(false); acknowledge(); } }}>
       <div className={`cr-message-stack${!messages.length ? ' is-empty' : ''}`}>
       {hasOlder && <button className="cr-load-older" disabled={older} onClick={loadOlder}>{t(older ? 'clubRoom.loading' : 'clubRoom.older')}</button>}
       {loading ? <p className="cr-empty">{t('clubRoom.loading')}</p> : !messages.length && <p className="cr-empty">{t('clubRoom.emptyChat')}</p>}
       {messages.map((message, index) => {
         const member = club.members.find(item => item.userId === message.userId);
         const name = getClubMemberName(member, message.authorName);
-        const previous = messages[index - 1];
-        const sameGroup = previous && previous.userId === message.userId && new Date(message.createdAt) - new Date(previous.createdAt) <= 5 * 60 * 1000;
-        
         return <article
-          className={`cr-message${index > 0 ? ' cr-message-group-start' : ''}`}
+          className={`cr-message${index > 0 ? ' cr-message-group-start' : ''}${String(message.id) === targetMessageId ? ' cr-message-target' : ''}`}
+          data-message-id={message.id}
           key={message.id}
         >
 
@@ -213,7 +269,7 @@ export default function ClubChat({ club, channel, user, community, onOpenProfile
       })}
       </div>
     </div>
-    {unseen && <button className="cr-jump" onClick={() => { nearBottom.current = true; list.current.scrollTop = list.current.scrollHeight; setUnseen(false); }}>{t('clubRoom.latest')} ↓</button>}
+    {(unseen || !hasLatest) && <button className="cr-jump" onClick={jumpLatest}>{t('clubRoom.latest')} ↓</button>}
     <div className="cr-typing-slot" role="status" aria-live="polite">{typingNames && <div className="club-typing-indicator"><span className="club-typing-dots" aria-hidden="true"><i /><i /><i /></span><span>{t('clubRoom.typing', { names: typingNames })}</span></div>}</div>
     <div className="cr-composer"><div aria-live="polite">{error && <p className="cr-error" role="alert">{error}</p>}{warning && <ModerationWarningCard message={warning} onEdit={() => setWarning(null)} onConfirm={() => send(true)} confirming={sending} contentLabel={t('clubRoom.message')} />}</div>
       {suggestions.length > 0 && <div className="cr-mention-options" role="listbox" id="club-mention-options" aria-label={t('clubRoom.mentionMembers')}>{suggestions.map((member, index) => <button type="button" role="option" id={`club-mention-${index}`} aria-selected={index === mentionIndex} key={member.userId} onMouseDown={event => event.preventDefault()} onClick={() => chooseMention(member)}><strong>{getClubMemberName(member)}</strong><small>@{member.username}</small></button>)}</div>}

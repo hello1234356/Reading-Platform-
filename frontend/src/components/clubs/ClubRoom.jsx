@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { requireSupabase } from '../../lib/supabase';
 import { getBookClubById, getClubChannels, getClubCommunity, getClubSchedule, leaveBookClub, recordClubActivity } from '../../lib/bookClubApi';
@@ -11,12 +11,15 @@ import ClubDialog from './ClubDialog';
 import ClubChat from './ClubChat';
 import ClubMemberProfile from './ClubMemberProfile';
 import { getClubMemberName } from '../../lib/clubMemberProfile';
+import useClubUnread from './useClubUnread';
 import './ClubRoom.css';
 function stored(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
 function persist(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* optional preference */ } }
 export default function ClubRoom({ initialClub, user, onClubUpdated }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [unreads, refreshUnreads] = useClubUnread(initialClub.id, user.id);
   const [club, setClub] = useState(initialClub);
   const [schedule, setSchedule] = useState([]);
   const [channels, setChannels] = useState([]);
@@ -36,7 +39,9 @@ export default function ClubRoom({ initialClub, user, onClubUpdated }) {
   const [profileId, setProfileId] = useState(null);
   const owner = club.creatorId === user.id;
   const spoilerKey = `club-spoilers-${user.id}-${club.id}`;
-  const linkedChannelId = new URLSearchParams(window.location.hash.split('?')[1] || '').get('channel');
+  const linkParams = new URLSearchParams(location.search);
+  const linkedChannelId = linkParams.get('channel');
+  const linkedMessageId = /^\d+$/.test(linkParams.get('message') || '') ? linkParams.get('message') : null;
   const linkedSpoiler = !acknowledged && channels.some(item => String(item.id) === linkedChannelId && item.slug === 'spoiler-zone');
   const channel = channels.find(item => (linkedChannelId ? String(item.id) === linkedChannelId : item.slug === selected) && (item.slug !== 'spoiler-zone' || acknowledged)) || channels.find(item => item.slug === 'general');
 
@@ -129,7 +134,7 @@ export default function ClubRoom({ initialClub, user, onClubUpdated }) {
   }
   const leftPanel = <>
     <div className="cr-book"><BookCoverImage src={club.coverUrl} alt="" /><div><strong>{club.bookTitle}</strong><small>{club.author}</small><small>{club.duration}</small></div></div>
-    <h3>{t('clubRoom.channels')}</h3><nav className="cr-channels" aria-label={t('clubRoom.channels')}>{channels.map(item => <button key={item.id} aria-current={channel?.id === item.id ? 'page' : undefined} onClick={() => selectChannel(item)}><span>#</span> {item.slug}{item.slug === 'spoiler-zone' && <span aria-hidden="true"> ◇</span>}</button>)}</nav>
+    <h3>{t('clubRoom.channels')}</h3><nav className="cr-channels" aria-label={t('clubRoom.channels')}>{channels.map(item => <button key={item.id} aria-current={channel?.id === item.id ? 'page' : undefined} onClick={() => selectChannel(item)}><span>#</span> {item.slug}{item.slug === 'spoiler-zone' && <span aria-hidden="true"> ◇</span>}{(unreads[item.id]?.has_unread || unreads[item.id]?.has_mention) && <span className={`cr-channel-unread${unreads[item.id].has_mention ? ' cr-channel-mention' : ''}`} role="img" aria-label={t(unreads[item.id].has_mention ? 'clubRoom.unreadMention' : 'clubRoom.unreadMessages')}>{unreads[item.id].has_mention ? '!' : ''}</span>}</button>)}</nav>
     <div className="cr-section-heading"><h3>{t('clubs.readingSchedule')}</h3>{owner && <button disabled={loading} onClick={() => { setDrawer(null); setSettings(true); }} aria-label={t('clubs.editSchedule')}>✎</button>}</div>
     {!schedule.length && <p className="cr-muted">{t('clubRoom.noSchedule')}</p>}
     {schedule.map((stage, index) => <details className="cr-stage" key={stage.id}><summary><small>{t('clubs.week', { week: index + 1 })}</small><strong>{stage.title}</strong></summary><p>{stage.chapters}</p><p>{stage.description}</p></details>)}
@@ -145,7 +150,7 @@ export default function ClubRoom({ initialClub, user, onClubUpdated }) {
   return <section className={`cr-room ${left ? '' : 'cr-left-closed'} ${right ? '' : 'cr-right-closed'}`}>
     <header className="cr-header"><Link to="/clubs" aria-label={t('clubs.backAll')}>←</Link><div className="cr-title"><h1>{club.title}</h1><p>{t('clubs.host')}: {club.creatorName} <span>· {club.memberCount}/{club.membersWanted} · {t('clubs.youJoined')}</span></p></div><div className="cr-actions"><button aria-label={t('clubRoom.toggleReading')} aria-expanded={compact ? drawer === 'left' : left} onClick={() => toggle('left')}>☷</button><button aria-label={t('clubRoom.toggleCommunity')} aria-expanded={compact ? drawer === 'right' : right} onClick={() => toggle('right')}>♧</button>{owner ? <button disabled={loading || !!error} aria-label={t('clubRoom.settings')} title={t('clubRoom.settings')} onClick={() => setSettings(true)}>⚙</button> : <details className="cr-overflow"><summary aria-label={t('clubRoom.actions')}>•••</summary><button disabled={busy} onClick={leave}>{t('clubs.quit')}</button></details>}</div></header>
     {error && <p className="cr-error" role="alert">{error}</p>}{notice && <p className="cr-notice" role="status">{notice}<button aria-label={t('clubRoom.close')} onClick={() => setNotice('')}>×</button></p>}
-    <div className="cr-layout"><aside className="cr-sidebar cr-left" aria-label={t('clubRoom.readingPanel')}>{leftPanel}</aside>{channel ? <ClubChat key={channel.id} club={club} channel={channel} user={user} community={community} onOpenProfile={openProfile} /> : <p className="cr-empty">{t(loading ? 'clubRoom.loading' : 'clubRoom.loadFailed')}</p>}<aside className="cr-sidebar cr-right" aria-label={t('clubRoom.communityPanel')}>{rightPanel}</aside></div>
+    <div className="cr-layout"><aside className="cr-sidebar cr-left" aria-label={t('clubRoom.readingPanel')}>{leftPanel}</aside>{channel ? <ClubChat key={`${channel.id}-${linkedMessageId || ''}`} club={club} channel={channel} user={user} community={community} onOpenProfile={openProfile} onRead={refreshUnreads} readingEnabled={!spoiler && !linkedSpoiler && !settings && !profileId && !drawer} targetMessageId={String(channel.id) === linkedChannelId ? linkedMessageId : null} /> : <p className="cr-empty">{t(loading ? 'clubRoom.loading' : 'clubRoom.loadFailed')}</p>}<aside className="cr-sidebar cr-right" aria-label={t('clubRoom.communityPanel')}>{rightPanel}</aside></div>
     {drawer && <ClubDialog title={t(drawer === 'left' ? 'clubRoom.readingPanel' : 'clubRoom.communityPanel')} onClose={() => setDrawer(null)} className={`cr-drawer cr-drawer-${drawer}`}><div className="cr-sidebar">{drawer === 'left' ? leftPanel : rightPanel}</div></ClubDialog>}
     {(spoiler || linkedSpoiler) && <ClubDialog title={t('clubRoom.spoilerTitle')} onClose={() => { setSpoiler(false); if (linkedSpoiler) navigate(`/clubs/${club.id}`, { replace: true }); }}><p>{t('clubRoom.spoilerWarning')}</p><footer><button onClick={() => { setSpoiler(false); if (linkedSpoiler) navigate(`/clubs/${club.id}`, { replace: true }); }}>{t('clubRoom.cancel')}</button><button className="primary-button" onClick={() => { persist(spoilerKey, true); setAcknowledged(true); setSpoiler(false); setSelected('spoiler-zone'); persist(`club-channel-${user.id}-${club.id}`, 'spoiler-zone'); setDrawer(null); }}>{t('clubRoom.enterSpoilers')}</button></footer></ClubDialog>}
     {profileMember && <ClubMemberProfile key={profileMember.userId} club={club} member={profileMember} user={user} community={community} onSaved={refreshProfile} onClose={() => setProfileId(null)} />}
