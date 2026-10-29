@@ -1,5 +1,7 @@
+import { clubRoomZh } from "./clubRoom.js";
 import { eventsZh } from "./events.js";
 const zh = {
+  clubRoom: clubRoomZh,
   october: {
     searchPlaceholder: "在书架间寻找……如果你敢的话。",
     noPublishedNotes: "今夜书架静悄悄，还没有发布的阅读笔记。",

@@ -1,6 +1,8 @@
+import { validateClubDetails } from "./clubValidation";
+import i18n from "../i18n";
 import { requireSupabase } from "./supabase";
 import { getPublicDisplayName } from "./identity";
-import { requireModeratedContent } from "./moderationApi";
+import { ModerationError } from "./moderationApi";
 import { getPreferredGoogleBooksCoverUrl } from "./googleBooks";
 
 function cleanTags(tags) {
@@ -58,7 +60,10 @@ function mapMember(row) {
   return {
     userId: row.user_id,
     joinedAt: row.joined_at,
-    name: getPublicDisplayName(row.profiles),
+    name: row.nickname || getPublicDisplayName(row.profiles),
+    nickname: row.nickname || "",
+    username: row.profiles?.username || "",
+    accountName: getPublicDisplayName(row.profiles),
     avatarUrl: row.profiles?.avatar_url || "",
   };
 }
@@ -138,6 +143,7 @@ function mapClubPost(row) {
   return {
     id: row.id,
     clubId: row.club_id,
+    channelId: row.channel_id,
     userId: row.user_id,
     message: row.message || "",
     authorName: getPublicDisplayName(row.profiles),
@@ -179,6 +185,7 @@ const CLUB_SELECT = `
 
   club_members (
     user_id,
+    nickname,
     joined_at,
 
     profiles!club_members_user_id_fkey (
@@ -203,6 +210,7 @@ const SCHEDULE_SELECT = `
 
 const CLUB_POST_SELECT = `
   id,
+  channel_id,
   club_id,
   user_id,
   message,
@@ -360,35 +368,12 @@ export async function createBookClub({
     );
   }
 
-  const cleanedTitle = title?.trim();
-  const cleanedDescription = description?.trim();
-  const cleanedDuration = duration?.trim();
+  const validation = validateClubDetails({ title, description, duration, membersWanted, tags });
+  if (validation) throw new Error(i18n.t(`clubRoom.${validation}`));
+  const cleanedTitle = title.trim();
+  const cleanedDescription = description.trim();
+  const cleanedDuration = duration.trim();
   const numericMembersWanted = Number(membersWanted);
-
-  if (!cleanedTitle) {
-    throw new Error("Please enter a club name.");
-  }
-
-  if (!cleanedDescription) {
-    throw new Error(
-      "Please enter a club description.",
-    );
-  }
-
-  if (!cleanedDuration) {
-    throw new Error(
-      "Please enter the club duration.",
-    );
-  }
-
-  if (
-    !Number.isInteger(numericMembersWanted) ||
-    numericMembersWanted < 1
-  ) {
-    throw new Error(
-      "The desired member count must be at least 1.",
-    );
-  }
 
   const supabase = requireSupabase();
   const book = await findOrCreateBook(selectedBook);
@@ -619,81 +604,20 @@ export async function deleteBookClub({
   }
 }
 
-export async function updateBookClub({
-  clubId,
-  userId,
-  title,
-  description,
-  duration,
-  membersWanted,
-  tags = [],
-  coverUrl = null,
-}) {
-  if (!clubId || !userId) {
-    throw new Error(
-      "The club or user is missing.",
-    );
-  }
-
-  const cleanedTitle = title?.trim();
-  const cleanedDescription = description?.trim();
-  const cleanedDuration = duration?.trim();
-  const numericMembersWanted = Number(membersWanted);
-
-  if (!cleanedTitle) {
-    throw new Error("Please enter a club name.");
-  }
-
-  if (!cleanedDescription) {
-    throw new Error(
-      "Please enter a club description.",
-    );
-  }
-
-  if (!cleanedDuration) {
-    throw new Error(
-      "Please enter the club duration.",
-    );
-  }
-
-  if (
-    !Number.isInteger(numericMembersWanted) ||
-    numericMembersWanted < 1
-  ) {
-    throw new Error(
-      "The desired member count must be at least 1.",
-    );
-  }
-
-  const supabase = requireSupabase();
-
-  const { data, error } = await supabase
-    .from("book_clubs")
-    .update({
-      title: cleanedTitle,
-      description: cleanedDescription,
-      duration: cleanedDuration,
-      members_wanted: numericMembersWanted,
-      tags: cleanTags(tags),
-      cover_url: coverUrl || null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", clubId)
-    .eq("creator_id", userId)
-    .select(CLUB_SELECT)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!data) {
-    throw new Error(
-      "Only the club host can edit this club.",
-    );
-  }
-
-  return mapClub(data, userId);
+export async function updateBookClub({ clubId, userId, selectedBook, title, description, duration, membersWanted, tags = [], schedule, updatedAt }) {
+  if (!clubId || !userId) throw new Error(i18n.t("clubRoom.ownerOnly"));
+  const validation = validateClubDetails({ title, description, duration, membersWanted, tags });
+  if (validation) throw new Error(i18n.t(`clubRoom.${validation}`));
+  const book = await findOrCreateBook(selectedBook);
+  const { error } = await requireSupabase().rpc("save_club_settings", {
+    p_club_id: clubId,
+    p_expected_updated_at: updatedAt,
+    p_settings: { title: title.trim(), description: description.trim(), duration: duration.trim(),
+      members_wanted: Number(membersWanted), tags: cleanTags(tags), book_id: book.id },
+    p_schedule: schedule,
+  });
+  if (error) throw error;
+  return getBookClubById({ clubId, currentUserId: userId });
 }
 
 export async function getClubSchedule(clubId) {
@@ -833,6 +757,7 @@ export async function createClubPost({
   userId,
   message,
   allowModerationWarning = false,
+  channelId,
 }) {
   if (!clubId) {
     throw new Error("The club ID is missing.");
@@ -844,28 +769,8 @@ export async function createClubPost({
     );
   }
 
-  const moderation = await requireModeratedContent({
-    text: message,
-    contextType: "club_message",
-    allowWarningOverride: allowModerationWarning,
-  });
-
-  const cleanedMessage = moderation.approvedText;
-  const supabase = requireSupabase();
-
-  const { data, error } = await supabase
-    .from("club_posts")
-    .insert({
-      club_id: clubId,
-      user_id: userId,
-      message: cleanedMessage,
-    })
-    .select(CLUB_POST_SELECT)
-    .single();
-
-  if (error) {
-    throw error;
-  }
+  if (!message?.trim() || message.trim().length > 2000) throw new Error(i18n.t("clubRoom.messageInvalid"));
+  const data = await invokeClubContent({ action: "message", clubId, channelId, text: message.trim(), allowWarning: allowModerationWarning });
 
   return mapClubPost(data);
 }
@@ -925,4 +830,70 @@ export async function deleteClubPost({
   if (error) {
     throw error;
   }
+}
+
+export async function getClubChannels(clubId) {
+  const { data, error } = await requireSupabase().from("club_channels").select("*").eq("club_id", clubId).order("position");
+  if (error) throw error;
+  return data;
+}
+export async function getChannelPosts({ clubId, channelId, before, after }) {
+  let query = requireSupabase().from("club_posts").select(CLUB_POST_SELECT)
+    .eq("club_id", clubId).eq("channel_id", channelId);
+  if (before) query = query.or(`created_at.lt.${before.createdAt},and(created_at.eq.${before.createdAt},id.lt.${before.id})`);
+  if (after) query = query.or(`created_at.gt.${after.createdAt},and(created_at.eq.${after.createdAt},id.gt.${after.id})`);
+  const { data, error } = await query.order("created_at", { ascending: Boolean(after) }).order("id", { ascending: Boolean(after) }).limit(50);
+  if (error) throw error;
+  return (after ? data : data.reverse()).map(mapClubPost);
+}
+export async function getClubCommunity(clubId) {
+  const results = await Promise.all([
+    requireSupabase().from("club_announcements").select("*").eq("club_id", clubId).order("pinned", { ascending: false }).order("created_at", { ascending: false }),
+    requireSupabase().from("club_member_tags").select("*").eq("club_id", clubId).order("created_at"),
+    requireSupabase().from("club_member_tag_assignments").select("*").eq("club_id", clubId),
+  ]);
+  for (const result of results) if (result.error) throw result.error;
+  return { announcements: results[0].data, tags: results[1].data, assignments: results[2].data };
+}
+export async function saveClubAnnouncement({ clubId, userId, id, body, pinned }) {
+  const row = { club_id: clubId, author_id: userId, body: body.trim(), pinned, updated_at: new Date().toISOString() };
+  const query = id ? requireSupabase().from("club_announcements").update(row).eq("id", id).eq("club_id", clubId)
+    : requireSupabase().from("club_announcements").insert(row);
+  const { error } = await query;
+  if (error) throw error;
+}
+export async function saveClubMemberTag({ clubId, id, name }) {
+  const query = id ? requireSupabase().from("club_member_tags").update({ name: name.trim() }).eq("id", id).eq("club_id", clubId)
+    : requireSupabase().from("club_member_tags").insert({ club_id: clubId, name: name.trim() });
+  const { error } = await query;
+  if (error) throw error;
+}
+export async function deleteClubCommunityItem(table, clubId, id) {
+  if (!["club_announcements", "club_member_tags"].includes(table)) throw new Error("Invalid community table");
+  const { error } = await requireSupabase().from(table).delete().eq("club_id", clubId).eq("id", id);
+  if (error) throw error;
+}
+export async function selectClubMemberTag({ clubId, userId, tagId, selected }) {
+  const query = selected ? requireSupabase().from("club_member_tag_assignments").insert({ club_id: clubId, user_id: userId, tag_id: tagId })
+    : requireSupabase().from("club_member_tag_assignments").delete().eq("club_id", clubId).eq("user_id", userId).eq("tag_id", tagId);
+  const { error } = await query;
+  if (error) throw error;
+}
+
+async function invokeClubContent(payload) {
+  const { data, error } = await requireSupabase().functions.invoke("club-content", { body: payload });
+  let result = data;
+  if (error?.context && typeof error.context.json === "function") {
+    try { result = await error.context.json(); } catch { /* unavailable response body */ }
+  }
+  if (result?.moderation && result.moderation.action !== "allow") {
+    const decision = result.moderation;
+    throw new ModerationError(decision.feedback || i18n.t("clubRoom.moderationFailed"),
+      decision.action === "warn" ? "MODERATION_WARNING" : decision.action === "report" ? "MODERATION_REPORT" : "MODERATION_BLOCK", decision);
+  }
+  if (error || !result?.data) throw error || new Error(i18n.t("clubRoom.saveFailed"));
+  return result.data;
+}
+export async function saveClubMemberProfile({ clubId, nickname, tagIds, allowModerationWarning = false }) {
+  return invokeClubContent({ action: "profile", clubId, nickname: nickname.trim(), tagIds, allowWarning: allowModerationWarning });
 }

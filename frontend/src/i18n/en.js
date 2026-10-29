@@ -1,5 +1,7 @@
+import { clubRoomEn } from "./clubRoom.js";
 import { eventsEn } from "./events.js";
 const en = {
+  clubRoom: clubRoomEn,
   october: {
     searchPlaceholder: "Search the shelves... if you dare.",
     noPublishedNotes: "The shelves are quiet tonight. No reading notes have been published yet.",

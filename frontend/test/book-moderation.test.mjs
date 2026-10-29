@@ -76,7 +76,7 @@ test("frontend renders checking cards before asynchronous moderation and keeps d
     readFile(new URL("../../frontend/src/lib/bookModerationApi.js", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/lib/bookSearch.js", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/pages/Discover.jsx", import.meta.url), "utf8"),
-    readFile(new URL("../../frontend/src/pages/BookClubs.jsx", import.meta.url), "utf8"),
+    readFile(new URL("../../frontend/src/components/clubs/ClubBookPicker.jsx", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/lib/bookModerationStatus.js", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/pages/Admin.jsx", import.meta.url), "utf8"),
     readFile(new URL("../../frontend/src/lib/adminApi.js", import.meta.url), "utf8"),
