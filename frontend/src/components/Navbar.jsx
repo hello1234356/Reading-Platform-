@@ -10,6 +10,7 @@ import {
 import { requireSupabase } from "../lib/supabase";
 import tsinglanLogo from "../assets/tsinglan-logo-official-alt.png";
 import NotificationInbox from "./NotificationInbox";
+import { useDesktopPush } from "../hooks/useDesktopPush";
 import { useEventsAccess } from "../context/eventsAccess";
 import LanguageSwitcher from "./LanguageSwitcher";
 
@@ -26,6 +27,7 @@ function Navbar() {
   const { canView: canViewEvents } = useEventsAccess();
   const { t } = useTranslation();
   const { user, isLoggedIn, loading } = useAuth();
+  const desktopPush = useDesktopPush(user?.id, loading);
   const [adminRole, setAdminRole] = useState(null);
   const [adminNotificationsOpen, setAdminNotificationsOpen] =
     useState(false);
@@ -249,7 +251,7 @@ function Navbar() {
           {t("common.signIn")}
         </NavLink>
       )}
-      {isLoggedIn && user?.id ? <NotificationInbox userId={user.id} /> : null}
+      {isLoggedIn && user?.id ? <NotificationInbox key={user.id} userId={user.id} push={desktopPush} /> : null}
 
       {adminRole ? (
         <div
