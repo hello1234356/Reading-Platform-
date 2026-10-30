@@ -5,7 +5,7 @@ import { applyBookModerationUpdate, moderateBookSearchResults } from '../../lib/
 import BookCoverImage from '../BookCoverImage';
 import BookModerationStatus from '../BookModerationStatus';
 
-export default function ClubBookPicker({ value, onChange }) {
+export default function ClubBookPicker({ value, onChange, showSelection = true }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState(value?.title || '');
   const [results, setResults] = useState([]);
@@ -38,7 +38,7 @@ export default function ClubBookPicker({ value, onChange }) {
   }
   return <div className="cr-book-picker">
     <label>{t('clubs.bookTitle')}<input type="search" value={query} onChange={event => { setQuery(event.target.value); setResults([]); setStatus(''); }} placeholder={t('clubs.searchBook')} /></label>
-    {value && <p className="cr-selected-book">✓ {value.title} · {value.author}</p>}
+    {showSelection && value && <p className="cr-selected-book">✓ {value.title} · {value.author}</p>}
     {status && <p role="status">{t(`clubRoom.search_${status}`)}</p>}
     <div className="book-search-suggestions">{results.map((book, index) => <div className="book-search-suggestion" key={book.moderationKey || index}>
       <button type="button" className="book-search-suggestion-select" disabled={book.moderationStatus !== 'approved'} onClick={() => { request.current++; onChange(book); setQuery(book.title); setResults([]); setStatus(''); }}>

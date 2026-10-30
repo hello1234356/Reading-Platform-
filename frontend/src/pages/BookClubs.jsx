@@ -1,6 +1,5 @@
 import ClubRoom from "../components/clubs/ClubRoom";
-import ClubBookPicker from "../components/clubs/ClubBookPicker";
-import ClubScheduleEditor from "../components/clubs/ClubScheduleEditor";
+import CreateClubDialog from "../components/clubs/CreateClubDialog";
 import {
   useEffect,
   useState,
@@ -131,14 +130,6 @@ const filteredClubs = clubs.filter((club) => {
     .toLowerCase()
     .includes(normalizedClubSearch);
 });
-  const previewBook =
-    selectedClubBook ||
-    {
-      title: newClub.bookTitle.trim() || "Search for a book",
-      author: "Author will sync from the ISBN database",
-      isbn: "Pending ISBN",
-    };
-
   useEffect(() => {
     let cancelled = false;
 
@@ -310,7 +301,7 @@ const filteredClubs = clubs.filter((club) => {
         selectedBook: selectedClubBook,
         title:
           newClub.clubName.trim() ||
-          `${selectedClubBook.title} Circle`,
+          t("clubs.defaultCircleName", { title: selectedClubBook.title }),
         description:
           newClub.description.trim() ||
           "A reading circle for people who want to read together and discuss honestly.",
@@ -628,127 +619,16 @@ const filteredClubs = clubs.filter((club) => {
         </div>
       )}
       {isCreateOpen && (
-        <div
-          className="club-modal-backdrop"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setIsCreateOpen(false);
-            }
-          }}
-        >
-          <section
-            className="club-modal create-club-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-club-title"
-          >
-            <button
-              className="modal-close"
-              type="button"
-              onClick={() => setIsCreateOpen(false)}
-              aria-label={t("clubs.closeCreate")}
-            >
-              x
-            </button>
-            <p className="eyebrow">{t("clubs.startCircle")}</p>
-            <h2 id="create-club-title">{t("clubs.createBookClub")}</h2>
-            <div className="create-club-layout">
-              <form onSubmit={createClub}>
-                {actionError && <p role="alert" className="cr-error">{actionError}</p>}
-                <label>
-                  <span>{t("clubs.bookClubName")}</span>
-                  <input
-                    type="text"
-                    value={newClub.clubName}
-                    onChange={(event) =>
-                      setNewClub((draft) => ({ ...draft, clubName: event.target.value }))
-                    }
-                    placeholder="Sunday Subway Readers"
-                  />
-                </label>
-                <ClubBookPicker value={selectedClubBook} onChange={setSelectedClubBook} />
-                <label>
-                  <span>{t("clubs.tags")}</span>
-
-                  <input
-                    type="text"
-                    value={newClub.tagsText}
-                    onChange={(event) =>
-                      setNewClub((draft) => ({
-                        ...draft,
-                        tagsText: event.target.value,
-                      }))
-                    }
-                    placeholder="slow reading, fantasy, discussion-heavy"
-                  />
-
-                  <small>
-                    Separate tags with commas. Tags are labels only and
-                    do not filter clubs.
-                  </small>
-                </label>
-                <label>
-                  <span>{t("clubs.membersWanted")}</span>
-                  <input
-                    type="number"
-                    min="2"
-                    max="40"
-                    value={newClub.membersWanted}
-                    onChange={(event) =>
-                      setNewClub((draft) => ({ ...draft, membersWanted: event.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>{t("clubs.howLong")}</span>
-                  <input
-                    type="text"
-                    value={newClub.duration}
-                    onChange={(event) =>
-                      setNewClub((draft) => ({ ...draft, duration: event.target.value }))
-                    }
-                    placeholder="4 weeks"
-                  />
-                </label>
-                <h3>{t("clubs.readingSchedule")}</h3>
-                <ClubScheduleEditor value={newClub.schedule.map(step => ({ ...step, title: step.theme }))} onChange={stages => setNewClub(draft => ({ ...draft, schedule: stages.map(stage => ({ ...stage, theme: stage.title })) }))} />
-                <label>
-                  <span>{t("clubs.description")}</span>
-                  <textarea
-                    maxLength="350"
-                    value={newClub.description}
-                    onChange={(event) =>
-                      setNewClub((draft) => ({ ...draft, description: event.target.value }))
-                    }
-                    placeholder={t("clubs.description")}
-                    rows="4"
-                  />
-                  <small className="character-count">{newClub.description.length}/350 characters</small>
-                </label>
-                <button
-                  className="primary-button full"
-                  type="submit"
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? t("clubs.creating") : t("clubs.createAction")}
-                </button>
-              </form>
-              <aside className="create-club-preview" aria-label={t("clubs.selectedPreview")}>
-                <div className="club-detail-cover">
-                  <BookCoverImage
-                    src={previewBook.coverUrl}
-                    alt=""
-                    loading="lazy"
-                  />
-                </div>
-                <strong>{previewBook.title}</strong>
-                <small>{previewBook.author}</small>
-                <p>{previewBook.isbn}</p>
-              </aside>
-            </div>
-          </section>
-        </div>
+        <CreateClubDialog
+          draft={newClub}
+          onChange={setNewClub}
+          book={selectedClubBook}
+          onBookChange={setSelectedClubBook}
+          onSubmit={createClub}
+          onClose={() => { if (!actionLoading) setIsCreateOpen(false); }}
+          busy={actionLoading}
+          error={actionError}
+        />
       )}
     </section>
   );
