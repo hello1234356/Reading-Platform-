@@ -51,8 +51,9 @@ const en = {
     refreshHelp: "Refresh the preview. If it stays here, check the browser console for the first React error.",
   },
   desktopPush: {
-    invitationTitle: "Enable notifications?",
-    invitationBody: "Get desktop notifications when something arrives in your LitShelf inbox.",
+    invitationTitle: "Turn on desktop notifications?",
+    invitationBody: "Get notified when something arrives in your LitShelf inbox.",
+    enableFailed: "Couldn’t enable notifications. Try again.",
     notNow: "Not now",
     enable: "Enable notifications",
     disable: "Disable notifications",

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  desktopPushSupported, dismissPushInvitation, invitationDismissed, pushConfigured,
+  desktopPushSupported, dismissPushInvitation, pushConfigured,
   preparePushWorker, readPushState, savePushState, setWorkerAccount, syncPushSubscription,
   removePushSubscription, touchPushPresence, applicationServerKey, getOwnPushRegistration,
 } from '../lib/desktopPush';
@@ -13,6 +13,7 @@ export function useDesktopPush(userId, authLoading) {
   const supported = desktopPushSupported();
   const configured = pushConfigured();
   const [status, setStatus] = useState('loading');
+  const [readyUserId, setReadyUserId] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -54,7 +55,7 @@ export function useDesktopPush(userId, authLoading) {
         savePushState({ ...saved, enabled: false });
         setStatus('off');
       }
-    }).then(() => { if (currentUser.current === userId) setError(false); }).catch(() => { if (currentUser.current === userId) { setStatus('error'); setError(true); } });
+    }).then(() => { if (currentUser.current === userId) { setError(false); setReadyUserId(userId); } }).catch(() => { if (currentUser.current === userId) { setStatus('error'); setError(true); } });
   }, [userId, authLoading, supported, configured, i18n.resolvedLanguage]);
 
   useEffect(() => {
@@ -84,14 +85,16 @@ export function useDesktopPush(userId, authLoading) {
   }, [status, userId, location.pathname, location.search, inboxOpen]);
 
   function enable() {
-    if (!supported || !configured || !userId || busy) return Promise.resolve();
+    if (!supported || !configured || !userId || busy) return Promise.resolve('cancelled');
     dismissPushInvitation();
     setBusy(true); setError(false);
     // This call must stay synchronous with the user's click, especially in Safari.
-    const permission = Notification.permission === 'default' ? Notification.requestPermission() : Promise.resolve(Notification.permission);
+    let permission;
+    try { permission = Notification.permission === 'default' ? Notification.requestPermission() : Promise.resolve(Notification.permission); }
+    catch { setStatus('error'); setError(true); setBusy(false); return Promise.resolve('error'); }
     operation.current = operation.current.catch(() => {}).then(async () => {
-      if (await permission !== 'granted') { setStatus(Notification.permission === 'denied' ? 'denied' : 'off'); return; }
-      if (currentUser.current !== userId) return;
+      if (await permission !== 'granted') { setStatus(Notification.permission === 'denied' ? 'denied' : 'off'); return Notification.permission === 'denied' ? 'denied' : 'dismissed'; }
+      if (currentUser.current !== userId) return 'cancelled';
       const registration = await preparePushWorker();
       const previous = readPushState();
       let subscription = await registration.pushManager.getSubscription();
@@ -100,11 +103,13 @@ export function useDesktopPush(userId, authLoading) {
       savePushState({ userId, enabled: true });
       if (!subscription) await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: applicationServerKey() });
       const state = await syncPushSubscription(userId, i18n.resolvedLanguage, registration);
-      if (currentUser.current !== userId || !state) return;
+      if (currentUser.current !== userId) return 'cancelled';
+      if (!state) throw new Error('Push subscription unavailable');
       savePushState(state);
       await setWorkerAccount(userId, registration);
       setStatus('enabled');
-    }).catch(() => { setStatus('error'); setError(true); }).finally(() => setBusy(false));
+      return 'enabled';
+    }).catch(() => { setStatus('error'); setError(true); return 'error'; }).finally(() => setBusy(false));
     return operation.current;
   }
   function disable() {
@@ -123,6 +128,5 @@ export function useDesktopPush(userId, authLoading) {
     }).catch(() => { setStatus('error'); setError(true); }).finally(() => setBusy(false));
     return operation.current;
   }
-  return { status: !supported ? 'unsupported' : Notification.permission === 'denied' ? 'denied' : status, busy, error, enable, disable, setInboxOpen,
-    canInvite: supported && configured && status === 'off' && Notification.permission === 'default' && !invitationDismissed() };
+  return { status: !supported ? 'unsupported' : Notification.permission === 'denied' ? 'denied' : status, busy, error, enable, disable, setInboxOpen, readyUserId };
 }

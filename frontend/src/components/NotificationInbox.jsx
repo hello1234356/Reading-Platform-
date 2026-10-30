@@ -1,5 +1,5 @@
 import TalesCollectible from "./tales/TalesCollectible";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import UserAvatar from "./UserAvatar";
@@ -15,9 +15,7 @@ import {
 } from "../lib/notificationApi";
 import { getNotificationPanelHeight } from "../lib/notificationLayout";
 
-import PushInvitation from "./push/PushInvitation";
 import PushPreferences from "./push/PushPreferences";
-import { dismissPushInvitation, invitationDismissed, preparePushWorker } from "../lib/desktopPush";
 
 function MailboxIcon() {
   return (
@@ -32,7 +30,6 @@ function MailboxIcon() {
 function NotificationInbox({ userId, push }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [invitation, setInvitation] = useState(false);
   const { t, i18n } = useTranslation();
   const wrapperRef = useRef(null);
   const panelRef = useRef(null);
@@ -154,25 +151,6 @@ function NotificationInbox({ userId, push }) {
     return () => cancelAnimationFrame(frame);
   }, [location.search]);
 
-  const dismissInvitation = useCallback((openInbox) => {
-    dismissPushInvitation();
-    setInvitation(false);
-    if (openInbox) { openRef.current = true; setOpen(true); }
-    else wrapperRef.current?.querySelector(".notification-mailbox-button")?.focus();
-  }, []);
-
-  function openMailbox() {
-    if (invitation) { dismissInvitation(true); return; }
-    if (!openRef.current && push?.canInvite && !invitationDismissed()) {
-      // Remember the invitation before rendering so refresh/dismissal never repeats it.
-      dismissPushInvitation();
-      void preparePushWorker().catch(() => {});
-      setInvitation(true);
-      return;
-    }
-    togglePanel();
-  }
-
   function markLoadedRead(snapshot) {
     const unread = snapshot.filter((item) => !item.isRead);
     if (!unread.length) return;
@@ -236,8 +214,8 @@ function NotificationInbox({ userId, push }) {
     <div className="notification-mailbox" ref={wrapperRef}>
       <button className="notification-mailbox-button" type="button"
         aria-label={unreadCount ? t("notifications.unread", { count: unreadCount }) : t("notifications.title")}
-        aria-haspopup="dialog" aria-expanded={open || invitation} aria-controls={invitation ? "push-invitation-panel" : "notification-inbox-panel"}
-        onClick={openMailbox}>
+        aria-haspopup="dialog" aria-expanded={open} aria-controls="notification-inbox-panel"
+        onClick={togglePanel}>
         <MailboxIcon />
         {unreadCount > 0 ? (
           <span className="notification-unread-badge" aria-hidden="true">
@@ -246,11 +224,6 @@ function NotificationInbox({ userId, push }) {
         ) : null}
       </button>
 
-      {invitation && <PushInvitation anchorRef={wrapperRef} onDismiss={dismissInvitation} onEnable={() => {
-        // Invoke permission synchronously inside the click before moving back to the inbox.
-        void push.enable();
-        dismissInvitation(true);
-      }} />}
       {open ? (
         <section className="notification-inbox-panel" id="notification-inbox-panel" ref={panelRef}
           role="dialog" aria-label={t("notifications.title")}>

@@ -51,8 +51,9 @@ const zh = {
     refreshHelp: "请刷新页面；如果问题仍然存在，请查看浏览器控制台中的首条 React 错误。",
   },
   desktopPush: {
-    invitationTitle: "启用通知？",
-    invitationBody: "LitShelf 收件箱收到新消息时，获取桌面通知。",
+    invitationTitle: "启用桌面通知？",
+    invitationBody: "LitShelf 收件箱收到新消息时通知你。",
+    enableFailed: "无法启用通知，请重试。",
     notNow: "暂不启用",
     enable: "启用通知",
     disable: "关闭通知",

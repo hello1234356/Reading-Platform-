@@ -1,6 +1,6 @@
 # Desktop browser push notifications
 
-This change is **not deployed**. Inbox notifications continue to work without push configuration. The optional invitation appears on the first eligible inbox click and uses `frontend/public/branding/apple-touch-icon.png`, the existing square LitShelf brand asset. It is 380px wide, viewport-constrained, anchored 12px beneath the envelope, and uses the existing fonts/paper palette plus the specified burgundy action color. It has no backdrop or page-blocking modal. Dismissal, Escape, outside click, and denial do not request permission again. Preferences are at the bottom of the inbox under **Desktop notifications**.
+The desktop push system is deployed and was reported working in Safari and Chrome. The invitation now uses the account-level onboarding described in [One-time desktop invitation](desktop-push-onboarding.md). That focused update needs only its additive migration and frontend deployment; the remaining setup instructions below describe the original push infrastructure. Manual preferences remain at the bottom of the inbox under **Desktop notifications**.
 
 ## Deployment
 

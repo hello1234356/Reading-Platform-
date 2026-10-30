@@ -1,6 +1,6 @@
 import { seasonalTranslationKey } from "../config/season.js";
 import { useEffect, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -10,6 +10,7 @@ import {
 import { requireSupabase } from "../lib/supabase";
 import tsinglanLogo from "../assets/tsinglan-logo-official-alt.png";
 import NotificationInbox from "./NotificationInbox";
+import PushOnboarding from "./push/PushOnboarding";
 import { useDesktopPush } from "../hooks/useDesktopPush";
 import { useEventsAccess } from "../context/eventsAccess";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -24,6 +25,7 @@ const navItems = [
 
 function Navbar() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { canView: canViewEvents } = useEventsAccess();
   const { t } = useTranslation();
   const { user, isLoggedIn, loading } = useAuth();
@@ -251,6 +253,7 @@ function Navbar() {
           {t("common.signIn")}
         </NavLink>
       )}
+      {isLoggedIn && user?.id && !/^\/login(?:\/|$)/.test(pathname) ? <PushOnboarding key={user.id} userId={user.id} push={desktopPush} /> : null}
       {isLoggedIn && user?.id ? <NotificationInbox key={user.id} userId={user.id} push={desktopPush} /> : null}
 
       {adminRole ? (

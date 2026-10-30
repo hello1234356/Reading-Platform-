@@ -229,7 +229,7 @@ test("navbar mailbox placement, bounded inbox, and accessibility are explicit", 
   ]);
   assert.match(navbar, /className="[^"]*nav-school-actions[^"]*"[\s\S]*<NotificationInbox[\s\S]*className="school-logo"/);
   assert.ok(navbar.indexOf('className="nav-search"') < navbar.indexOf('className="nav-login"'));
-  assert.match(inbox, /aria-expanded=\{open \|\| invitation\}/);
+  assert.match(inbox, /aria-expanded=\{open\}/);
   assert.match(inbox, /event\.key === "Escape"/);
   assert.match(inbox, /t\("notifications\.empty"\)/);
   assert.match(css, /\.notification-mailbox[\s\S]*position: relative/);
