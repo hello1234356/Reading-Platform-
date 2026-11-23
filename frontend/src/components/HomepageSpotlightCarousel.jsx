@@ -126,21 +126,22 @@ function SpotlightLink({ url, children, tabIndex }) {
 
 function QuoteSpotlightSlide({ dailyQuote, onAction, active = true }) {
   const { t } = useTranslation();
+  const language = dailyQuote.language ?? "en";
   return (
     <article className="homepage-spotlight-slide homepage-quote-slide" aria-hidden={!active}>
+      <div className="daily-quote-meta">
+        <span>{new Intl.DateTimeFormat(undefined, {
+          month: "long",
+          day: "numeric",
+        }).format(new Date())}</span>
+      </div>
       <div className="daily-quote-panel">
-        <div className="daily-quote-meta">
-          <span>{new Intl.DateTimeFormat(undefined, {
-            month: "long",
-            day: "numeric",
-          }).format(new Date())}</span>
-        </div>
-        <blockquote>
+        <blockquote lang={language} translate="no">
           <span aria-hidden="true">“</span>
           <h1 id="home-title">{dailyQuote.quote}</h1>
           <span aria-hidden="true">”</span>
         </blockquote>
-        <div className="daily-quote-credit">
+        <div className="daily-quote-credit" lang={language} translate="no">
           <p>{dailyQuote.author}</p>
           <small>{dailyQuote.source}</small>
         </div>
@@ -169,24 +170,62 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
   const slides = createHomepageSlides(banners);
   const quoteActive = slides[activeIndex]?.type === "quote";
 
-  // Let the quote determine its height, including translated copy and loaded fonts.
+  // Use the rendered lines at each size, including both source breaks and wrapping.
   useLayoutEffect(() => {
     const carousel = carouselRef.current;
     const panel = carousel?.querySelector('.homepage-quote-slide[aria-hidden="false"] .daily-quote-panel');
     if (!quoteActive || !panel) return undefined;
 
-    const measure = () => {
-      const slideStyle = getComputedStyle(panel.parentElement);
-      const navigationSpace = carousel.querySelector(".homepage-spotlight-pagination") ? 36 : 0;
-      const height = Math.ceil(panel.getBoundingClientRect().height
-        + parseFloat(slideStyle.paddingTop) + parseFloat(slideStyle.paddingBottom)
-        + navigationSpace);
-      carousel.style.setProperty("--quote-slide-height", `${height}px`);
+    const heading = panel.querySelector("h1");
+    const lineCount = () => {
+      const lineHeight = parseFloat(getComputedStyle(heading).lineHeight);
+      return Math.round(heading.getBoundingClientRect().height / lineHeight);
     };
-    const observer = new ResizeObserver(measure);
+    let measuredWidth;
+    let measuredHeight;
+    let frame;
+
+    const measure = () => {
+      const width = panel.getBoundingClientRect().width;
+      if (width !== measuredWidth) {
+        measuredWidth = width;
+        delete carousel.dataset.quoteSize;
+        if (lineCount() > 2) {
+          carousel.dataset.quoteSize = "medium";
+          if (lineCount() > 3) carousel.dataset.quoteSize = "compact";
+        }
+        carousel.toggleAttribute("data-quote-needs-edit", lineCount() > 6);
+      }
+
+      const slideStyle = getComputedStyle(panel.parentElement);
+      const height = Math.ceil(panel.getBoundingClientRect().height
+        + parseFloat(slideStyle.paddingTop) + parseFloat(slideStyle.paddingBottom));
+      if (height !== measuredHeight) {
+        measuredHeight = height;
+        carousel.style.setProperty("--quote-slide-height", `${height}px`);
+      }
+    };
+    const scheduleMeasure = () => {
+      if (frame !== undefined) return;
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        measure();
+      });
+    };
+    const refreshFontMetrics = () => {
+      measuredWidth = undefined;
+      scheduleMeasure();
+    };
+
+    const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(panel);
+    document.fonts.addEventListener("loadingdone", refreshFontMetrics);
     measure();
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      document.fonts.removeEventListener("loadingdone", refreshFontMetrics);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    };
   }, [quoteActive, dailyQuote, slides.length]);
 
   const goToSlide = useCallback((index, manual = true) => {

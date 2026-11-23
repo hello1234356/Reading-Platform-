@@ -6,8 +6,24 @@
 }
 
 .homepage-spotlight-slide.homepage-quote-slide {
+  --quote-date-top: clamp(34px, 4.4vw, 60px);
+  --quote-indent: clamp(16px, 1.5vw, 24px);
+  --quote-short-size: clamp(36px, 4.2vw, 58px);
+  --quote-medium-size: clamp(33px, 3.3vw, 46px);
+  --quote-compact-size: clamp(29px, 2.65vw, 38px);
   align-items: center;
-  padding: 28px 48px;
+  padding: calc(var(--quote-date-top) + 29px) 48px calc(19px + var(--quote-nav-space, 0px));
+}
+
+.homepage-spotlight-carousel:has(.homepage-spotlight-pagination) {
+  --quote-nav-space: 18px;
+}
+
+.homepage-quote-slide .daily-quote-meta {
+  position: absolute;
+  inset-block-start: var(--quote-date-top);
+  inset-inline-end: clamp(18px, 6vw, 100px);
+  padding: 0;
 }
 
 .homepage-quote-slide .daily-quote-meta span {
@@ -15,16 +31,53 @@
 }
 
 .homepage-quote-slide .daily-quote-panel blockquote {
-  margin-top: 12px;
+  inline-size: fit-content;
+  max-inline-size: min(100%, var(--quote-measure, 58rem));
+  margin: 0;
+  padding-inline-start: var(--quote-indent);
+}
+
+.homepage-quote-slide blockquote > span:first-child,
+.homepage-quote-slide blockquote > span:last-child {
+  font-size: clamp(46px, 6vw, 78px);
+}
+
+.homepage-quote-slide blockquote > span:first-child {
+  inset-block-start: -.14em;
+  inset-inline-start: calc(var(--quote-indent) - .34em);
+}
+
+.homepage-quote-slide blockquote > span:last-child {
+  inset-block-end: -.43em;
+  inset-inline-end: -.24em;
+}
+
+[data-quote-size="medium"] .homepage-quote-slide {
+  --quote-size: var(--quote-medium-size);
+  --quote-leading: 1.14;
+  --quote-measure: 52rem;
+}
+
+[data-quote-size="compact"] .homepage-quote-slide {
+  --quote-size: var(--quote-compact-size);
+  --quote-leading: 1.18;
+  --quote-measure: 48rem;
 }
 
 .homepage-quote-slide .daily-quote-panel h1 {
-  font-size: clamp(36px, 4.2vw, 58px);
-  line-height: 1.12;
+  font-size: var(--quote-size, var(--quote-short-size));
+  line-height: var(--quote-leading, 1.12);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.homepage-quote-slide .daily-quote-credit,
+.homepage-quote-slide .daily-quote-actions {
+  padding-inline-start: var(--quote-indent);
 }
 
 .homepage-quote-slide .daily-quote-credit {
-  margin-top: 12px;
+  margin-top: clamp(12px, 1.1vw, 16px);
 }
 
 .homepage-quote-slide .daily-quote-credit p {
@@ -32,7 +85,7 @@
 }
 
 .homepage-quote-slide .daily-quote-actions {
-  margin-top: 16px;
+  margin-top: clamp(17px, 1.45vw, 22px);
 }
 
 .homepage-quote-slide .daily-quote-actions .hero-action {
@@ -140,11 +193,10 @@
   }
 
   .homepage-spotlight-slide.homepage-quote-slide {
-    padding: 22px 28px;
-  }
-
-  .homepage-quote-slide .daily-quote-panel h1 {
-    font-size: clamp(28px, 4.5vw, 40px);
+    --quote-short-size: clamp(28px, 4.5vw, 40px);
+    --quote-medium-size: clamp(25px, 3.9vw, 36px);
+    --quote-compact-size: clamp(23px, 3.15vw, 32px);
+    padding-inline: 36px;
   }
 
   .homepage-quote-slide .daily-quote-credit {
@@ -244,17 +296,12 @@
 /* Phones: book-sized covers alongside readable summaries, never poster cards. */
 @media (max-width: 560px) {
   .homepage-spotlight-slide.homepage-quote-slide {
-    padding: 20px 18px;
-  }
-
-  .homepage-quote-slide .daily-quote-panel blockquote,
-  .homepage-quote-slide .daily-quote-credit,
-  .homepage-quote-slide .daily-quote-actions {
-    padding-left: 0;
-  }
-
-  .homepage-quote-slide .daily-quote-panel h1 {
-    font-size: clamp(26px, 7vw, 32px);
+    --quote-date-top: 30px;
+    --quote-indent: 0px;
+    --quote-short-size: clamp(26px, 7vw, 32px);
+    --quote-medium-size: clamp(23px, 6vw, 29px);
+    --quote-compact-size: clamp(21px, 5.4vw, 25px);
+    padding-inline: 18px;
   }
 
   .homepage-quote-slide .daily-quote-credit small {

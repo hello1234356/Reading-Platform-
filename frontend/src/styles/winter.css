@@ -253,8 +253,8 @@
 
 @media (min-width: 901px) {
   [data-season="winter"] .homepage-spotlight-slide.homepage-quote-slide {
-    padding-inline-start: 15.5%;
-    padding-inline-end: 8%;
+    padding-inline-start: clamp(162px, 12.8vw, 188px);
+    padding-inline-end: clamp(48px, 7vw, 104px);
   }
 }
 

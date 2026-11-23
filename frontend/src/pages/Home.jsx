@@ -9,6 +9,7 @@ import {
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import { bookDatabasePreview } from "../data/books";
+import { winterLiteraryQuotes } from "../data/winterLiteraryQuotes.js";
 import { useWinterReadingRail } from "../hooks/useWinterReadingRail";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
@@ -296,6 +297,12 @@ function getBookCoverSource(book) {
 }
 
 function getDailyLiteraryQuote(date = new Date()) {
+  if (ACTIVE_SEASON === "winter") {
+    // Count local calendar days continuously across DST and New Year.
+    const day = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
+    return winterLiteraryQuotes.at(day % winterLiteraryQuotes.length);
+  }
+
   const startOfYear = new Date(date.getFullYear(), 0, 0);
   const dayOfYear = Math.floor((date - startOfYear) / 86400000);
 
