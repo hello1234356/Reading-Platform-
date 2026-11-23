@@ -1,5 +1,5 @@
-// Set to null to disable ALL October styling and copy. No visitor-date logic.
-export const ACTIVE_SEASON = "october";
+// Choose "winter", "october", or null for ordinary LitShelf, then rebuild.
+export const ACTIVE_SEASON = "winter";
 
 const octoberKeys = {
   "nav.searchPlaceholder": "october.searchPlaceholder",

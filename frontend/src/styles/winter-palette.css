@@ -1,0 +1,305 @@
+/* Winter-only palette. Standard LitShelf tokens live in variables.css. */
+:root[data-season="winter"] {
+  --winter-snow: #faf9f6;
+  --winter-paper: #fffdf9;
+  --winter-field: #ffffff;
+  --winter-frost: #f1f3f2;
+  --winter-ice: #e8f1f5;
+  --winter-blue: #b7c5ca;
+  --winter-slate: #514b47;
+  --winter-ink: #343331;
+  --winter-muted: #615e58;
+  --winter-pine: #315d50;
+  --winter-pine-dark: #24473e;
+  --winter-cranberry: #a64e50;
+  --winter-rule: #d8d6d1;
+  --winter-sage: #e5ebe6;
+  --winter-ribbon: #efdfdf;
+  --winter-silver: #dfe6ec;
+  --winter-seafoam: #e6eeeb;
+  --winter-gold-ink: #80602e;
+  --winter-candle: #eee5d4;
+  --winter-sea-ink: #376563;
+  --winter-focus: #46758a;
+  --winter-card: var(--winter-paper);
+  --winter-feature: linear-gradient(115deg, var(--winter-frost), var(--winter-paper) 68%);
+
+  /* Bind LitShelf's existing component tokens for this season. */
+  --paper: var(--winter-paper);
+  --ivory: var(--winter-frost);
+  --linen: var(--winter-ice);
+  --stone: var(--winter-rule);
+  --warm-mist: var(--winter-silver);
+  --charcoal: var(--winter-ink);
+  --deep-mocha: var(--winter-ink);
+  --warm-ink: var(--winter-slate);
+  --mocha: var(--winter-slate);
+  --walnut: var(--winter-slate);
+  --soft-gray: var(--winter-muted);
+  --ink: var(--winter-ink);
+  --ink-soft: var(--winter-muted);
+  --forest: var(--winter-pine);
+  --sage: var(--winter-sage);
+  --dusty-teal: var(--winter-seafoam);
+  --olive: var(--winter-blue);
+  --butter: var(--winter-ice);
+  --mustard: var(--winter-blue);
+  --ochre: var(--winter-focus);
+  --terracotta: var(--winter-cranberry);
+  --coral: var(--winter-cranberry);
+  --blush: var(--winter-ribbon);
+  --peach: var(--winter-ribbon);
+  --lavender: var(--winter-ribbon);
+  --border: var(--winter-rule);
+  --shadow-rgb: 71, 56, 48;
+  --pillow-shadow: 0 4px 12px rgba(var(--shadow-rgb), .08), inset 0 1px 0 var(--winter-snow);
+  --scrollbar-track: var(--winter-frost);
+  --scrollbar-thumb: var(--winter-blue);
+  --scrollbar-thumb-hover: var(--winter-muted);
+}
+
+/* Page, navigation and shared reader controls */
+[data-season="winter"] body {
+  background: radial-gradient(ellipse at 0 32%, var(--winter-snow), transparent 65%), linear-gradient(150deg, var(--winter-frost), var(--winter-snow) 72%) fixed;
+}
+
+[data-season="winter"] .site-nav {
+  background: var(--winter-snow);
+  box-shadow: 0 1px 0 var(--winter-rule), 0 3px 14px rgba(var(--shadow-rgb), .05);
+}
+
+[data-season="winter"] :is(.nav-link.active, .nav-link:hover)::after,
+[data-season="winter"] .leaderboard-strip-heading strong::after,
+[data-season="winter"] .home-page .section-heading h2::after,
+[data-season="winter"] .profile-shelf-page-header h1::after {
+  background: var(--winter-ice);
+}
+
+[data-season="winter"] :is(.ghost-button, .feed-search-clear) {
+  text-decoration-color: var(--winter-blue);
+}
+
+[data-season="winter"] :is(.admin-notification-popover, .notification-inbox-panel,
+  .admin-notification-trigger, .modal-close, .profile-challenge-icon,
+  .public-profile-modal, .cr-dialog, .star-rating-picker, .seasonal-event-dialog) {
+  background: var(--winter-snow);
+  border-color: var(--winter-rule);
+}
+
+[data-season="winter"] :is(.notification-inbox-row.unread, .notification-inbox-row:hover,
+  .calendar-navigation button:hover, .event-popup-close:hover) {
+  background: var(--winter-ice);
+}
+
+[data-season="winter"] :is(input:not([type]), input[type="search"], input[type="text"],
+  input[type="email"], input[type="password"], input[type="number"], textarea, select) {
+  background-color: var(--winter-field);
+  border-color: var(--winter-rule);
+  color: var(--winter-ink);
+}
+
+[data-season="winter"] ::placeholder { color: var(--winter-muted); }
+
+[data-season="winter"] :is(button, a, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--winter-focus);
+  outline-offset: 2px;
+}
+
+[data-season="winter"] :is(input, select, textarea):focus-visible {
+  border-color: var(--winter-focus);
+  box-shadow: 0 0 0 3px var(--winter-ice);
+}
+
+/* Keep banner authors in control of their slide's copy and CTA. */
+[data-season="winter"] :is(.primary-button:not(.homepage-spotlight-cta), .comment-form > button,
+  .tracker-actions button:last-child, .signin-rail-card button, .discovery-search-bar button,
+  .feed-search-bar button[type="submit"], .profile-edit-button, .event-button,
+  .beautiful-login-button):not(:disabled) {
+  background: var(--winter-button-fill, var(--winter-pine));
+  color: var(--winter-snow);
+}
+
+[data-season="winter"] :is(.primary-button:not(.homepage-spotlight-cta), .comment-form > button,
+  .tracker-actions button:last-child, .signin-rail-card button, .discovery-search-bar button,
+  .feed-search-bar button[type="submit"], .profile-edit-button, .event-button,
+  .beautiful-login-button):not(:disabled):not([aria-disabled="true"]):hover {
+  background: var(--winter-button-hover, var(--winter-pine-dark));
+  color: var(--winter-snow);
+}
+
+[data-season="winter"] :is(.primary-button, .comment-form > button, .discovery-search-bar button):disabled {
+  background: var(--winter-silver);
+  color: var(--winter-muted);
+}
+
+/* The five podium heights are structural. Only the paper and ink change. */
+[data-season="winter"] .rank-1 { --rank-paper: var(--winter-candle); --rank-ink: var(--winter-gold-ink); }
+[data-season="winter"] .rank-2 { --rank-paper: var(--winter-sage); --rank-ink: var(--winter-pine); }
+[data-season="winter"] .rank-3 { --rank-paper: var(--winter-ribbon); --rank-ink: var(--winter-cranberry); }
+[data-season="winter"] .rank-4 { --rank-paper: var(--winter-silver); --rank-ink: var(--winter-muted); }
+[data-season="winter"] .rank-5 { --rank-paper: var(--winter-seafoam); --rank-ink: var(--winter-sea-ink); }
+
+[data-season="winter"] .leaderboard-podium .podium-step {
+  background: linear-gradient(var(--rank-paper) -12%, var(--winter-paper) 85%);
+  box-shadow: var(--pillow-shadow);
+}
+
+[data-season="winter"] .leaderboard-podium .podium-step span {
+  background: var(--rank-ink);
+  color: var(--winter-snow);
+}
+
+/* Frosted paper for reading surfaces and dialogs. */
+[data-season="winter"] :is(.current-book-card, .signin-rail-card, .book-strip,
+  .profile-challenge, .composer-modal, .book-detail-modal, .profile-edit-modal,
+  .favorite-picker-modal, .club-modal, .login-card-beautiful, .submit-book-modal) {
+  background: var(--winter-card);
+  border-color: var(--winter-rule);
+}
+
+[data-season="winter"] :is(.feed-column > .section-heading, .feed-card, .recent-finishes,
+  .profile-tracker-book, .calendar-weekdays, .calendar-week, .club-card, .profile-review) {
+  border-color: var(--winter-rule);
+}
+
+[data-season="winter"] :is(.feed-compressed-line button, .profile-favorites-empty,
+  .club-card, .recent-finish-card, .isbn-search-result, .profile-school-email-input,
+  .favorite-picker-results button, .tracked-book-entry, .feed-pagination button,
+  .book-moderation-retry-action, .admin-card, .admin-denied, .homepage-banner-row,
+  .homepage-banner-fieldset, .admin-tabs button, .admin-filter-tabs button) {
+  background: var(--winter-snow);
+  border-color: var(--winter-rule);
+}
+
+[data-season="winter"] :is(.user-avatar, .profile-photo-preview, .profile-favorite-add) {
+  background: var(--winter-sage);
+  color: var(--winter-pine);
+}
+
+[data-season="winter"] :is(.profile-progress, .bookmark-progress) {
+  background: var(--winter-silver);
+}
+
+[data-season="winter"] .profile-progress i {
+  background: linear-gradient(90deg, var(--winter-blue), var(--winter-pine));
+}
+
+[data-season="winter"] .profile-shelf-card,
+[data-season="winter"] .discovery-featured-pick {
+  background: var(--winter-feature);
+  border-color: var(--winter-rule);
+}
+
+[data-season="winter"] .discovery-editor-picks .discovery-featured-pick::before {
+  background: transparent;
+}
+
+[data-season="winter"] :is(.discovery-pick-card.sea, .profile-shelf-card.sage) {
+  background: linear-gradient(125deg, var(--winter-sage) -95%, var(--winter-paper) 70%);
+}
+
+[data-season="winter"] :is(.discovery-pick-card.blush, .profile-shelf-card.coral) {
+  background: linear-gradient(125deg, var(--winter-ribbon) -95%, var(--winter-paper) 70%);
+}
+
+[data-season="winter"] :is(.club-card-founder, .club-card-actions .ghost-button,
+  .profile-readonly-row .profile-readonly-input, .notification-system-mark) {
+  background: var(--winter-frost);
+  border-color: var(--winter-rule);
+}
+
+[data-season="winter"] :is(.club-card .club-cover, .club-card .club-detail-cover) {
+  background-color: var(--winter-frost);
+}
+
+[data-season="winter"] :is(.profile-photo-main, .profile-photo-preview, .public-profile-avatar) {
+  border-color: var(--winter-snow);
+}
+
+[data-season="winter"] :is(.calendar-day, .calendar-navigation button, .event-popup-close,
+  .seasonal-event-content h2, .login-card-header h2, .beautiful-login-form label > span) {
+  color: var(--winter-slate);
+}
+
+[data-season="winter"] :is(.calendar-day.muted, .calendar-weekdays span, .event-popup-date,
+  .seasonal-event-content .eyebrow, .login-card-header p) {
+  color: var(--winter-muted);
+}
+
+[data-season="winter"] .calendar-event {
+  background: var(--winter-ice);
+  color: var(--winter-ink);
+}
+
+[data-season="winter"] .calendar-event:hover { background: var(--winter-blue); }
+[data-season="winter"] .calendar-event-symbol { color: var(--winter-pine); }
+
+[data-season="winter"] .up-room {
+  --up-paper: var(--winter-snow);
+  --up-ink: var(--winter-ink);
+  --up-muted: var(--winter-muted);
+  --up-rule: var(--winter-rule);
+}
+
+[data-season="winter"] .book-strip {
+  background: var(--winter-card);
+  box-shadow: inset 0 0 0 1px var(--winter-rule), 0 2px 6px rgba(var(--shadow-rgb), .04);
+}
+
+[data-season="winter"] .comment-input-shell {
+  background: var(--winter-field);
+  border-color: var(--winter-rule);
+}
+
+[data-season="winter"] .comment-input-shell input {
+  background: transparent;
+}
+
+[data-season="winter"] .comment-input-shell:focus-within {
+  border-color: var(--winter-focus);
+  box-shadow: 0 0 0 2px var(--winter-ice);
+}
+
+[data-season="winter"] .comment-input-shell input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+[data-season="winter"] :is(.book-moderation-state.checking, .admin-tabs button.active,
+  .admin-filter-tabs button.active, .admin-recipient-results button.selected) {
+  background: var(--winter-ice);
+  color: var(--winter-ink);
+  border-color: var(--winter-rule);
+}
+
+[data-season="winter"] :is(.admin-form-recommendation, .admin-book-description,
+  .admin-book-submitter, .submit-book-floating-cta) {
+  background: var(--winter-card);
+  border-color: var(--winter-rule);
+}
+
+[data-season="winter"] :is(.exhibition-page, .up-invitations a, .up-theme-2) {
+  color: var(--winter-ink);
+  background: var(--winter-frost);
+}
+
+[data-season="winter"] :is(.exhibition-selected-book, .exhibition-confirmation) {
+  background: var(--winter-sage);
+}
+
+[data-season="winter"] :is(.public-profile-backdrop, .composer-modal-backdrop, .club-modal-backdrop) {
+  background-color: rgba(var(--shadow-rgb), .35);
+}
+
+[data-season="winter"] :is(.nav-link.active, .nav-link:hover)::after {
+  background: var(--winter-ribbon);
+}
+
+[data-season="winter"] .recent-finish-card {
+  background: var(--winter-card);
+}
+
+[data-season="winter"] .comment-form > button {
+  --winter-button-fill: var(--winter-cranberry);
+  --winter-button-hover: color-mix(in srgb, var(--winter-cranberry) 82%, var(--winter-ink));
+}

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" fill="none">
+  <style>
+    .left { transform: translateX(clamp(1px, .4vw, 9px)); }
+    .right { transform: translateX(clamp(-9px, -.4vw, -1px)) scaleX(-1); }
+    @media (max-width: 700px) {
+      .left { transform: translateX(1px) scale(.5); }
+      .right { transform: translateX(-1px) scale(-.5,.5); }
+    }
+  </style>
+  <defs>
+    <path id="ray" d="M12 12V2m-3 3 3 3 3-3"/>
+    <g id="flake" stroke="#829596" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+      <use href="#ray"/><use href="#ray" transform="rotate(60 12 12)"/><use href="#ray" transform="rotate(120 12 12)"/>
+      <use href="#ray" transform="rotate(180 12 12)"/><use href="#ray" transform="rotate(240 12 12)"/><use href="#ray" transform="rotate(300 12 12)"/>
+    </g>
+  </defs>
+  <g opacity=".83">
+    <svg x="0" y="2.7%" overflow="visible"><g class="left"><use href="#flake" transform="translate(9) scale(0.79) rotate(13 12 12)"/></g></svg>
+    <svg x="100%" y="8.1%" overflow="visible"><g class="right"><use href="#flake" transform="translate(4) scale(0.92) rotate(-16 12 12)"/></g></svg>
+    <svg x="100%" y="9.8%" overflow="visible"><g class="right"><use href="#flake" transform="translate(17) scale(0.57) rotate(7 12 12)"/></g></svg>
+    <svg x="0" y="19.3%" overflow="visible"><g class="left"><use href="#flake" transform="translate(2) scale(0.62) rotate(-5 12 12)"/></g></svg>
+    <svg x="100%" y="24.1%" overflow="visible"><g class="right"><use href="#flake" transform="translate(10) scale(0.73) rotate(18 12 12)"/></g></svg>
+    <svg x="100%" y="26.4%" overflow="visible"><g class="right"><use href="#flake" transform="translate(3) scale(0.64) rotate(22 12 12)"/></g></svg>
+    <svg x="0" y="33.9%" overflow="visible"><g class="left"><use href="#flake" transform="translate(5) scale(0.55) rotate(-11 12 12)"/></g></svg>
+    <svg x="0" y="36.1%" overflow="visible"><g class="left"><use href="#flake" transform="translate(18) scale(0.95) rotate(19 12 12)"/></g></svg>
+    <svg x="100%" y="42.8%" overflow="visible"><g class="right"><use href="#flake" transform="translate(13) scale(0.86) rotate(8 12 12)"/></g></svg>
+    <svg x="0" y="47.9%" overflow="visible"><g class="left"><use href="#flake" transform="translate(9) scale(0.78) rotate(-21 12 12)"/></g></svg>
+    <svg x="100%" y="53.4%" overflow="visible"><g class="right"><use href="#flake" transform="translate(15) scale(0.59) rotate(5 12 12)"/></g></svg>
+    <svg x="0" y="55.2%" overflow="visible"><g class="left"><use href="#flake" transform="translate(6) scale(0.9) rotate(-14 12 12)"/></g></svg>
+    <svg x="100%" y="62.2%" overflow="visible"><g class="right"><use href="#flake" transform="translate(2) scale(0.82) rotate(18 12 12)"/></g></svg>
+    <svg x="100%" y="64.3%" overflow="visible"><g class="right"><use href="#flake" transform="translate(18) scale(0.75) rotate(-9 12 12)"/></g></svg>
+    <svg x="0" y="72.4%" overflow="visible"><g class="left"><use href="#flake" transform="translate(13) scale(0.63) rotate(23 12 12)"/></g></svg>
+    <svg x="0" y="77.6%" overflow="visible"><g class="left"><use href="#flake" transform="translate(4) scale(0.86) rotate(9 12 12)"/></g></svg>
+    <svg x="100%" y="83.8%" overflow="visible"><g class="right"><use href="#flake" transform="translate(11) scale(0.75) rotate(-4 12 12)"/></g></svg>
+    <svg x="0" y="90.3%" overflow="visible"><g class="left"><use href="#flake" transform="translate(15) scale(0.57) rotate(-17 12 12)"/></g></svg>
+    <svg x="0" y="92%" overflow="visible"><g class="left"><use href="#flake" transform="translate(3) scale(0.67) rotate(21 12 12)"/></g></svg>
+    <svg x="100%" y="97.9%" overflow="visible"><g class="right"><use href="#flake" transform="translate(6) scale(0.9) rotate(10 12 12)"/></g></svg>
+  </g>
+</svg>

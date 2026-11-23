@@ -9,6 +9,7 @@ import {
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import { bookDatabasePreview } from "../data/books";
+import { useWinterReadingRail } from "../hooks/useWinterReadingRail";
 import { useRequireLogin } from "../hooks/useRequireLogin";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -61,7 +62,22 @@ const defaultTrackedBook = {
   finished: false,
 };
 
-function HeartIcon({ filled = false }) {
+function LikeIcon({ filled = false }) {
+  if (ACTIVE_SEASON === "winter") {
+    return (
+      <svg className="social-action-icon" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth={filled ? 2.1 : 1.5}
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+        {[0, 60, 120, 180, 240, 300].map(angle => (
+          <path key={angle} transform={`rotate(${angle} 12 12)`}
+            d="M12 2v7.5m-3-5L12 7l3-2.5" />
+        ))}
+        <path d="m12 9 2.6 1.5v3L12 15l-2.6-1.5v-3Z"
+          fill={filled ? "currentColor" : "none"} />
+      </svg>
+    );
+  }
+
   return (
     <svg
       aria-hidden="true"
@@ -487,6 +503,7 @@ function Home() {
   const [initialHomeState] = useState(getInitialHomeState);
   const [dailyQuote] = useState(() => getDailyLiteraryQuote());
   const { requireLogin, isLoggedIn } = useRequireLogin();
+  const shelfRailRef = useWinterReadingRail(isLoggedIn);
   const { user } = useAuth();
   const [selectedBook, setSelectedBook] = useState(null);
   const [bookDetailLoading, setBookDetailLoading] = useState(false);
@@ -2046,7 +2063,7 @@ function Home() {
         )}
       </section>
 	      <div className="home-grid">
-	        <aside className="shelf-rail" aria-label={t("home.readingShelves")}>
+	        <aside ref={shelfRailRef} className="shelf-rail" aria-label={t("home.readingShelves")}>
 	          {isLoggedIn ? (
 	            <>
 	              <section className="current-book-card" aria-label={t("home.trackerAria")}>
@@ -2408,12 +2425,13 @@ function Home() {
                     }
                     type="button"
                     onClick={() => toggleLike(post.id)}
+                    aria-pressed={post.liked}
                     aria-label={
                       post.liked ? t("home.unlikePost") : t("home.likePost")
                     }
                   >
                     <span aria-hidden="true">
-                      <HeartIcon filled={post.liked} />
+                      <LikeIcon filled={post.liked} />
                     </span>
                     <small>{post.likes}</small>
                   </button>
@@ -2508,6 +2526,7 @@ function Home() {
                             onClick={() =>
                               toggleCommentLike(post.id, comment.id)
                             }
+                            aria-pressed={comment.liked}
                             aria-label={
                               comment.liked
                                 ? t("home.unlikeComment")
@@ -2515,7 +2534,7 @@ function Home() {
                             }
                           >
                             <span aria-hidden="true">
-                              <HeartIcon filled={comment.liked} />
+                              <LikeIcon filled={comment.liked} />
                             </span>
                             {comment.likes}
                           </button>

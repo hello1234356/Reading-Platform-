@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 68" fill="none">
+  <defs>
+    <radialGradient id="halo"><stop stop-color="#fffbea" stop-opacity=".92"/><stop offset=".27" stop-color="#ffe3a2" stop-opacity=".69"/><stop offset="1" stop-color="#ffe1a1" stop-opacity="0"/></radialGradient>
+    <linearGradient id="glass" x2=".9" y2="1"><stop stop-color="#fffff1"/><stop offset=".5" stop-color="#ffefbe"/><stop offset="1" stop-color="#e9bc73"/></linearGradient>
+    <g id="lamp">
+      <circle cy="8" r="12" fill="url(#halo)"/>
+      <path d="M-.7-.2q-.8 1.6.4 3.1" stroke="#685c49" stroke-width="1.25"/>
+      <path d="M-1.8 4.9C-2.1 7.8-1.2 11.9.1 12.3c1.6-.7 2.5-5 1.7-7.4Z" fill="url(#glass)" stroke="#b28e64" stroke-width=".6"/>
+      <path d="M-.7 6.1q-.2 2.5.6 4.5" stroke="#fffdf3" stroke-linecap="round"/>
+      <path d="m-2.1 2.8 3.9-.3.2 2.8-3.9.4Z" fill="#736b52"/><path d="m-1.5 3.7 2.9-.2" stroke="#c0ac82" stroke-width=".7"/>
+    </g>
+  </defs>
+  <path d="M-18 -5Q154 81 349 2" stroke="#746b54" stroke-width="1.35"/>
+  <path d="M-18 -5Q154 81 349 2" transform="translate(0 1.1)" stroke="#d8c8a3" stroke-width=".68"/>
+  <use xlink:href="#lamp" transform="translate(10.8 8.2) rotate(-15)"/>
+  <use xlink:href="#lamp" transform="translate(69.4 27.7) rotate(11)"/>
+  <use xlink:href="#lamp" transform="translate(129.3 38.0) rotate(-5)"/>
+  <use xlink:href="#lamp" transform="translate(190.5 39.2) rotate(19)"/>
+  <use xlink:href="#lamp" transform="translate(252.9 31.2) rotate(6)"/>
+  <use xlink:href="#lamp" transform="translate(316.7 14.0) rotate(-10)"/>
+  <path d="M349 2Q578 91 828 3" stroke="#746b54" stroke-width="1.35"/>
+  <path d="M349 2Q578 91 828 3" transform="translate(0 1.1)" stroke="#d8c8a3" stroke-width=".68"/>
+  <use xlink:href="#lamp" transform="translate(374.5 11.3) rotate(-15)"/>
+  <use xlink:href="#lamp" transform="translate(425.9 26.8) rotate(11)"/>
+  <use xlink:href="#lamp" transform="translate(477.8 37.8) rotate(-5)"/>
+  <use xlink:href="#lamp" transform="translate(530.3 44.5) rotate(19)"/>
+  <use xlink:href="#lamp" transform="translate(583.2 46.8) rotate(6)"/>
+  <use xlink:href="#lamp" transform="translate(636.7 44.7) rotate(-10)"/>
+  <use xlink:href="#lamp" transform="translate(690.7 38.2) rotate(8)"/>
+  <use xlink:href="#lamp" transform="translate(745.3 27.4) rotate(-15)"/>
+  <use xlink:href="#lamp" transform="translate(800.3 12.2) rotate(11)"/>
+  <path d="M828 3Q1021 70 1220 -6" stroke="#746b54" stroke-width="1.35"/>
+  <path d="M828 3Q1021 70 1220 -6" transform="translate(0 1.1)" stroke="#d8c8a3" stroke-width=".68"/>
+  <use xlink:href="#lamp" transform="translate(855.6 11.8) rotate(-15)"/>
+  <use xlink:href="#lamp" transform="translate(911.0 25.1) rotate(11)"/>
+  <use xlink:href="#lamp" transform="translate(966.6 32.6) rotate(-5)"/>
+  <use xlink:href="#lamp" transform="translate(1022.5 34.2) rotate(19)"/>
+  <use xlink:href="#lamp" transform="translate(1078.6 30.0) rotate(6)"/>
+  <use xlink:href="#lamp" transform="translate(1135.0 20.0) rotate(-10)"/>
+  <use xlink:href="#lamp" transform="translate(1191.6 4.1) rotate(8)"/>
+  <path d="M347 0q-2 6 2 5q3-1 2-5" stroke="#847351" stroke-width="1.8"/>
+  <path d="M826 0q-2 6 2 5q3-1 2-5" stroke="#847351" stroke-width="1.8"/>
+  <!-- Keepsakes tied to the two cable hooks. -->
+  <g stroke="#9b876c" stroke-width=".85"><path d="M349 5v13m479-13v18"/></g>
+  <g transform="translate(349 20)">
+    <path d="M-2-3h4v3h-4z" fill="#a58b60"/><circle cy="5" r="6" fill="#ae6764"/>
+    <path d="M-3 2q-2 2-1 4" stroke="#e4b8a6" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(828 24)">
+    <path d="M-2-2h4v3h-4z" fill="#a58b60"/><path d="M0 0q9 8 0 14Q-9 8 0 0Z" fill="#719080"/>
+    <path d="M0 3q-3 4-2 6" stroke="#d7daca" stroke-linecap="round"/>
+  </g>
+</svg>

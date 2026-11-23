@@ -1,3 +1,4 @@
+import { ACTIVE_SEASON } from "../config/season.js";
 import OctoberDecorations from "./seasonal/OctoberDecorations";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -348,7 +349,7 @@ function HomepageSpotlightCarousel({ dailyQuote, onFallbackAction }) {
         })}
       </div>
 
-      <OctoberDecorations area="hero" />
+      {ACTIVE_SEASON === "october" && <OctoberDecorations />}
 
       {hasCarouselNavigation(slides.length) ? (
         <>

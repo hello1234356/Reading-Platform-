@@ -1,0 +1,82 @@
+:root[data-season="winter"] {
+  --snow-forest: url("../assets/seasonal/winter/forest-clearing.webp");
+  --snow-cedar: url("../assets/seasonal/winter/cedar-edge.webp");
+  --lantern-light: rgb(239 184 106 / .38);
+}
+
+[data-season="winter"] body::before { content: none; }
+
+[data-season="winter"] .app-main:has(.grade-leaderboard-strip) {
+  background: var(--snow-cedar) left -170px top 46rem / 220px auto no-repeat,
+    radial-gradient(ellipse 36vw 18rem at 7% 25rem, var(--lantern-light), transparent);
+}
+
+@media (min-width: 901px) {
+  [data-season="winter"] .homepage-quote-slide::after {
+    background-image: url("../assets/seasonal/winter/lantern-books.webp"), var(--winter-gifts),
+      radial-gradient(ellipse closest-side, rgb(255 199 98 / .65), transparent);
+    background-position: left bottom, right bottom, left -3vw bottom -1vw;
+    background-size: auto 100%, auto 68%, 25% 105%;
+  }
+}
+
+/* Anchor the existing wrapped books on the search heading's baseline.
+   The input below keeps its full width. */
+[data-season="winter"] .discover-search-hero > h1.discover-search-heading {
+  --book-width: clamp(49px, 6.3vw, 84px);
+  padding-inline: calc(var(--book-width) + 14px) 0;
+  background: var(--winter-gifts) left bottom / var(--book-width) auto no-repeat;
+}
+
+[data-season="winter"] .discover-page {
+  background: var(--snow-cedar) right -75px top 26% / 170px auto no-repeat,
+    radial-gradient(ellipse 60% 14rem at 72% 18%, rgb(226 205 167 / .31), transparent);
+}
+
+[data-season="winter"] .themed-lists-section > .section-heading {
+  background: var(--snow-cedar) right center / clamp(32px, 9vw, 90px) auto no-repeat;
+}
+
+/* The clearing sits behind the reader. The lower paper wash gives the
+   empty-state message its own quiet area, including when the text wraps. */
+[data-season="winter"] .app-shell:has(.club-toolbar) {
+  background: var(--snow-cedar) left -75px top 37% / clamp(125px, 18vw, 290px) auto no-repeat,
+    radial-gradient(ellipse at 55% 46%, rgb(243 213 165 / .32), transparent 52%);
+}
+
+[data-season="winter"] .club-grid > .club-empty-state {
+  background: var(--winter-grain), radial-gradient(ellipse at 50% 40%, #f4e5d3, var(--winter-paper) 78%);
+  box-shadow: var(--pillow-shadow);
+}
+
+[data-season="winter"] .club-grid > .club-empty-state::before {
+  mask-image: linear-gradient(transparent, black 12%, black 88%, transparent);
+  margin-inline: calc(-1 * clamp(24px, 5vw, 56px));
+  background: url("../assets/seasonal/winter/circle-reader.webp") center 87% / auto 73% no-repeat,
+    var(--snow-forest) center 70% / 100% auto no-repeat;
+}
+
+[data-season="winter"] .profile-clubs {
+  background: linear-gradient(90deg, var(--winter-paper), transparent 75%);
+}
+
+[data-season="winter"] .literary-calendar {
+  background: var(--winter-grain), radial-gradient(ellipse at 104% 68%,
+    var(--lantern-light), transparent 36%), var(--winter-card);
+}
+
+@media (min-width: 1000px) {
+  [data-season="winter"] .literary-calendar::after {
+    align-self: center;
+    aspect-ratio: 2 / 3;
+    background: var(--winter-window) center 69% / 91% auto no-repeat,
+      var(--snow-cedar) right -24px top / 75% auto no-repeat,
+      radial-gradient(ellipse closest-side, var(--lantern-light), transparent);
+  }
+}
+
+@media (max-width: 700px) {
+  [data-season="winter"] .profile-clubs {
+    background: linear-gradient(90deg, var(--winter-paper) 20%, rgb(255 253 249 / .8) 72%, transparent);
+  }
+}
